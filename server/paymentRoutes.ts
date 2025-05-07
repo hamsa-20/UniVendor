@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { Decimal } from "decimal.js";
 import {
@@ -7,6 +7,14 @@ import {
   insertTransactionSchema
 } from "@shared/schema";
 import { storage } from "./storage";
+
+// Define custom Request type with user property
+interface AuthRequest extends Request {
+  user?: any;
+  isAuthenticated(): boolean;
+  login(user: any, callback: (err: any) => void): void;
+  logout(callback: (err: any) => void): void;
+}
 
 // Zod schema for payment method creation
 const createPaymentMethodSchema = insertPaymentMethodSchema.extend({
@@ -36,7 +44,7 @@ const processRefundSchema = z.object({
 
 export function registerPaymentRoutes(router: Router) {
   // Middleware to check authentication
-  const requireAuth = (req: any, res: any, next: any) => {
+  const requireAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -44,7 +52,7 @@ export function registerPaymentRoutes(router: Router) {
   };
 
   // Middleware to check vendor ownership
-  const requireVendorOwnership = async (req: any, res: any, next: any) => {
+  const requireVendorOwnership = async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -72,7 +80,7 @@ export function registerPaymentRoutes(router: Router) {
   };
 
   // Get commission settings for platform
-  router.get("/api/payments/commission-settings", requireAuth, async (req, res) => {
+  router.get("/api/payments/commission-settings", requireAuth, async (req: AuthRequest, res: Response) => {
     try {
       // In a real implementation, this would be stored in the database
       // For simplicity, we'll return fixed values
