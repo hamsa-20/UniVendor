@@ -1,54 +1,33 @@
 import nodemailer from 'nodemailer';
+import { type SentMessageInfo } from 'nodemailer';
 
-// Configure email transporter
-const isDevelopment = process.env.NODE_ENV !== 'production';
-
-// Create a test account for development
-const createTestAccount = async () => {
-  try {
-    const testAccount = await nodemailer.createTestAccount();
-    return {
-      host: 'smtp.ethereal.email',
-      port: 587,
-      secure: false,
-      auth: {
-        user: testAccount.user,
-        pass: testAccount.pass,
-      },
-    };
-  } catch (error) {
-    console.error('Failed to create test email account:', error);
-    return null;
-  }
-};
+// Check for required email environment variables
+if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+  console.warn('Email credentials not set. Email functionality will be limited or disabled.');
+}
 
 // Create email transporter
 const createTransporter = async () => {
-  // If in development, use Ethereal for testing
-  if (isDevelopment) {
-    const testConfig = await createTestAccount();
-    if (testConfig) {
-      return nodemailer.createTransport(testConfig);
-    }
-  }
-
-  // For production, use actual SMTP settings
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  // Use Hostinger SMTP credentials from environment variables
+  if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+    console.log(`Creating email transporter with host: ${process.env.EMAIL_HOST}, user: ${process.env.EMAIL_USER}`);
+    
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      host: process.env.EMAIL_HOST,
+      port: parseInt(process.env.EMAIL_PORT || '465'),
+      secure: true, // Use SSL
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
       },
     });
   }
 
-  // Fallback to console output for development if no email config
+  // Fallback to console output if no email config
+  console.warn('No email credentials found. Using console transport instead.');
   return {
     sendMail: async (mailOptions: any) => {
-      console.log('Email sending disabled, would have sent:');
+      console.log('⚠️ Email credentials not configured. Email would have been sent:');
       console.log('To:', mailOptions.to);
       console.log('Subject:', mailOptions.subject);
       console.log('Text:', mailOptions.text);
@@ -56,7 +35,7 @@ const createTransporter = async () => {
       return {
         messageId: 'test-message-id',
         previewURL: null,
-      };
+      } as SentMessageInfo;
     },
   };
 };
@@ -84,7 +63,7 @@ export const sendOtpEmail = async (to: string, otp: string) => {
     const appName = process.env.VITE_APP_NAME || 'MultiVend';
     
     const mailOptions = {
-      from: `"${appName}" <no-reply@multivend.app>`,
+      from: process.env.EMAIL_USER || `"${appName}" <no-reply@multivend.app>`,
       to,
       subject: `Your ${appName} Verification Code`,
       text: `Your verification code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.`,
@@ -112,10 +91,16 @@ export const sendOtpEmail = async (to: string, otp: string) => {
 
     const info = await transporter.sendMail(mailOptions);
     
+    // Only attempt to get test message URL for Ethereal (testing) email
+    const isEtherealEmail = typeof info === 'object' && 
+                           info.envelope && 
+                           info.envelope.from && 
+                           info.envelope.from.includes('ethereal.email');
+    
     return { 
       success: true, 
       messageId: info.messageId,
-      previewUrl: nodemailer.getTestMessageUrl(info) || undefined
+      previewUrl: isEtherealEmail ? nodemailer.getTestMessageUrl(info) : undefined
     };
   } catch (error) {
     console.error('Failed to send email:', error);
