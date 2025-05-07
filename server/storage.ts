@@ -634,7 +634,7 @@ export class MemStorage implements IStorage {
 }
 
 import { db } from './db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, gt, desc } from 'drizzle-orm';
 import connectPg from 'connect-pg-simple';
 import { pool } from './db';
 
@@ -680,17 +680,24 @@ export class DatabaseStorage implements IStorage {
   async createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode> {
     const [otpCode] = await db
       .insert(otpCodes)
-      .values({ email, code, expiresAt, used: false })
+      .values({ email, code, expiresAt, isUsed: false })
       .returning();
     return otpCode;
   }
 
   async getLatestOtp(email: string): Promise<OtpCode | undefined> {
+    const now = new Date();
     const [latestOtp] = await db
       .select()
       .from(otpCodes)
-      .where(eq(otpCodes.email, email))
-      .orderBy(otpCodes.createdAt, 'desc')
+      .where(
+        and(
+          eq(otpCodes.email, email),
+          eq(otpCodes.isUsed, false),
+          gt(otpCodes.expiresAt, now)
+        )
+      )
+      .orderBy(desc(otpCodes.createdAt))
       .limit(1);
     return latestOtp;
   }
@@ -698,7 +705,7 @@ export class DatabaseStorage implements IStorage {
   async markOtpAsUsed(id: number): Promise<OtpCode | undefined> {
     const [updatedOtp] = await db
       .update(otpCodes)
-      .set({ used: true })
+      .set({ isUsed: true })
       .where(eq(otpCodes.id, id))
       .returning();
     return updatedOtp;
