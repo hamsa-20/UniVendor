@@ -23,6 +23,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ThemeSelector from './ThemeSelector';
+import ColorPalette from './ColorPalette';
+import FontSelector from './FontSelector';
+import ThemePreview from './ThemePreview';
 import { Separator } from '@/components/ui/separator';
 
 // Validation schema for store design form
@@ -32,6 +35,20 @@ const storeDesignFormSchema = z.object({
   logoUrl: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
   companyName: z.string().min(2, 'Company name must be at least 2 characters'),
   description: z.string().optional(),
+  colorPalette: z.string().default('default'),
+  fontSettings: z.object({
+    headingFont: z.string().default('inter'),
+    bodyFont: z.string().default('inter'),
+    fontSize: z.number().min(12).max(20).default(16),
+    useCustomFonts: z.boolean().default(false),
+    customHeadingFont: z.string().optional(),
+    customBodyFont: z.string().optional(),
+  }).optional().default({
+    headingFont: 'inter',
+    bodyFont: 'inter',
+    fontSize: 16,
+    useCustomFonts: false,
+  }),
 });
 
 type StoreDesignFormValues = z.infer<typeof storeDesignFormSchema>;
@@ -60,6 +77,13 @@ const StoreDesignForm = () => {
       logoUrl: '',
       companyName: '',
       description: '',
+      colorPalette: 'default',
+      fontSettings: {
+        headingFont: 'inter',
+        bodyFont: 'inter',
+        fontSize: 16,
+        useCustomFonts: false
+      },
     },
   });
 
@@ -72,6 +96,13 @@ const StoreDesignForm = () => {
         logoUrl: vendor.logoUrl || '',
         companyName: vendor.companyName,
         description: vendor.description || '',
+        colorPalette: vendor.colorPalette || 'default',
+        fontSettings: vendor.fontSettings || {
+          headingFont: 'inter',
+          bodyFont: 'inter',
+          fontSize: 16,
+          useCustomFonts: false,
+        },
       });
     }
   }, [vendor, form]);
@@ -87,6 +118,8 @@ const StoreDesignForm = () => {
         logoUrl: data.logoUrl,
         companyName: data.companyName,
         description: data.description,
+        colorPalette: data.colorPalette,
+        fontSettings: data.fontSettings,
       });
     },
     onSuccess: () => {
@@ -139,24 +172,68 @@ const StoreDesignForm = () => {
 
               <div className="mt-6">
                 {/* Theme Tab */}
-                <TabsContent value="theme" className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="storeTheme"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Store Theme</FormLabel>
-                        <ThemeSelector 
-                          value={field.value} 
-                          onChange={field.onChange} 
-                        />
-                        <FormDescription>
-                          Choose a theme for your store's frontend appearance
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <TabsContent value="theme" className="space-y-8">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="storeTheme"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Store Theme</FormLabel>
+                            <ThemeSelector 
+                              value={field.value} 
+                              onChange={field.onChange} 
+                            />
+                            <FormDescription>
+                              Choose a theme for your store's frontend appearance
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="colorPalette"
+                        render={({ field }) => (
+                          <FormItem>
+                            <ColorPalette
+                              value={field.value}
+                              onChange={(value, colors) => {
+                                field.onChange(value);
+                                // Additional logic if needed with colors
+                              }}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="fontSettings"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FontSelector
+                              value={field.value}
+                              onChange={(fontSettings) => {
+                                field.onChange(fontSettings);
+                              }}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div>
+                      <ThemePreview 
+                        themeName={form.watch('storeTheme')} 
+                        vendorId={vendorId} 
+                      />
+                    </div>
+                  </div>
 
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setActiveTab('branding')}>
