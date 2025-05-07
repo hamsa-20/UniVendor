@@ -502,6 +502,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Domain verification endpoints
+  app.post("/api/domains/:id/generate-token", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const domain = await storage.getDomain(id);
+      
+      if (!domain) {
+        return res.status(404).json({ message: "Domain not found" });
+      }
+      
+      const updatedDomain = await storage.generateVerificationToken(id);
+      
+      return res.status(200).json(updatedDomain);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   app.post("/api/domains/:id/verify", async (req, res) => {
     try {
       const id = parseInt(req.params.id);

@@ -23,7 +23,7 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import DomainVerification from '@/components/domains/DomainVerification';
+import { DomainVerification } from '@/components/domains/DomainVerification';
 
 const DomainDetailPage = () => {
   const [, setLocation] = useLocation();
@@ -283,13 +283,13 @@ const DomainDetailPage = () => {
           </div>
 
           {isCustomDomain && (
-            <DomainVerification domainId={domainId} />
+            <DomainVerification domain={domain} />
           )}
         </TabsContent>
         
         {isCustomDomain && (
           <TabsContent value="verification">
-            <DomainVerification domainId={domainId} />
+            <DomainVerification domain={domain} />
           </TabsContent>
         )}
         

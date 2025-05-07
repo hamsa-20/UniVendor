@@ -1,343 +1,275 @@
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { Domain } from '@shared/schema';
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, AlertCircle, ExternalLink, Copy, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import {
-  Alert,
-  AlertTitle,
-  AlertDescription,
-} from '@/components/ui/alert';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { AlertCircle, CheckCircle2, Copy, ExternalLink, RefreshCw } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-type DomainVerificationProps = {
-  domainId: number;
-};
-
-type DnsRecord = {
+type DNSRecord = {
   type: string;
   name: string;
   value: string;
 };
 
-const DomainVerification = ({ domainId }: DomainVerificationProps) => {
-  const { toast } = useToast();
+interface DomainVerificationProps {
+  domain: {
+    id: number;
+    name: string;
+    type: string;
+    status: string;
+    verificationStatus: string;
+    verificationToken?: string;
+  };
+}
+
+export function DomainVerification({ domain }: DomainVerificationProps) {
+  const [showInstructions, setShowInstructions] = useState(false);
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<string>('txt');
+  const { toast } = useToast();
 
-  // Fetch domain details
-  const { data: domain, isLoading: isLoadingDomain } = useQuery({
-    queryKey: ['/api/domains', domainId],
-  });
-
-  // Fetch DNS records for the domain
-  const { data: dnsRecords, isLoading: isLoadingDnsRecords } = useQuery({
-    queryKey: ['/api/domains', domainId, 'dns-records'],
-    queryFn: async () => {
-      const res = await apiRequest('GET', `/api/domains/${domainId}/dns-records`);
-      return await res.json();
-    },
-    enabled: !!domainId && domain?.type === 'custom',
-  });
-
-  // Verify domain mutation
-  const verifyMutation = useMutation({
+  // Fetch DNS records
+  const fetchDnsRecordsMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest('POST', `/api/domains/${domainId}/verify`);
-      return await res.json();
+      const response = await apiRequest("GET", `/api/domains/${domain.id}/dns-records`);
+      return response.json();
     },
     onSuccess: () => {
+      setShowInstructions(true);
       toast({
-        title: 'Domain verification successful',
-        description: 'The domain has been verified and is now active.',
+        title: "DNS records retrieved",
+        description: "Please follow the instructions to verify your domain",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/domains', domainId] });
-      queryClient.invalidateQueries({ queryKey: ['/api/domains'] });
     },
     onError: (error) => {
       toast({
-        title: 'Verification failed',
-        description: `Unable to verify domain: ${error.message}`,
-        variant: 'destructive',
+        title: "Failed to retrieve DNS records",
+        description: error.message,
+        variant: "destructive",
       });
     },
   });
 
-  // Copy to clipboard helper
-  const copyToClipboard = (text: string) => {
+  // Generate verification token
+  const generateTokenMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/domains/${domain.id}/generate-token`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/domains", domain.id], data);
+      fetchDnsRecordsMutation.mutate();
+      toast({
+        title: "Verification token generated",
+        description: "A new verification token has been generated for your domain",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to generate verification token",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Verify domain
+  const verifyDomainMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/domains/${domain.id}/verify`);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["/api/domains", domain.id], data);
+      toast({
+        title: "Domain verified successfully",
+        description: "Your domain has been verified and is now active",
+      });
+      setShowInstructions(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Verification failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handle copy to clipboard
+  const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
-      title: 'Copied to clipboard',
-      description: 'The value has been copied to your clipboard.',
+      title: "Copied to clipboard",
+      description: "The value has been copied to your clipboard",
     });
   };
 
-  // If the domain is not a custom domain, show an error
-  if (domain && domain.type !== 'custom') {
+  // Render verification status badge
+  const renderStatusBadge = () => {
+    switch (domain.verificationStatus) {
+      case "verified":
+        return <Badge className="bg-green-500 hover:bg-green-600">Verified</Badge>;
+      case "pending":
+        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending Verification</Badge>;
+      case "failed":
+        return <Badge className="bg-red-500 hover:bg-red-600">Verification Failed</Badge>;
+      default:
+        return <Badge className="bg-gray-500 hover:bg-gray-600">Not Verified</Badge>;
+    }
+  };
+
+  // If it's a subdomain, no verification needed
+  if (domain.type === "subdomain") {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Domain Verification</CardTitle>
-          <CardDescription>Verify ownership of your custom domain</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Alert variant="warning">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Not applicable</AlertTitle>
-            <AlertDescription>
-              Verification is only required for custom domains. This is a subdomain which is automatically configured.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Domain Verification</h3>
+        <Alert>
+          <AlertTitle>No verification needed</AlertTitle>
+          <AlertDescription>
+            Subdomains are automatically verified and do not require DNS configuration.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
-
-  // If loading
-  if (isLoadingDomain || isLoadingDnsRecords) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Domain Verification</CardTitle>
-          <CardDescription>Loading verification details...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="py-6 flex items-center justify-center">
-            <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Filter DNS records by type
-  const txtRecords = dnsRecords?.filter((record: DnsRecord) => record.type === 'TXT') || [];
-  const cnameRecords = dnsRecords?.filter((record: DnsRecord) => record.type === 'CNAME') || [];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Domain Verification</CardTitle>
-        <CardDescription>
-          Verify ownership of your domain by adding these DNS records
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {/* Status information */}
-        <div className="mb-6 space-y-4">
-          <div className="flex items-center space-x-2">
-            <strong className="text-sm">Domain:</strong>
-            <span className="text-sm">{domain?.name}</span>
-            <Badge variant={domain?.status === 'active' ? 'success' : 'warning'}>
-              {domain?.status === 'active' ? 'Active' : 'Pending'}
-            </Badge>
-          </div>
-          <div className="flex items-center space-x-2">
-            <strong className="text-sm">Verification Status:</strong>
-            <span className="text-sm">
-              {domain?.verificationStatus === 'verified' ? (
-                <span className="flex items-center text-green-500">
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> Verified
-                </span>
-              ) : (
-                <span className="flex items-center text-amber-500">
-                  <AlertCircle className="mr-1 h-4 w-4" /> Pending
-                </span>
-              )}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <strong className="text-sm">SSL Status:</strong>
-            <span className="text-sm">
-              {domain?.sslStatus === 'valid' ? (
-                <span className="flex items-center text-green-500">
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> Valid
-                </span>
-              ) : (
-                <span className="flex items-center text-amber-500">
-                  <AlertCircle className="mr-1 h-4 w-4" /> {domain?.sslStatus}
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-row justify-between items-center">
+        <h3 className="text-lg font-medium">Domain Verification</h3>
+        {renderStatusBadge()}
+      </div>
 
-        <Separator className="my-4" />
-
-        {/* Verification status alert */}
-        {domain?.verificationStatus === 'verified' ? (
-          <Alert className="mb-6" variant="success">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Domain Verified</AlertTitle>
-            <AlertDescription>
-              Your domain has been successfully verified and is now active.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert className="mb-6">
-            <AlertCircle className="h-4 w-4" />
+      {domain.verificationStatus === "verified" ? (
+        <Alert className="bg-green-50 border-green-200">
+          <Check className="h-4 w-4 text-green-500" />
+          <AlertTitle>Domain Verified</AlertTitle>
+          <AlertDescription>
+            Your domain has been successfully verified and is active.
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <>
+          <Alert className="bg-yellow-50 border-yellow-200">
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
             <AlertTitle>Verification Required</AlertTitle>
             <AlertDescription>
-              Please add the following DNS records to your domain to verify ownership. 
-              This process may take up to 24 hours to complete after you add the records.
+              Your domain needs to be verified before it can be used. Please follow the instructions below.
             </AlertDescription>
           </Alert>
-        )}
 
-        {/* DNS Records Tabs */}
-        <Tabs defaultValue="txt" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4">
-            <TabsTrigger value="txt">TXT Record (Verification)</TabsTrigger>
-            <TabsTrigger value="cname">CNAME Records (Routing)</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="txt">
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Record Type</TableHead>
-                    <TableHead>Name / Host</TableHead>
-                    <TableHead>Value / Target</TableHead>
-                    <TableHead className="w-[100px]">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {txtRecords.length > 0 ? (
-                    txtRecords.map((record: DnsRecord, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{record.type}</TableCell>
-                        <TableCell>{record.name}</TableCell>
-                        <TableCell className="font-mono text-xs">{record.value}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => copyToClipboard(record.value)}
-                          >
-                            <Copy className="h-4 w-4" />
-                            <span className="sr-only">Copy</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+          <div className="flex space-x-2">
+            <Button 
+              onClick={() => generateTokenMutation.mutate()} 
+              disabled={generateTokenMutation.isPending || fetchDnsRecordsMutation.isPending}
+            >
+              {generateTokenMutation.isPending ? "Generating..." : "Generate Verification Token"}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => verifyDomainMutation.mutate()} 
+              disabled={verifyDomainMutation.isPending || !domain.verificationToken}
+            >
+              {verifyDomainMutation.isPending ? "Verifying..." : "Verify Domain"}
+            </Button>
+          </div>
+
+          {showInstructions && fetchDnsRecordsMutation.data && (
+            <Card className="p-4 space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">DNS Configuration Instructions</h4>
+                <p className="text-sm text-gray-500 mb-4">
+                  Add the following DNS records to your domain registrar. Once added, click "Verify Domain" to confirm.
+                </p>
+                
+                <div className="space-y-4">
+                  {fetchDnsRecordsMutation.data.map((record: DNSRecord, index: number) => (
+                    <div key={index} className="border rounded-md p-3 bg-gray-50">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-medium">{record.type} Record</span>
+                        <Badge variant="outline">{record.type}</Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <span className="text-gray-500">Name/Host:</span>
+                          <div className="flex items-center mt-1">
+                            <pre className="bg-white p-1 border rounded-md flex-1 text-xs overflow-x-auto">
+                              {record.name}
+                            </pre>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleCopy(record.name)} 
+                              className="ml-2"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <span className="text-gray-500">Value/Points to:</span>
+                          <div className="flex items-center mt-1">
+                            <pre className="bg-white p-1 border rounded-md flex-1 text-xs overflow-x-auto">
+                              {record.value}
+                            </pre>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleCopy(record.value)} 
+                              className="ml-2"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center bg-blue-50 p-3 rounded-md border border-blue-100">
+                <div>
+                  <p className="text-sm font-medium">Need help with DNS configuration?</p>
+                  <p className="text-xs text-gray-500">
+                    Check your domain registrar's documentation for instructions on how to add DNS records.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <ExternalLink className="h-3 w-3" />
+                  <span className="text-xs">Help Guide</span>
+                </Button>
+              </div>
+              
+              <div className="flex justify-end">
+                <Button 
+                  variant="default" 
+                  onClick={() => verifyDomainMutation.mutate()} 
+                  disabled={verifyDomainMutation.isPending}
+                  className="gap-2"
+                >
+                  {verifyDomainMutation.isPending ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Verifying...
+                    </>
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                        No TXT records available
-                      </TableCell>
-                    </TableRow>
+                    <>
+                      <Check className="h-4 w-4" />
+                      Verify Domain
+                    </>
                   )}
-                </TableBody>
-              </Table>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              The TXT record is used to verify that you own the domain.
-            </p>
-          </TabsContent>
-          
-          <TabsContent value="cname">
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Record Type</TableHead>
-                    <TableHead>Name / Host</TableHead>
-                    <TableHead>Value / Target</TableHead>
-                    <TableHead className="w-[100px]">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cnameRecords.length > 0 ? (
-                    cnameRecords.map((record: DnsRecord, index: number) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{record.type}</TableCell>
-                        <TableCell>{record.name.replace(`www.`, '@')}</TableCell>
-                        <TableCell>{record.value}</TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => copyToClipboard(record.value)}
-                          >
-                            <Copy className="h-4 w-4" />
-                            <span className="sr-only">Copy</span>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
-                        No CNAME records available
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              CNAME records route traffic from your domain to our server.
-            </p>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={() => {
-            queryClient.invalidateQueries({ queryKey: ['/api/domains', domainId, 'dns-records'] });
-            queryClient.invalidateQueries({ queryKey: ['/api/domains', domainId] });
-          }}
-        >
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh Status
-        </Button>
-        
-        <div className="flex space-x-2">
-          <Button 
-            variant="secondary"
-            onClick={() => window.open(`https://www.whatsmydns.net/#TXT/${domain?.name}`, '_blank')}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Check DNS Propagation
-          </Button>
-          <Button
-            onClick={() => verifyMutation.mutate()}
-            disabled={verifyMutation.isPending || domain?.verificationStatus === 'verified'}
-          >
-            {verifyMutation.isPending ? (
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-            )}
-            Verify Domain
-          </Button>
-        </div>
-      </CardFooter>
-    </Card>
+                </Button>
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
   );
-};
-
-export default DomainVerification;
+}

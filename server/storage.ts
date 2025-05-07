@@ -443,6 +443,21 @@ export class MemStorage implements IStorage {
     return domain;
   }
   
+  async generateVerificationToken(id: number): Promise<Domain | undefined> {
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    // Generate a random verification token
+    const token = `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+    
+    domain.verificationToken = token;
+    domain.verificationStatus = "pending";
+    domain.lastCheckedAt = new Date();
+    
+    this.domains.set(id, domain);
+    return domain;
+  }
+  
   async checkDomainsSSL(): Promise<void> {
     // In a real implementation, this would check SSL certificates
     // For this prototype, we'll simulate SSL status updates for active domains
