@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -23,67 +23,21 @@ import PrivateRoute from "@/components/PrivateRoute";
 function Router() {
   return (
     <Switch>
+      {/* Simple test route to verify routing is working */}
+      <Route path="/">
+        <div className="p-8">
+          <h1 className="text-2xl font-bold mb-4">Hello World - Test Page</h1>
+          <p className="mb-4">This is a test to verify the application is rendering correctly.</p>
+          <div className="space-x-4">
+            <Link href="/login" className="text-blue-500 hover:underline">Login</Link>
+            <Link href="/register" className="text-blue-500 hover:underline">Register</Link>
+          </div>
+        </div>
+      </Route>
+      
       {/* Auth Routes */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
-      
-      {/* Super Admin Routes */}
-      <Route path="/">
-        <PrivateRoute roles={["super_admin"]}>
-          <SuperAdminDashboard />
-        </PrivateRoute>
-      </Route>
-      <Route path="/vendors">
-        <PrivateRoute roles={["super_admin"]}>
-          <VendorsPage />
-        </PrivateRoute>
-      </Route>
-      <Route path="/vendors/:id">
-        {params => (
-          <PrivateRoute roles={["super_admin"]}>
-            <VendorDetails id={params.id} />
-          </PrivateRoute>
-        )}
-      </Route>
-      <Route path="/domains">
-        <PrivateRoute roles={["super_admin"]}>
-          <DomainsPage />
-        </PrivateRoute>
-      </Route>
-      <Route path="/subscriptions">
-        <PrivateRoute roles={["super_admin"]}>
-          <SubscriptionsPage />
-        </PrivateRoute>
-      </Route>
-      
-      {/* Vendor Routes */}
-      <Route path="/dashboard">
-        <PrivateRoute roles={["vendor"]}>
-          <VendorDashboard />
-        </PrivateRoute>
-      </Route>
-      <Route path="/products">
-        <PrivateRoute roles={["vendor"]}>
-          <ProductsPage />
-        </PrivateRoute>
-      </Route>
-      <Route path="/products/:id">
-        {params => (
-          <PrivateRoute roles={["vendor"]}>
-            <ProductDetails id={params.id} />
-          </PrivateRoute>
-        )}
-      </Route>
-      <Route path="/orders">
-        <PrivateRoute roles={["vendor"]}>
-          <OrdersPage />
-        </PrivateRoute>
-      </Route>
-      <Route path="/store-design">
-        <PrivateRoute roles={["vendor"]}>
-          <StoreDesignPage />
-        </PrivateRoute>
-      </Route>
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
