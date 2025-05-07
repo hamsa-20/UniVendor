@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import {
   Eye,
   Edit,
@@ -302,14 +303,15 @@ const DomainTable = ({ vendorId, onAddDomain, onEditDomain, onDeleteDomain }: Do
                         </td>
                         <td className="p-4 align-middle text-right">
                           <div className="flex justify-end space-x-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={() => window.location.href = `/domains/${domain.id}`}
-                            >
-                              <Eye className="h-4 w-4" />
-                              <span className="sr-only">View</span>
-                            </Button>
+                            <Link href={`/domains/${domain.id}`}>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                              >
+                                <Eye className="h-4 w-4" />
+                                <span className="sr-only">View</span>
+                              </Button>
+                            </Link>
                             <Button 
                               variant="ghost" 
                               size="icon"

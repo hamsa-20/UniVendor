@@ -467,6 +467,12 @@ function Router() {
           <DomainsPage />
         </PrivateRoute>
       </Route>
+      
+      <Route path="/domains/:id">
+        <PrivateRoute roles={["super_admin"]}>
+          <DomainDetailPage />
+        </PrivateRoute>
+      </Route>
       <Route path="/subscriptions">
         <PrivateRoute roles={["super_admin"]}>
           <SubscriptionsPage />
