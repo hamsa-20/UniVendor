@@ -19,6 +19,7 @@ import AnalyticsPage from "@/pages/analytics/AnalyticsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import ProductDetails from "./pages/products/ProductDetails";
+import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import PrivateRoute from "@/components/PrivateRoute";
@@ -498,6 +499,11 @@ function Router() {
       <Route path="/products">
         <PrivateRoute roles={["vendor"]}>
           <ProductsPage />
+        </PrivateRoute>
+      </Route>
+      <Route path="/product-categories">
+        <PrivateRoute roles={["vendor"]}>
+          <ProductCategoriesPage />
         </PrivateRoute>
       </Route>
       <Route path="/products/:id">
