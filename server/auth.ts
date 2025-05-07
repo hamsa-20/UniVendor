@@ -18,6 +18,8 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store: storage.sessionStore,
+    rolling: true, // Refresh cookie expiration on activity
+    name: 'multivend.sid', // Give a specific name to our session cookie
     cookie: {
       secure: process.env.NODE_ENV === "production",
       maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days for longer sessions
@@ -39,6 +41,7 @@ export function setupAuth(app: Express) {
     req.login = (user: User, done: (err: any) => void) => {
       // Store user in session
       req.session.user = user;
+      req.session.lastAccess = new Date();
       
       // Save explicitly to ensure cookie is sent back
       req.session.save((err) => {
@@ -59,15 +62,23 @@ export function setupAuth(app: Express) {
     next();
   });
 
-  // Establish isAuthenticated method on Request
+  // Establish isAuthenticated method on Request with better logging
   app.use((req: Request, res: Response, next: NextFunction) => {
+    // Log request path and session info for debugging (in development only)
+    if (process.env.NODE_ENV === 'development' && req.path.startsWith('/api/auth')) {
+      console.log(`Auth request to ${req.path}, session exists: ${!!req.session.user}, session ID: ${req.sessionID}`);
+    }
+    
     req.isAuthenticated = () => {
-      return req.session.user != null;
+      const isAuth = req.session.user != null;
+      return isAuth;
     };
     
     // Provide user object if authenticated
     if (req.session.user) {
       req.user = req.session.user;
+      // Update last access time
+      req.session.lastAccess = new Date();
     }
     
     next();
@@ -172,15 +183,26 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Check session status
+  // Check session status with improved logging
   app.get("/api/auth/session", (req, res) => {
+    // Debug logs for development
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Session check - Session ID: ${req.sessionID}`);
+      console.log(`Session data:`, req.session);
+      console.log(`Is authenticated: ${req.isAuthenticated()}`);
+    }
+    
     if (req.isAuthenticated()) {
       // Ensure the session is kept alive by touching it
       req.session.touch();
+      // Update last access time
+      req.session.lastAccess = new Date();
+      
       // Save the session to ensure cookie expiry is updated
       req.session.save((err) => {
         if (err) {
           console.error("Session save error:", err);
+          return res.status(500).json({ message: "Failed to save session" });
         }
         return res.status(200).json(req.user);
       });

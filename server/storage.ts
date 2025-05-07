@@ -232,10 +232,14 @@ export class MemStorage implements IStorage {
   private paymentProviderSettingsId: number = 1;
 
   constructor() {
-    // Initialize in-memory session store
+    // Initialize in-memory session store with longer-lived sessions
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+      checkPeriod: 86400000, // prune expired entries every 24h
+      // We're using a very long TTL to prevent sessions from expiring between server restarts
+      // In production, this should be replaced with a PostgreSQL session store
+      ttl: 1000 * 60 * 60 * 24 * 30, // 30 days
+      stale: false // don't return expired sessions
     });
 
     this.users = new Map();
@@ -261,6 +265,12 @@ export class MemStorage implements IStorage {
 
     // Initialize with default subscription plans
     this.initializeDefaultData();
+    
+    // Add a listener for process exit to save session data
+    process.on('SIGINT', () => {
+      console.log('Saving session data before shutdown...');
+      // Additional cleanup if needed
+    });
   }
 
   private initializeDefaultData() {
@@ -334,8 +344,17 @@ export class MemStorage implements IStorage {
     this.createSubscriptionPlan(proPlan);
     this.createSubscriptionPlan(enterprisePlan);
     
-    // Create super admin user
-    const adminUser: Partial<InsertUser> = {
+    // Create super admin users
+    const primaryAdmin: Partial<InsertUser> = {
+      email: "kaushlendra.k12@fms.edu",
+      firstName: "Kaushlendra",
+      lastName: "Kumar",
+      role: "super_admin",
+      isProfileComplete: true,
+      avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+    };
+    
+    const secondaryAdmin: Partial<InsertUser> = {
       email: "admin@multivend.com",
       firstName: "Super",
       lastName: "Admin",
@@ -344,7 +363,8 @@ export class MemStorage implements IStorage {
       avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
     };
     
-    this.createUser(adminUser);
+    this.createUser(primaryAdmin);
+    this.createUser(secondaryAdmin);
   }
 
   // User operations

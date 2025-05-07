@@ -29,29 +29,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     isLoading,
     error,
+    refetch: refetchSession
   } = useQuery<User | null, Error>({
     queryKey: ['/api/auth/session'],
     queryFn: async () => {
       try {
-        const res = await apiRequest('GET', '/api/auth/session');
+        console.log("Fetching session data...");
+        const res = await fetch('/api/auth/session', {
+          method: 'GET',
+          credentials: 'include', // Essential for cookies to be sent
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        
+        console.log("Session response status:", res.status);
+        
         if (!res.ok) {
           if (res.status === 401) {
             // Not authenticated is an expected state
+            console.log("Not authenticated (401)");
             return null;
           }
-          throw new Error('Failed to fetch session');
+          const errorText = await res.text();
+          console.error("Session fetch error:", errorText);
+          throw new Error(`Failed to fetch session: ${res.status} ${errorText}`);
         }
-        return await res.json();
+        
+        const userData = await res.json();
+        console.log("Session data retrieved:", userData ? "User authenticated" : "No user data");
+        return userData;
       } catch (error) {
         console.error('Error fetching session:', error);
         return null;
       }
     },
-    retry: 1, // Retry once in case of network issues
+    retry: 2, // Retry twice in case of network issues
+    retryDelay: 1000, // Wait 1 second between retries
     refetchOnMount: true, // Refetch when component mounts
     refetchOnReconnect: true, // Refetch when browser reconnects
     refetchOnWindowFocus: true, // Refetch when window gains focus
-    staleTime: 1000 * 60 * 30, // Consider data fresh for 30 minutes
+    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
     gcTime: 1000 * 60 * 60 * 24, // Cache data for 24 hours (formerly cacheTime)
   });
 
