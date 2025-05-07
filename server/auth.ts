@@ -28,6 +28,15 @@ export function setupAuth(app: Express) {
       path: "/"
     }
   };
+  
+  // Log session configuration for debugging
+  console.log('Setting up auth with session store type:', 
+    storage.sessionStore.constructor?.name || 'Unknown store');
+  console.log('Cookie settings:', {
+    secure: sessionSettings.cookie?.secure,
+    maxAge: sessionSettings.cookie?.maxAge,
+    sameSite: sessionSettings.cookie?.sameSite
+  });
 
   // Trust first proxy for secure cookies if in production
   if (process.env.NODE_ENV === 'production') {

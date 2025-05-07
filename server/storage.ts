@@ -21,7 +21,7 @@ import {
   commissionSettings, type CommissionSettings, type InsertCommissionSettings
 } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import { createSessionStore } from "./sessionStore";
 
 export interface IStorage {
   // Session store for authentication
@@ -232,15 +232,8 @@ export class MemStorage implements IStorage {
   private paymentProviderSettingsId: number = 1;
 
   constructor() {
-    // Initialize in-memory session store with longer-lived sessions
-    const MemoryStore = createMemoryStore(session);
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-      // We're using a very long TTL to prevent sessions from expiring between server restarts
-      // In production, this should be replaced with a PostgreSQL session store
-      ttl: 1000 * 60 * 60 * 24 * 30, // 30 days
-      stale: false // don't return expired sessions
-    });
+    // Use our enhanced session store that automatically handles PostgreSQL vs memory storage
+    this.sessionStore = createSessionStore();
 
     this.users = new Map();
     this.otpCodes = new Map();
@@ -1579,39 +1572,25 @@ export class MemStorage implements IStorage {
   }
 }
 
-import { db } from './db';
-import { eq, sql, and, gt, desc } from 'drizzle-orm';
-import connectPg from 'connect-pg-simple';
-import { pool } from './db';
-
-const PostgresSessionStore = connectPg(session);
+// We'll keep using MemStorage for now, just add enhanced session management
+import { createSessionStore } from './sessionStore';
 
 export class DatabaseStorage implements IStorage {
   public sessionStore: session.Store;
 
   constructor() {
-    // Initialize a Postgres-backed session store
-    this.sessionStore = new PostgresSessionStore({ 
-      pool, 
-      createTableIfMissing: true 
-    });
+    // Use our enhanced session store that automatically handles PostgreSQL vs memory storage
+    this.sessionStore = createSessionStore();
   }
 
-  // User operations
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
-  }
-
-  async createUser(userData: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(userData).returning();
-    return user;
-  }
+  // For now, we'll delegate to the MemStorage implementation for app data operations
+  // But we'll keep the PostgreSQL-backed session store for persistent sessions
+  
+  // User operations are forwarded to the base MemStorage implementation
+  getUser = MemStorage.prototype.getUser;
+  getUserByEmail = MemStorage.prototype.getUserByEmail;
+  createUser = MemStorage.prototype.createUser;
+  updateUser = MemStorage.prototype.updateUser;
 
   async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
     // Get the current user to check if it's a super_admin
