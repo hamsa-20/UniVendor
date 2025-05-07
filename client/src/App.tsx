@@ -13,6 +13,7 @@ import VendorDashboard from "@/pages/dashboard/VendorDashboard";
 import VendorsPage from "@/pages/vendors/VendorsPage";
 import VendorDetails from "@/pages/vendors/VendorDetails";
 import DomainsPage from "@/pages/domains/DomainsPage";
+import DomainDetailPage from "@/pages/domains/DomainDetailPage";
 import SubscriptionsPage from "@/pages/subscriptions/SubscriptionsPage";
 import AnalyticsPage from "@/pages/analytics/AnalyticsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";

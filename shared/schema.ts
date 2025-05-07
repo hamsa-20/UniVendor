@@ -87,6 +87,10 @@ export const domains = pgTable("domains", {
   sslStatus: text("ssl_status").default("pending"), // "pending", "valid", "invalid"
   isPrimary: boolean("is_primary").default(false),
   verificationStatus: text("verification_status").default("pending"), // "pending", "verified", "failed"
+  verificationToken: text("verification_token"), // Token for DNS TXT record verification
+  verificationMethod: text("verification_method").default("dns_txt"), // "dns_txt", "file", "cname"
+  dnsRecords: text("dns_records").array(), // Array of DNS records needed for domain configuration
+  lastCheckedAt: timestamp("last_checked_at"), // Last time verification was checked
   createdAt: timestamp("created_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
 });

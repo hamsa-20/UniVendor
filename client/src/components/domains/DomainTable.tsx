@@ -302,7 +302,11 @@ const DomainTable = ({ vendorId, onAddDomain, onEditDomain, onDeleteDomain }: Do
                         </td>
                         <td className="p-4 align-middle text-right">
                           <div className="flex justify-end space-x-2">
-                            <Button variant="ghost" size="icon">
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => window.location.href = `/domains/${domain.id}`}
+                            >
                               <Eye className="h-4 w-4" />
                               <span className="sr-only">View</span>
                             </Button>

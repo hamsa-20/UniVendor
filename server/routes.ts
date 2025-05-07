@@ -501,6 +501,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Domain verification endpoints
+  app.post("/api/domains/:id/verify", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const domain = await storage.getDomain(id);
+      
+      if (!domain) {
+        return res.status(404).json({ message: "Domain not found" });
+      }
+      
+      // In a production environment, this would check the actual DNS records
+      // For this demo, we'll simulate verification by directly marking it as verified
+      const verifiedDomain = await storage.verifyDomain(id);
+      
+      return res.status(200).json(verifiedDomain);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.get("/api/domains/:id/dns-records", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const domain = await storage.getDomain(id);
+      
+      if (!domain) {
+        return res.status(404).json({ message: "Domain not found" });
+      }
+      
+      // If it's not a custom domain, return empty records
+      if (domain.type !== "custom") {
+        return res.status(200).json([]);
+      }
+      
+      // If we already have DNS records, return those
+      if (domain.dnsRecords && domain.dnsRecords.length > 0) {
+        return res.status(200).json(domain.dnsRecords);
+      }
+      
+      // Otherwise, generate new DNS records based on the domain
+      const verificationToken = domain.verificationToken || 
+        `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+        
+      const dnsRecords = [
+        { type: "TXT", name: `_multivend-verification.${domain.name}`, value: verificationToken },
+        { type: "CNAME", name: domain.name, value: "stores.multivend.com" },
+        { type: "CNAME", name: `www.${domain.name}`, value: "stores.multivend.com" }
+      ];
+      
+      // Update the domain with the new verification token and records
+      await storage.updateDomain(id, {
+        verificationToken,
+        dnsRecords
+      });
+      
+      return res.status(200).json(dnsRecords);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Check all domains for SSL status (scheduled task)
+  app.post("/api/domains/check-ssl", hasRole(["super_admin"]), async (req, res) => {
+    try {
+      await storage.checkDomainsSSL();
+      return res.status(200).json({ message: "SSL status check completed" });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Product endpoints
   app.get("/api/vendors/:vendorId/products", async (req, res) => {
     try {

@@ -368,12 +368,33 @@ export class MemStorage implements IStorage {
 
   async createDomain(domainData: InsertDomain): Promise<Domain> {
     const id = this.domainId++;
+    
+    // Generate a verification token if it's a custom domain
+    let verificationToken = null;
+    let dnsRecords = [];
+    
+    if (domainData.type === "custom") {
+      // Generate a random verification token for domain ownership verification
+      verificationToken = `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Create DNS record instructions based on domain name
+      const domainName = domainData.name;
+      dnsRecords = [
+        { type: "TXT", name: `_multivend-verification.${domainName}`, value: verificationToken },
+        { type: "CNAME", name: domainName, value: "stores.multivend.com" },
+        { type: "CNAME", name: `www.${domainName}`, value: "stores.multivend.com" }
+      ];
+    }
+    
     const domain: Domain = { 
       ...domainData, 
       id, 
+      verificationToken,
+      dnsRecords: dnsRecords.length > 0 ? dnsRecords : undefined,
       createdAt: new Date(),
       expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year expiration
     };
+    
     this.domains.set(id, domain);
     return domain;
   }
@@ -383,8 +404,55 @@ export class MemStorage implements IStorage {
     if (!domain) return undefined;
     
     const updatedDomain = { ...domain, ...data };
+    
+    // If changing from subdomain to custom domain, generate verification token and DNS records
+    if (domain.type !== "custom" && data.type === "custom" && !domain.verificationToken) {
+      const verificationToken = `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+      const domainName = data.name || domain.name;
+      
+      const dnsRecords = [
+        { type: "TXT", name: `_multivend-verification.${domainName}`, value: verificationToken },
+        { type: "CNAME", name: domainName, value: "stores.multivend.com" },
+        { type: "CNAME", name: `www.${domainName}`, value: "stores.multivend.com" }
+      ];
+      
+      updatedDomain.verificationToken = verificationToken;
+      updatedDomain.dnsRecords = dnsRecords;
+      updatedDomain.verificationStatus = "pending";
+    }
+    
     this.domains.set(id, updatedDomain);
     return updatedDomain;
+  }
+
+  async verifyDomain(id: number): Promise<Domain | undefined> {
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    // In a real implementation, this would check DNS records
+    // For this prototype, we'll just simulate verification
+    
+    domain.verificationStatus = "verified";
+    domain.status = "active";
+    domain.lastCheckedAt = new Date();
+    
+    this.domains.set(id, domain);
+    return domain;
+  }
+  
+  async checkDomainsSSL(): Promise<void> {
+    // In a real implementation, this would check SSL certificates
+    // For this prototype, we'll simulate SSL status updates for active domains
+    
+    const domains = await this.getDomains();
+    
+    for (const domain of domains) {
+      if (domain.status === "active" && domain.verificationStatus === "verified") {
+        domain.sslStatus = "valid";
+        domain.lastCheckedAt = new Date();
+        this.domains.set(domain.id, domain);
+      }
+    }
   }
 
   async deleteDomain(id: number): Promise<boolean> {
