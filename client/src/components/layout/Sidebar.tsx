@@ -30,7 +30,7 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
   // Define navigation items based on role
   const navItems = isSuperAdmin
     ? [
-        { label: "Dashboard", path: "/", icon: <LayoutDashboard className="h-5 w-5" /> },
+        { label: "Dashboard", path: "/admin", icon: <LayoutDashboard className="h-5 w-5" /> },
         { label: "Vendors", path: "/vendors", icon: <Store className="h-5 w-5" /> },
         { label: "Domains", path: "/domains", icon: <Globe className="h-5 w-5" /> },
         { label: "Subscriptions", path: "/subscriptions", icon: <CreditCard className="h-5 w-5" /> },
