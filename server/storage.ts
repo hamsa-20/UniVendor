@@ -17,7 +17,8 @@ import {
   transactions, type Transaction, type InsertTransaction,
   payouts, type Payout, type InsertPayout,
   customerPaymentMethods, type CustomerPaymentMethod, type InsertCustomerPaymentMethod,
-  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings
+  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings,
+  commissionSettings, type CommissionSettings, type InsertCommissionSettings
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -180,6 +181,10 @@ export interface IStorage {
   createPaymentProviderSettings(settings: InsertPaymentProviderSettings): Promise<PaymentProviderSettings>;
   updatePaymentProviderSettings(id: number, data: Partial<InsertPaymentProviderSettings>): Promise<PaymentProviderSettings | undefined>;
   togglePaymentProviderActive(id: number, isActive: boolean): Promise<PaymentProviderSettings | undefined>;
+  
+  // Commission settings operations
+  getCommissionSettings(): Promise<CommissionSettings | undefined>;
+  updateCommissionSettings(data: Partial<InsertCommissionSettings>): Promise<CommissionSettings>;
 }
 
 export class MemStorage implements IStorage {
@@ -204,6 +209,7 @@ export class MemStorage implements IStorage {
   private customerPaymentMethods: Map<number, CustomerPaymentMethod>;
   private paymentProviderSettings: Map<number, PaymentProviderSettings>;
   private carts: Map<number, any>; // User ID -> Cart
+  private commissionSettings: CommissionSettings | undefined;
 
   private userId: number = 1;
   private otpId: number = 1;
@@ -258,6 +264,22 @@ export class MemStorage implements IStorage {
   }
 
   private initializeDefaultData() {
+    // Initialize default commission settings
+    this.commissionSettings = {
+      id: 1,
+      baseFeePercentage: "5.0",
+      transactionFeeFlat: "0.30",
+      thresholds: [
+        { threshold: "1000", percentage: "4.5" },
+        { threshold: "5000", percentage: "4.0" },
+        { threshold: "10000", percentage: "3.5" },
+        { threshold: "25000", percentage: "3.0" },
+        { threshold: "50000", percentage: "2.5" }
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
     // Create default subscription plans
     const freePlan: InsertSubscriptionPlan = {
       name: "Free",
