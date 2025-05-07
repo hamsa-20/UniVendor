@@ -275,17 +275,19 @@ const RegisterPage = () => {
                           <FormItem className="space-y-2">
                             <FormLabel>Verification Code</FormLabel>
                             <FormControl>
-                              <InputOTP
-                                maxLength={6}
-                                render={({ slots }) => (
-                                  <div className="flex gap-2 justify-center">
-                                    {slots.map((slot, index) => (
-                                      <InputOTPSlot key={index} index={index} {...slot} />
-                                    ))}
-                                  </div>
-                                )}
+                              <InputOTP 
+                                maxLength={6} 
                                 {...field}
-                              />
+                              >
+                                <InputOTPGroup>
+                                  <InputOTPSlot index={0} />
+                                  <InputOTPSlot index={1} />
+                                  <InputOTPSlot index={2} />
+                                  <InputOTPSlot index={3} />
+                                  <InputOTPSlot index={4} />
+                                  <InputOTPSlot index={5} />
+                                </InputOTPGroup>
+                              </InputOTP>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
