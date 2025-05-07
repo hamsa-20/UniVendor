@@ -762,6 +762,562 @@ export class MemStorage implements IStorage {
     return entry;
   }
 
+  // Payment methods operations
+  async getPaymentMethod(id: number): Promise<PaymentMethod | undefined> {
+    const [method] = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.id, id));
+    return method;
+  }
+
+  async getPaymentMethodsByVendorId(vendorId: number): Promise<PaymentMethod[]> {
+    return db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.vendorId, vendorId));
+  }
+
+  async createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod> {
+    // If this is marked as default, unmark any other default methods for this vendor
+    if (method.isDefault) {
+      await db
+        .update(paymentMethods)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(paymentMethods.vendorId, method.vendorId),
+            eq(paymentMethods.isDefault, true)
+          )
+        );
+    }
+
+    const [createdMethod] = await db
+      .insert(paymentMethods)
+      .values({
+        ...method,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdMethod;
+  }
+
+  async updatePaymentMethod(id: number, data: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined> {
+    // If this is being set as default, unmark any other default methods for this vendor
+    if (data.isDefault) {
+      const [currentMethod] = await db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.id, id));
+
+      if (currentMethod && !currentMethod.isDefault) {
+        await db
+          .update(paymentMethods)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(
+            and(
+              eq(paymentMethods.vendorId, currentMethod.vendorId),
+              eq(paymentMethods.isDefault, true),
+              ne(paymentMethods.id, id)
+            )
+          );
+      }
+    }
+
+    const [updatedMethod] = await db
+      .update(paymentMethods)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(paymentMethods.id, id))
+      .returning();
+    return updatedMethod;
+  }
+
+  async deletePaymentMethod(id: number): Promise<boolean> {
+    const result = await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.id, id));
+    return result.count > 0;
+  }
+
+  async setDefaultPaymentMethod(id: number, vendorId: number): Promise<PaymentMethod | undefined> {
+    // Unmark any other default methods for this vendor
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(paymentMethods.vendorId, vendorId),
+          eq(paymentMethods.isDefault, true),
+          ne(paymentMethods.id, id)
+        )
+      );
+
+    // Mark this method as default
+    const [updatedMethod] = await db
+      .update(paymentMethods)
+      .set({
+        isDefault: true,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(paymentMethods.id, id),
+          eq(paymentMethods.vendorId, vendorId)
+        )
+      )
+      .returning();
+    return updatedMethod;
+  }
+
+  // Platform subscription operations
+  async getPlatformSubscription(id: number): Promise<PlatformSubscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(platformSubscriptions)
+      .where(eq(platformSubscriptions.id, id));
+    return subscription;
+  }
+
+  async getPlatformSubscriptionByVendorId(vendorId: number): Promise<PlatformSubscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(platformSubscriptions)
+      .where(
+        and(
+          eq(platformSubscriptions.vendorId, vendorId),
+          eq(platformSubscriptions.status, "active")
+        )
+      );
+    return subscription;
+  }
+
+  async createPlatformSubscription(subscription: InsertPlatformSubscription): Promise<PlatformSubscription> {
+    const [createdSubscription] = await db
+      .insert(platformSubscriptions)
+      .values({
+        ...subscription,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdSubscription;
+  }
+
+  async updatePlatformSubscription(id: number, data: Partial<InsertPlatformSubscription>): Promise<PlatformSubscription | undefined> {
+    const [updatedSubscription] = await db
+      .update(platformSubscriptions)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(platformSubscriptions.id, id))
+      .returning();
+    return updatedSubscription;
+  }
+
+  async cancelPlatformSubscription(id: number, reason: string): Promise<PlatformSubscription | undefined> {
+    const [canceledSubscription] = await db
+      .update(platformSubscriptions)
+      .set({
+        status: "canceled",
+        cancelReason: reason,
+        canceledAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(platformSubscriptions.id, id))
+      .returning();
+    return canceledSubscription;
+  }
+
+  // Invoice operations
+  async getInvoice(id: number): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, id));
+    return invoice;
+  }
+
+  async getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.invoiceNumber, invoiceNumber));
+    return invoice;
+  }
+
+  async getInvoicesByVendorId(vendorId: number): Promise<Invoice[]> {
+    return db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.vendorId, vendorId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [createdInvoice] = await db
+      .insert(invoices)
+      .values({
+        ...invoice,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdInvoice;
+  }
+
+  async updateInvoice(id: number, data: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return updatedInvoice;
+  }
+
+  async markInvoiceAsPaid(id: number): Promise<Invoice | undefined> {
+    const [paidInvoice] = await db
+      .update(invoices)
+      .set({
+        status: "paid",
+        paidAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return paidInvoice;
+  }
+
+  // Transaction operations
+  async getTransaction(id: number): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id));
+    return transaction;
+  }
+
+  async getTransactionsByVendorId(vendorId: number): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.vendorId, vendorId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByOrderId(orderId: number): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.orderId, orderId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByInvoiceId(invoiceId: number): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.invoiceId, invoiceId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [createdTransaction] = await db
+      .insert(transactions)
+      .values({
+        ...transaction,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdTransaction;
+  }
+
+  async updateTransaction(id: number, data: Partial<InsertTransaction>): Promise<Transaction | undefined> {
+    const [updatedTransaction] = await db
+      .update(transactions)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(transactions.id, id))
+      .returning();
+    return updatedTransaction;
+  }
+
+  async processRefund(transactionId: number, amount: string, reason: string): Promise<Transaction | undefined> {
+    // Get the original transaction
+    const [originalTransaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, transactionId));
+
+    if (!originalTransaction) return undefined;
+
+    // Update the original transaction to mark refund amount
+    const refundedAmount = new Decimal(originalTransaction.refundedAmount || "0").plus(amount);
+    
+    const [updatedTransaction] = await db
+      .update(transactions)
+      .set({
+        refundedAmount: refundedAmount.toString(),
+        status: refundedAmount.equals(originalTransaction.amount) ? "refunded" : "partial_refund",
+        refundReason: reason || originalTransaction.refundReason,
+        updatedAt: new Date()
+      })
+      .where(eq(transactions.id, transactionId))
+      .returning();
+
+    // Create a new refund transaction
+    await db
+      .insert(transactions)
+      .values({
+        type: "refund",
+        status: "completed",
+        amount: amount.toString(),
+        currency: originalTransaction.currency || "USD",
+        fee: "0",
+        net: amount.toString(),
+        vendorId: originalTransaction.vendorId,
+        orderId: originalTransaction.orderId,
+        invoiceId: originalTransaction.invoiceId,
+        paymentMethodId: originalTransaction.paymentMethodId,
+        metadata: { 
+          originalTransactionId: originalTransaction.id,
+          refundReason: reason
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    
+    return updatedTransaction;
+  }
+
+  // Payout operations
+  async getPayout(id: number): Promise<Payout | undefined> {
+    const [payout] = await db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.id, id));
+    return payout;
+  }
+
+  async getPayoutsByVendorId(vendorId: number): Promise<Payout[]> {
+    return db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.vendorId, vendorId))
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async createPayout(payout: InsertPayout): Promise<Payout> {
+    const [createdPayout] = await db
+      .insert(payouts)
+      .values({
+        ...payout,
+        createdAt: new Date()
+      })
+      .returning();
+    return createdPayout;
+  }
+
+  async updatePayout(id: number, data: Partial<InsertPayout>): Promise<Payout | undefined> {
+    const [updatedPayout] = await db
+      .update(payouts)
+      .set(data)
+      .where(eq(payouts.id, id))
+      .returning();
+    return updatedPayout;
+  }
+
+  async completePayout(id: number): Promise<Payout | undefined> {
+    const [completedPayout] = await db
+      .update(payouts)
+      .set({
+        status: "completed",
+        completedAt: new Date()
+      })
+      .where(eq(payouts.id, id))
+      .returning();
+    return completedPayout;
+  }
+
+  // Customer payment methods operations
+  async getCustomerPaymentMethod(id: number): Promise<CustomerPaymentMethod | undefined> {
+    const [method] = await db
+      .select()
+      .from(customerPaymentMethods)
+      .where(eq(customerPaymentMethods.id, id));
+    return method;
+  }
+
+  async getCustomerPaymentMethodsByCustomerId(customerId: number): Promise<CustomerPaymentMethod[]> {
+    return db
+      .select()
+      .from(customerPaymentMethods)
+      .where(eq(customerPaymentMethods.customerId, customerId));
+  }
+
+  async createCustomerPaymentMethod(method: InsertCustomerPaymentMethod): Promise<CustomerPaymentMethod> {
+    // If this is marked as default, unmark any other default methods for this customer
+    if (method.isDefault) {
+      await db
+        .update(customerPaymentMethods)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(customerPaymentMethods.customerId, method.customerId),
+            eq(customerPaymentMethods.isDefault, true)
+          )
+        );
+    }
+
+    const [createdMethod] = await db
+      .insert(customerPaymentMethods)
+      .values({
+        ...method,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdMethod;
+  }
+
+  async updateCustomerPaymentMethod(id: number, data: Partial<InsertCustomerPaymentMethod>): Promise<CustomerPaymentMethod | undefined> {
+    // If this is being set as default, unmark any other default methods for this customer
+    if (data.isDefault) {
+      const [currentMethod] = await db
+        .select()
+        .from(customerPaymentMethods)
+        .where(eq(customerPaymentMethods.id, id));
+
+      if (currentMethod && !currentMethod.isDefault) {
+        await db
+          .update(customerPaymentMethods)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(
+            and(
+              eq(customerPaymentMethods.customerId, currentMethod.customerId),
+              eq(customerPaymentMethods.isDefault, true),
+              ne(customerPaymentMethods.id, id)
+            )
+          );
+      }
+    }
+
+    const [updatedMethod] = await db
+      .update(customerPaymentMethods)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(customerPaymentMethods.id, id))
+      .returning();
+    return updatedMethod;
+  }
+
+  async deleteCustomerPaymentMethod(id: number): Promise<boolean> {
+    const result = await db
+      .delete(customerPaymentMethods)
+      .where(eq(customerPaymentMethods.id, id));
+    return result.count > 0;
+  }
+
+  async setDefaultCustomerPaymentMethod(id: number, customerId: number): Promise<CustomerPaymentMethod | undefined> {
+    // Unmark any other default methods for this customer
+    await db
+      .update(customerPaymentMethods)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(customerPaymentMethods.customerId, customerId),
+          eq(customerPaymentMethods.isDefault, true),
+          ne(customerPaymentMethods.id, id)
+        )
+      );
+
+    // Mark this method as default
+    const [updatedMethod] = await db
+      .update(customerPaymentMethods)
+      .set({
+        isDefault: true,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(customerPaymentMethods.id, id),
+          eq(customerPaymentMethods.customerId, customerId)
+        )
+      )
+      .returning();
+    return updatedMethod;
+  }
+
+  // Payment provider settings operations
+  async getPaymentProviderSettings(id: number): Promise<PaymentProviderSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(paymentProviderSettings)
+      .where(eq(paymentProviderSettings.id, id));
+    return settings;
+  }
+
+  async getPaymentProviderSettingsByVendorId(vendorId: number, provider: string): Promise<PaymentProviderSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(paymentProviderSettings)
+      .where(
+        and(
+          eq(paymentProviderSettings.vendorId, vendorId),
+          eq(paymentProviderSettings.provider, provider)
+        )
+      );
+    return settings;
+  }
+
+  async createPaymentProviderSettings(settings: InsertPaymentProviderSettings): Promise<PaymentProviderSettings> {
+    const [createdSettings] = await db
+      .insert(paymentProviderSettings)
+      .values({
+        ...settings,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdSettings;
+  }
+
+  async updatePaymentProviderSettings(id: number, data: Partial<InsertPaymentProviderSettings>): Promise<PaymentProviderSettings | undefined> {
+    const [updatedSettings] = await db
+      .update(paymentProviderSettings)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(paymentProviderSettings.id, id))
+      .returning();
+    return updatedSettings;
+  }
+
+  async togglePaymentProviderActive(id: number, isActive: boolean): Promise<PaymentProviderSettings | undefined> {
+    const [updatedSettings] = await db
+      .update(paymentProviderSettings)
+      .set({
+        isActive,
+        updatedAt: new Date()
+      })
+      .where(eq(paymentProviderSettings.id, id))
+      .returning();
+    return updatedSettings;
+  }
+
   // Platform statistics
   async getPlatformStats(): Promise<{
     totalVendors: number;

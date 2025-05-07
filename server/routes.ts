@@ -12,6 +12,7 @@ import {
   insertOrderSchema, 
   insertOrderItemSchema 
 } from "@shared/schema";
+import { registerPaymentRoutes } from "./paymentRoutes";
 import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
 
