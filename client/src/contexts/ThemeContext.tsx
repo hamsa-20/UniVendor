@@ -23,9 +23,8 @@ export const ThemeProvider = ({ children }: ThemeProviderProps) => {
     if (storedTheme) {
       setTheme(storedTheme);
     } else {
-      // Check system preference
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setTheme(prefersDark ? "dark" : "light");
+      // User has requested to always use light mode
+      setTheme("light");
     }
   }, []);
 

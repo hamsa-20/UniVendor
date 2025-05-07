@@ -512,7 +512,10 @@ function App() {
         <ThemeProvider>
           <TooltipProvider>
             <Toaster />
-            <Router />
+            {/* Force light theme as per user requirement */}
+            <div className="light">
+              <Router />
+            </div>
           </TooltipProvider>
         </ThemeProvider>
       </AuthProvider>
