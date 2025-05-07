@@ -28,7 +28,7 @@ const shippingFormSchema = z.object({
   country: z.string().min(1, "Country is required"),
 });
 
-type ShippingFormValues = z.infer<typeof shippingFormSchema>;
+export type ShippingFormValues = z.infer<typeof shippingFormSchema>;
 
 interface OrderSummaryProps {
   subtotal: string;

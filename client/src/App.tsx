@@ -24,6 +24,7 @@ import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
+import CheckoutPage from "./pages/checkout/CheckoutPage";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
@@ -524,6 +525,24 @@ function Router() {
         <PrivateRoute roles={["vendor"]}>
           <StoreDesignPage />
         </PrivateRoute>
+      </Route>
+
+      {/* Checkout Routes */}
+      <Route path="/checkout">
+        <CheckoutPage />
+      </Route>
+      
+      {/* Cart Route - will be added when implementing the cart */}
+      <Route path="/cart">
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center p-8 max-w-md mx-auto">
+            <h1 className="text-2xl font-bold mb-4">Your Cart</h1>
+            <p className="mb-6">This is a placeholder for the cart page.</p>
+            <Link href="/checkout" className="bg-primary text-white px-4 py-2 rounded-md">
+              Proceed to Checkout
+            </Link>
+          </div>
+        </div>
       </Route>
       <Route path="/vendor-analytics">
         <PrivateRoute roles={["vendor"]}>
