@@ -633,4 +633,495 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { db } from './db';
+import { eq, sql } from 'drizzle-orm';
+import connectPg from 'connect-pg-simple';
+import { pool } from './db';
+
+const PostgresSessionStore = connectPg(session);
+
+export class DatabaseStorage implements IStorage {
+  public sessionStore: session.Store;
+
+  constructor() {
+    // Initialize a Postgres-backed session store
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  // OTP operations
+  async createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode> {
+    const [otpCode] = await db
+      .insert(otpCodes)
+      .values({ email, code, expiresAt, used: false })
+      .returning();
+    return otpCode;
+  }
+
+  async getLatestOtp(email: string): Promise<OtpCode | undefined> {
+    const [latestOtp] = await db
+      .select()
+      .from(otpCodes)
+      .where(eq(otpCodes.email, email))
+      .orderBy(otpCodes.createdAt, 'desc')
+      .limit(1);
+    return latestOtp;
+  }
+
+  async markOtpAsUsed(id: number): Promise<OtpCode | undefined> {
+    const [updatedOtp] = await db
+      .update(otpCodes)
+      .set({ used: true })
+      .where(eq(otpCodes.id, id))
+      .returning();
+    return updatedOtp;
+  }
+
+  // Subscription plan operations
+  async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
+    const [plan] = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, id));
+    return plan;
+  }
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return db.select().from(subscriptionPlans);
+  }
+
+  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const [newPlan] = await db
+      .insert(subscriptionPlans)
+      .values(plan)
+      .returning();
+    return newPlan;
+  }
+
+  async updateSubscriptionPlan(id: number, data: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
+    const [updatedPlan] = await db
+      .update(subscriptionPlans)
+      .set(data)
+      .where(eq(subscriptionPlans.id, id))
+      .returning();
+    return updatedPlan;
+  }
+
+  // Vendor operations
+  async getVendor(id: number): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, id));
+    return vendor;
+  }
+
+  async getVendors(): Promise<Vendor[]> {
+    return db.select().from(vendors);
+  }
+
+  async getVendorByUserId(userId: number): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.userId, userId));
+    return vendor;
+  }
+
+  async createVendor(vendor: InsertVendor): Promise<Vendor> {
+    const [newVendor] = await db
+      .insert(vendors)
+      .values(vendor)
+      .returning();
+    return newVendor;
+  }
+
+  async updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined> {
+    const [updatedVendor] = await db
+      .update(vendors)
+      .set(data)
+      .where(eq(vendors.id, id))
+      .returning();
+    return updatedVendor;
+  }
+
+  // Domain operations
+  async getDomain(id: number): Promise<Domain | undefined> {
+    const [domain] = await db
+      .select()
+      .from(domains)
+      .where(eq(domains.id, id));
+    return domain;
+  }
+
+  async getDomains(): Promise<Domain[]> {
+    return db.select().from(domains);
+  }
+
+  async getDomainsByVendorId(vendorId: number): Promise<Domain[]> {
+    return db
+      .select()
+      .from(domains)
+      .where(eq(domains.vendorId, vendorId));
+  }
+
+  async getDomainByName(name: string): Promise<Domain | undefined> {
+    const [domain] = await db
+      .select()
+      .from(domains)
+      .where(eq(domains.name, name));
+    return domain;
+  }
+
+  async createDomain(domain: InsertDomain): Promise<Domain> {
+    const [newDomain] = await db
+      .insert(domains)
+      .values(domain)
+      .returning();
+    return newDomain;
+  }
+
+  async updateDomain(id: number, data: Partial<InsertDomain>): Promise<Domain | undefined> {
+    const [updatedDomain] = await db
+      .update(domains)
+      .set(data)
+      .where(eq(domains.id, id))
+      .returning();
+    return updatedDomain;
+  }
+
+  async deleteDomain(id: number): Promise<boolean> {
+    const result = await db
+      .delete(domains)
+      .where(eq(domains.id, id));
+    return result.count > 0;
+  }
+
+  // Product category operations
+  async getProductCategory(id: number): Promise<ProductCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.id, id));
+    return category;
+  }
+
+  async getProductCategories(vendorId: number): Promise<ProductCategory[]> {
+    return db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.vendorId, vendorId));
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const [newCategory] = await db
+      .insert(productCategories)
+      .values(category)
+      .returning();
+    return newCategory;
+  }
+
+  async updateProductCategory(id: number, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const [updatedCategory] = await db
+      .update(productCategories)
+      .set(data)
+      .where(eq(productCategories.id, id))
+      .returning();
+    return updatedCategory;
+  }
+
+  async deleteProductCategory(id: number): Promise<boolean> {
+    const result = await db
+      .delete(productCategories)
+      .where(eq(productCategories.id, id));
+    return result.count > 0;
+  }
+
+  // Product operations
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, id));
+    return product;
+  }
+
+  async getProducts(vendorId: number): Promise<Product[]> {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.vendorId, vendorId));
+  }
+
+  async getProductsByCategory(categoryId: number): Promise<Product[]> {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.categoryId, categoryId));
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [newProduct] = await db
+      .insert(products)
+      .values(product)
+      .returning();
+    return newProduct;
+  }
+
+  async updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined> {
+    const [updatedProduct] = await db
+      .update(products)
+      .set(data)
+      .where(eq(products.id, id))
+      .returning();
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: number): Promise<boolean> {
+    const result = await db
+      .delete(products)
+      .where(eq(products.id, id));
+    return result.count > 0;
+  }
+
+  // Customer operations
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id));
+    return customer;
+  }
+
+  async getCustomers(vendorId: number): Promise<Customer[]> {
+    return db
+      .select()
+      .from(customers)
+      .where(eq(customers.vendorId, vendorId));
+  }
+
+  async getCustomerByEmail(vendorId: number, email: string): Promise<Customer | undefined> {
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.vendorId, vendorId))
+      .where(eq(customers.email, email));
+    return customer;
+  }
+
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [newCustomer] = await db
+      .insert(customers)
+      .values(customer)
+      .returning();
+    return newCustomer;
+  }
+
+  async updateCustomer(id: number, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [updatedCustomer] = await db
+      .update(customers)
+      .set(data)
+      .where(eq(customers.id, id))
+      .returning();
+    return updatedCustomer;
+  }
+
+  // Customer address operations
+  async getCustomerAddress(id: number): Promise<CustomerAddress | undefined> {
+    const [address] = await db
+      .select()
+      .from(customerAddresses)
+      .where(eq(customerAddresses.id, id));
+    return address;
+  }
+
+  async getCustomerAddresses(customerId: number): Promise<CustomerAddress[]> {
+    return db
+      .select()
+      .from(customerAddresses)
+      .where(eq(customerAddresses.customerId, customerId));
+  }
+
+  async createCustomerAddress(address: InsertCustomerAddress): Promise<CustomerAddress> {
+    const [newAddress] = await db
+      .insert(customerAddresses)
+      .values(address)
+      .returning();
+    return newAddress;
+  }
+
+  async updateCustomerAddress(id: number, data: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined> {
+    const [updatedAddress] = await db
+      .update(customerAddresses)
+      .set(data)
+      .where(eq(customerAddresses.id, id))
+      .returning();
+    return updatedAddress;
+  }
+
+  async deleteCustomerAddress(id: number): Promise<boolean> {
+    const result = await db
+      .delete(customerAddresses)
+      .where(eq(customerAddresses.id, id));
+    return result.count > 0;
+  }
+
+  // Order operations
+  async getOrder(id: number): Promise<Order | undefined> {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, id));
+    return order;
+  }
+
+  async getOrders(vendorId: number): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .where(eq(orders.vendorId, vendorId));
+  }
+
+  async getOrderByNumber(orderNumber: string): Promise<Order | undefined> {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.orderNumber, orderNumber));
+    return order;
+  }
+
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [newOrder] = await db
+      .insert(orders)
+      .values(order)
+      .returning();
+    return newOrder;
+  }
+
+  async updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined> {
+    const [updatedOrder] = await db
+      .update(orders)
+      .set(data)
+      .where(eq(orders.id, id))
+      .returning();
+    return updatedOrder;
+  }
+
+  // Order item operations
+  async getOrderItem(id: number): Promise<OrderItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.id, id));
+    return item;
+  }
+
+  async getOrderItems(orderId: number): Promise<OrderItem[]> {
+    return db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+  }
+
+  async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
+    const [newItem] = await db
+      .insert(orderItems)
+      .values(item)
+      .returning();
+    return newItem;
+  }
+
+  async updateOrderItem(id: number, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined> {
+    const [updatedItem] = await db
+      .update(orderItems)
+      .set(data)
+      .where(eq(orderItems.id, id))
+      .returning();
+    return updatedItem;
+  }
+
+  async deleteOrderItem(id: number): Promise<boolean> {
+    const result = await db
+      .delete(orderItems)
+      .where(eq(orderItems.id, id));
+    return result.count > 0;
+  }
+
+  // Analytics operations
+  async getVendorAnalytics(vendorId: number): Promise<Analytics[]> {
+    return db
+      .select()
+      .from(analytics)
+      .where(eq(analytics.vendorId, vendorId));
+  }
+
+  async createAnalyticsEntry(data: InsertAnalytics): Promise<Analytics> {
+    const [newEntry] = await db
+      .insert(analytics)
+      .values(data)
+      .returning();
+    return newEntry;
+  }
+
+  // Platform statistics - we'll use SQL aggregation for better performance
+  async getPlatformStats(): Promise<{ totalVendors: number; activeDomains: number; totalRevenue: number; pendingIssues: number; }> {
+    // Get total vendors
+    const [vendorCount] = await db
+      .select({ count: sql`count(*)` })
+      .from(vendors);
+    
+    // Get active domains
+    const [domainsCount] = await db
+      .select({ count: sql`count(*)` })
+      .from(domains)
+      .where(eq(domains.status, 'active'));
+    
+    // Get total revenue (sum of all orders)
+    const [revenue] = await db
+      .select({ sum: sql`sum(cast(total as decimal))` })
+      .from(orders);
+    
+    // Get count of pending issues (domains with verification issues)
+    const [issuesCount] = await db
+      .select({ count: sql`count(*)` })
+      .from(domains)
+      .where(eq(domains.verificationStatus, 'pending'));
+    
+    return {
+      totalVendors: Number(vendorCount?.count || 0),
+      activeDomains: Number(domainsCount?.count || 0),
+      totalRevenue: Number(revenue?.sum || 0),
+      pendingIssues: Number(issuesCount?.count || 0)
+    };
+  }
+}
+
+// Use the database storage implementation
+export const storage = new DatabaseStorage();
