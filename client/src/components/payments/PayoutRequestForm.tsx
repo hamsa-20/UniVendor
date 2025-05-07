@@ -1,237 +1,263 @@
-import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import React from "react";
 import { useForm } from "react-hook-form";
-import { Loader2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useToast } from "@/hooks/use-toast";
 
-interface PayoutRequestFormProps {
-  availableBalance: number;
-  vendorId: number;
-}
-
-const payoutFormSchema = z.object({
+// Validation schema
+const payoutRequestSchema = z.object({
   amount: z.string()
-    .refine(val => !isNaN(Number(val)), {
+    .min(1, "Amount is required")
+    .refine(val => !isNaN(parseFloat(val)), {
       message: "Amount must be a valid number",
     })
-    .refine(val => Number(val) > 0, {
-      message: "Amount must be greater than zero",
+    .refine(val => parseFloat(val) > 0, {
+      message: "Amount must be greater than 0",
     }),
-  method: z.string({
-    required_error: "Please select a payout method",
-  }),
+  accountType: z.string().min(1, "Account type is required"),
+  accountDetails: z.string().min(1, "Account details are required"),
   notes: z.string().optional(),
 });
 
-type PayoutFormValues = z.infer<typeof payoutFormSchema>;
+type PayoutRequestValues = z.infer<typeof payoutRequestSchema>;
 
-const PayoutRequestForm = ({ availableBalance, vendorId }: PayoutRequestFormProps) => {
+interface PayoutRequestFormProps {
+  vendorId: number;
+  availableBalance: string;
+  onSuccess?: () => void;
+}
+
+const PayoutRequestForm: React.FC<PayoutRequestFormProps> = ({
+  vendorId,
+  availableBalance,
+  onSuccess,
+}) => {
   const { toast } = useToast();
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const queryClient = useQueryClient();
   
-  const form = useForm<PayoutFormValues>({
-    resolver: zodResolver(payoutFormSchema),
+  // Set up form with validation
+  const form = useForm<PayoutRequestValues>({
+    resolver: zodResolver(payoutRequestSchema),
     defaultValues: {
       amount: "",
-      method: "",
+      accountType: "",
+      accountDetails: "",
       notes: "",
     },
   });
-  
+
+  // Handle payout request submission
   const payoutMutation = useMutation({
-    mutationFn: async (values: PayoutFormValues) => {
-      const payload = {
+    mutationFn: async (values: PayoutRequestValues) => {
+      // Format data for API
+      const requestData = {
         vendorId,
         amount: values.amount,
-        method: values.method,
-        notes: values.notes,
-        currency: "USD", // Default to USD
+        status: "pending",
+        paymentMethod: values.accountType,
+        accountDetails: values.accountDetails,
+        notes: values.notes || null,
       };
       
-      const response = await apiRequest("POST", `/api/vendors/${vendorId}/payouts`, payload);
+      const response = await apiRequest(
+        "POST",
+        `/api/vendors/${vendorId}/payouts`,
+        requestData
+      );
+      
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Payout requested successfully",
-        description: "Your payout request has been submitted and will be processed shortly.",
+        title: "Payout request submitted",
+        description: "Your payout request has been submitted for review.",
       });
       
       // Reset form
       form.reset();
-      setShowConfirmation(false);
       
-      // Invalidate relevant queries
+      // Invalidate relevant queries to refresh data
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/payouts`] });
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/earnings`] });
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to request payout",
-        description: error.message || "An error occurred while processing your request.",
+        title: "Failed to submit payout request",
+        description: error.message || "Please try again later.",
         variant: "destructive",
       });
-      setShowConfirmation(false);
     },
   });
-  
-  const onSubmit = (values: PayoutFormValues) => {
-    // Validate amount against available balance
-    if (Number(values.amount) > availableBalance) {
-      form.setError("amount", {
-        type: "manual",
-        message: "Amount cannot exceed your available balance",
+
+  // Form submission handler
+  const onSubmit = (values: PayoutRequestValues) => {
+    // Check if requested amount exceeds available balance
+    if (parseFloat(values.amount) > parseFloat(availableBalance)) {
+      toast({
+        title: "Invalid amount",
+        description: "Payout amount cannot exceed your available balance.",
+        variant: "destructive",
       });
       return;
     }
     
-    // Show confirmation before submitting
-    setShowConfirmation(true);
+    payoutMutation.mutate(values);
   };
-  
-  const confirmPayout = () => {
-    payoutMutation.mutate(form.getValues());
-  };
-  
+
   return (
-    <div>
-      {showConfirmation ? (
-        <div>
-          <Alert className="mb-6">
-            <AlertTitle>Confirm Payout Request</AlertTitle>
-            <AlertDescription>
-              You are about to request a payout of {formatCurrency(Number(form.getValues().amount))} using {form.getValues().method}.
-              Are you sure you want to proceed?
-            </AlertDescription>
-          </Alert>
-          
-          <div className="flex space-x-4">
-            <Button variant="outline" onClick={() => setShowConfirmation(false)} disabled={payoutMutation.isPending}>
-              Cancel
+    <Card>
+      <CardHeader>
+        <CardTitle>Request Payout</CardTitle>
+        <CardDescription>
+          Available balance: <span className="font-medium">${parseFloat(availableBalance).toFixed(2)}</span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Amount</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                      <Input
+                        placeholder="0.00"
+                        {...field}
+                        className="pl-7"
+                        type="text"
+                        inputMode="decimal"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Enter the amount you'd like to withdraw.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="accountType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Payment Method</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select payment method" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="paypal">PayPal</SelectItem>
+                      <SelectItem value="venmo">Venmo</SelectItem>
+                      <SelectItem value="zelle">Zelle</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Choose how you want to receive your funds.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="accountDetails"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Account Details</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Enter your payment details..."
+                      {...field}
+                      rows={3}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    {form.watch("accountType") === "bank_transfer" && "Enter your bank name, account number, and routing number."}
+                    {form.watch("accountType") === "paypal" && "Enter your PayPal email address."}
+                    {form.watch("accountType") === "venmo" && "Enter your Venmo username or phone number."}
+                    {form.watch("accountType") === "zelle" && "Enter your Zelle email or phone number."}
+                    {form.watch("accountType") === "other" && "Enter details for your preferred payment method."}
+                    {!form.watch("accountType") && "Enter details for receiving your payout."}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Additional Notes (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Any special instructions or notes..."
+                      {...field}
+                      rows={2}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={
+                payoutMutation.isPending ||
+                parseFloat(availableBalance) <= 0 ||
+                !form.formState.isValid
+              }
+            >
+              {payoutMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Request Payout"
+              )}
             </Button>
-            <Button onClick={confirmPayout} disabled={payoutMutation.isPending}>
-              {payoutMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm Payout
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="flex flex-col md:flex-row md:space-x-6 mb-6">
-            <Card className="w-full md:w-1/3 mb-4 md:mb-0">
-              <CardContent className="pt-6">
-                <div className="text-sm text-muted-foreground mb-2">Available for payout</div>
-                <div className="text-3xl font-bold">{formatCurrency(availableBalance)}</div>
-              </CardContent>
-            </Card>
             
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="w-full md:w-2/3 space-y-6">
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">$</span>
-                          <Input
-                            placeholder="0.00"
-                            {...field}
-                            className="pl-8"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Enter the amount you would like to withdraw
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="method"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Payout Method</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a payout method" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                          <SelectItem value="paypal">PayPal</SelectItem>
-                          <SelectItem value="stripe">Stripe</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Choose how you would like to receive your funds
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Notes (Optional)</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Add any additional information about this payout request"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <Button type="submit" className="w-full" disabled={!form.formState.isValid}>
-                  Request Payout
-                </Button>
-              </form>
-            </Form>
-          </div>
-        </div>
-      )}
-    </div>
+            {parseFloat(availableBalance) <= 0 && (
+              <p className="text-center text-sm text-muted-foreground">
+                You need to have funds available to request a payout.
+              </p>
+            )}
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
   );
 };
 

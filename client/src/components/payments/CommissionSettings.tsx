@@ -1,345 +1,375 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { z } from "zod";
+import React, { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, useFieldArray } from "react-hook-form";
-import { Loader2, PlusCircle, Trash } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Loader2, PlusCircle, Trash2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-const commissionFormSchema = z.object({
-  baseFeePercentage: z.string()
-    .refine(val => !isNaN(Number(val)), {
-      message: "Must be a valid number",
+interface CommissionThreshold {
+  threshold: string;
+  percentage: string;
+}
+
+interface CommissionSettings {
+  baseFeePercentage: string;
+  transactionFeeFlat: string;
+  thresholds: CommissionThreshold[];
+}
+
+// Validation schema
+const thresholdSchema = z.object({
+  threshold: z.string()
+    .min(1, "Required")
+    .refine(val => !isNaN(parseFloat(val)), {
+      message: "Must be a number",
     })
-    .refine(val => Number(val) >= 0 && Number(val) <= 100, {
-      message: "Must be between 0 and 100",
+    .refine(val => parseFloat(val) > 0, {
+      message: "Must be greater than 0",
     }),
-  transactionFeeFlat: z.string()
-    .refine(val => !isNaN(Number(val)), {
-      message: "Must be a valid number",
+  percentage: z.string()
+    .min(1, "Required")
+    .refine(val => !isNaN(parseFloat(val)), {
+      message: "Must be a number",
     })
-    .refine(val => Number(val) >= 0, {
-      message: "Must be a positive number",
+    .refine(val => parseFloat(val) >= 0 && parseFloat(val) <= 100, {
+      message: "Must be between 0-100",
     }),
-  thresholds: z.array(
-    z.object({
-      monthlyRevenue: z.string()
-        .refine(val => !isNaN(Number(val)), {
-          message: "Must be a valid number",
-        })
-        .refine(val => Number(val) > 0, {
-          message: "Must be greater than 0",
-        }),
-      feePercentage: z.string()
-        .refine(val => !isNaN(Number(val)), {
-          message: "Must be a valid number",
-        })
-        .refine(val => Number(val) >= 0 && Number(val) <= 100, {
-          message: "Must be between 0 and 100",
-        }),
-    })
-  ).min(1, "At least one threshold is required"),
 });
 
-type CommissionFormValues = z.infer<typeof commissionFormSchema>;
+const commissionSettingsSchema = z.object({
+  baseFeePercentage: z.string()
+    .min(1, "Required")
+    .refine(val => !isNaN(parseFloat(val)), {
+      message: "Must be a number",
+    })
+    .refine(val => parseFloat(val) >= 0 && parseFloat(val) <= 100, {
+      message: "Must be between 0-100",
+    }),
+  transactionFeeFlat: z.string()
+    .min(1, "Required")
+    .refine(val => !isNaN(parseFloat(val)), {
+      message: "Must be a number",
+    })
+    .refine(val => parseFloat(val) >= 0, {
+      message: "Must be greater than or equal to 0",
+    }),
+  thresholds: z.array(thresholdSchema).optional(),
+});
 
-const CommissionSettings = () => {
+type FormValues = z.infer<typeof commissionSettingsSchema>;
+
+const CommissionSettings: React.FC = () => {
   const { toast } = useToast();
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+
   // Fetch current commission settings
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ["/api/payments/commission-settings"],
-  });
-  
-  const form = useForm<CommissionFormValues>({
-    resolver: zodResolver(commissionFormSchema),
-    defaultValues: {
-      baseFeePercentage: settings?.baseFeePercentage || "2.5",
-      transactionFeeFlat: settings?.transactionFeeFlat || "0.30",
-      thresholds: settings?.thresholds || [
-        { monthlyRevenue: "1000", feePercentage: "2.5" },
-        { monthlyRevenue: "5000", feePercentage: "2.25" },
-        { monthlyRevenue: "10000", feePercentage: "2.0" },
-      ],
+  const { data: settings, isLoading: isLoadingSettings } = useQuery<CommissionSettings>({
+    queryKey: ["/api/platform/commission-settings"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/platform/commission-settings");
+      return res.json();
     },
   });
-  
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "thresholds",
+
+  // Set up form with validation
+  const form = useForm<FormValues>({
+    resolver: zodResolver(commissionSettingsSchema),
+    defaultValues: {
+      baseFeePercentage: settings?.baseFeePercentage || "5",
+      transactionFeeFlat: settings?.transactionFeeFlat || "0.30",
+      thresholds: settings?.thresholds || [],
+    },
+    values: settings as FormValues,
   });
-  
-  // Save settings mutation
-  const saveSettingsMutation = useMutation({
-    mutationFn: async (values: CommissionFormValues) => {
-      const response = await apiRequest("PUT", "/api/payments/commission-settings", values);
+
+  // Handle updating commission settings
+  const updateMutation = useMutation({
+    mutationFn: async (values: FormValues) => {
+      const response = await apiRequest(
+        "PATCH",
+        "/api/platform/commission-settings",
+        values
+      );
+      
       return response.json();
     },
     onSuccess: () => {
       toast({
-        title: "Settings saved",
+        title: "Settings updated",
         description: "Commission settings have been updated successfully.",
       });
       
-      // Invalidate queries
-      queryClient.invalidateQueries({ queryKey: ["/api/payments/commission-settings"] });
+      setIsEditing(false);
+      
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/platform/commission-settings"] });
     },
     onError: (error: any) => {
       toast({
-        title: "Failed to save settings",
-        description: error.message || "An error occurred while saving settings.",
+        title: "Failed to update settings",
+        description: error.message || "Please try again later.",
         variant: "destructive",
       });
     },
   });
-  
-  const onSubmit = (values: CommissionFormValues) => {
-    // Validate revenue thresholds are in ascending order
-    const thresholds = values.thresholds.map(t => ({
-      ...t,
-      monthlyRevenue: Number(t.monthlyRevenue),
-    })).sort((a, b) => a.monthlyRevenue - b.monthlyRevenue);
-    
-    // Check for duplicate thresholds
-    const hasDuplicates = thresholds.some((t, i) => 
-      i > 0 && t.monthlyRevenue === thresholds[i - 1].monthlyRevenue
-    );
-    
-    if (hasDuplicates) {
-      toast({
-        title: "Validation error",
-        description: "Monthly revenue thresholds must be unique.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setShowConfirmation(true);
+
+  // Form submission handler
+  const onSubmit = (values: FormValues) => {
+    updateMutation.mutate(values);
   };
-  
-  const confirmSave = () => {
-    saveSettingsMutation.mutate(form.getValues());
-    setShowConfirmation(false);
-  };
-  
+
+  // Add a new threshold
   const addThreshold = () => {
-    append({ monthlyRevenue: "", feePercentage: "" });
+    const currentThresholds = form.getValues("thresholds") || [];
+    form.setValue("thresholds", [
+      ...currentThresholds,
+      { threshold: "", percentage: "" },
+    ]);
   };
-  
-  if (isLoading) {
+
+  // Remove a threshold
+  const removeThreshold = (index: number) => {
+    const currentThresholds = form.getValues("thresholds") || [];
+    form.setValue("thresholds", 
+      currentThresholds.filter((_, i) => i !== index)
+    );
+  };
+
+  if (isLoadingSettings) {
     return (
-      <div className="flex items-center justify-center p-6">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <Card>
+        <CardContent className="flex items-center justify-center py-10">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </CardContent>
+      </Card>
     );
   }
-  
+
   return (
-    <div>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="baseFeePercentage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Base Fee Percentage</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input
-                        {...field}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                      />
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                        %
-                      </div>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    Default fee percentage for all vendors
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="transactionFeeFlat"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Transaction Fee (Flat)</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                        $
-                      </div>
-                      <Input
-                        {...field}
-                        className="pl-8"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                      />
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    Fixed fee added to each transaction
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Revenue Thresholds</h3>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addThreshold}
-              >
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Add Threshold
-              </Button>
+    <Card>
+      <CardHeader>
+        <CardTitle>Commission Settings</CardTitle>
+        <CardDescription>
+          Configure platform fees and volume-based commission rates
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {!isEditing ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">Base Fee Percentage</h4>
+                <p className="mt-1 font-medium text-xl">
+                  {parseFloat(settings?.baseFeePercentage || "0").toFixed(2)}%
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Applied to all transactions
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-muted-foreground">Transaction Fee</h4>
+                <p className="mt-1 font-medium text-xl">
+                  ${parseFloat(settings?.transactionFeeFlat || "0").toFixed(2)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Flat fee per transaction
+                </p>
+              </div>
             </div>
-            
-            <div className="space-y-4">
-              {fields.map((field, index) => (
-                <Card key={field.id} className="p-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name={`thresholds.${index}.monthlyRevenue`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Monthly Revenue Threshold</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                                $
-                              </div>
-                              <Input
-                                {...field}
-                                className="pl-8"
-                                type="number"
-                                min="0"
-                              />
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            When monthly revenue exceeds this amount
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name={`thresholds.${index}.feePercentage`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Fee Percentage</FormLabel>
-                          <FormControl>
-                            <div className="relative flex items-center">
-                              <Input
-                                {...field}
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                              />
-                              <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                %
-                              </div>
-                              
-                              {fields.length > 1 && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="ml-2 text-destructive hover:text-destructive/90"
-                                  onClick={() => remove(index)}
-                                >
-                                  <Trash className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Applied fee rate for this threshold
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+
+            {settings?.thresholds && settings.thresholds.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-medium mb-2">Volume-Based Thresholds</h4>
+                <div className="bg-muted rounded-md p-4">
+                  <div className="grid grid-cols-2 gap-4 font-medium mb-2 text-sm text-muted-foreground">
+                    <div>Monthly Sales Volume</div>
+                    <div>Commission Rate</div>
                   </div>
-                </Card>
-              ))}
-            </div>
+                  {settings.thresholds.map((threshold, index) => (
+                    <div key={index} className="grid grid-cols-2 gap-4 py-2 border-t border-border">
+                      <div>
+                        ${parseFloat(threshold.threshold).toLocaleString()} and above
+                      </div>
+                      <div>{parseFloat(threshold.percentage).toFixed(2)}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <Alert>
+              <AlertTitle>How fees are calculated</AlertTitle>
+              <AlertDescription className="text-sm">
+                For each transaction, we charge the base fee percentage of the transaction amount plus the flat transaction fee. 
+                For vendors with monthly sales volumes that meet the thresholds, the lower commission rate will be applied instead of the base fee.
+              </AlertDescription>
+            </Alert>
+            
+            <Button onClick={() => setIsEditing(true)}>
+              Edit Settings
+            </Button>
           </div>
-          
-          <Button 
-            type="submit" 
-            disabled={saveSettingsMutation.isPending || !form.formState.isDirty}
-            className="w-full md:w-auto"
-          >
-            {saveSettingsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Save Commission Settings
-          </Button>
-        </form>
-      </Form>
-      
-      <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to update the commission settings? This will affect all vendors and future transactions.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmSave}>
-              {saveSettingsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="baseFeePercentage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Base Fee Percentage (%)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="text" inputMode="decimal" />
+                      </FormControl>
+                      <FormDescription>
+                        Default percentage fee for all vendors
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="transactionFeeFlat"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Flat Transaction Fee ($)</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="text" inputMode="decimal" />
+                      </FormControl>
+                      <FormDescription>
+                        Fixed amount added to each transaction
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium">Volume-Based Thresholds</h3>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addThreshold}
+                  >
+                    <PlusCircle className="h-4 w-4 mr-2" />
+                    Add Threshold
+                  </Button>
+                </div>
+                
+                {form.watch("thresholds")?.length === 0 ? (
+                  <div className="bg-muted/50 rounded-md p-6 text-center">
+                    <p className="text-muted-foreground">
+                      No volume-based thresholds configured. 
+                      Add thresholds to offer lower commission rates to high-volume vendors.
+                    </p>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={addThreshold}
+                      className="mt-2"
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add Threshold
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {form.watch("thresholds")?.map((_, index) => (
+                      <div key={index} className="flex items-start space-x-4 p-4 rounded-md border">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1">
+                          <FormField
+                            control={form.control}
+                            name={`thresholds.${index}.threshold`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Monthly Sales Volume ($)</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="text" inputMode="decimal" />
+                                </FormControl>
+                                <FormDescription>
+                                  Sales amount to trigger this rate
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name={`thresholds.${index}.percentage`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Commission Rate (%)</FormLabel>
+                                <FormControl>
+                                  <Input {...field} type="text" inputMode="decimal" />
+                                </FormControl>
+                                <FormDescription>
+                                  Rate for sales above threshold
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeThreshold(index)}
+                          className="mt-8"
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex space-x-2">
+                <Button
+                  type="submit"
+                  disabled={updateMutation.isPending}
+                >
+                  {updateMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditing(false)}
+                  disabled={updateMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Form>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

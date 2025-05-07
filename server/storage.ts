@@ -1250,6 +1250,13 @@ export class MemStorage implements IStorage {
       .from(payouts)
       .orderBy(desc(payouts.createdAt));
   }
+  
+  async getAllTransactions(): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt));
+  }
 
   async createPayout(payout: InsertPayout): Promise<Payout> {
     const [createdPayout] = await db

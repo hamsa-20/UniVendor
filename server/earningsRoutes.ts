@@ -409,6 +409,28 @@ export function registerEarningsRoutes(router: Router) {
   });
 
   // Get platform earnings summary (super admin only)
+  // Get all transactions across the platform (super admin only)
+  router.get("/api/platform/transactions", requireSuperAdmin, async (req: AuthRequest, res: Response) => {
+    try {
+      const transactions = await storage.getAllTransactions();
+      res.status(200).json(transactions);
+    } catch (error) {
+      console.error("Error getting platform transactions:", error);
+      res.status(500).json({ message: "Failed to get platform transactions" });
+    }
+  });
+
+  // Get all payouts across the platform (super admin only)
+  router.get("/api/platform/payouts", requireSuperAdmin, async (req: AuthRequest, res: Response) => {
+    try {
+      const payouts = await storage.getAllPayouts();
+      res.status(200).json(payouts);
+    } catch (error) {
+      console.error("Error getting platform payouts:", error);
+      res.status(500).json({ message: "Failed to get platform payouts" });
+    }
+  });
+
   router.get("/api/platform/earnings", requireSuperAdmin, async (req: AuthRequest, res: Response) => {
     try {
       const dateRange = req.query.dateRange as string || "30d";
