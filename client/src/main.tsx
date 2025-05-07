@@ -10,4 +10,11 @@ metaDescription.name = "description";
 metaDescription.content = "A powerful SaaS platform for creating and managing single-vendor eCommerce websites with subscription-based pricing.";
 document.head.appendChild(metaDescription);
 
-createRoot(document.getElementById("root")!).render(<App />);
+console.log("Mounting React application...");
+const rootElement = document.getElementById("root");
+if (rootElement) {
+  console.log("Root element found, rendering app");
+  createRoot(rootElement).render(<App />);
+} else {
+  console.error("Root element not found! Check your HTML structure.");
+}
