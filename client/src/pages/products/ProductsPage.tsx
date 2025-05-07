@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, Link } from 'wouter';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Package, Search } from 'lucide-react';
+import { PlusCircle, Package, Search, FolderTree } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ProductForm from '@/components/products/ProductForm';
@@ -44,14 +44,22 @@ const ProductsPage = () => {
   return (
     <DashboardLayout title="Products" subtitle="Manage your product catalog">
       <div className="flex justify-between items-center mb-6">
-        <div className="relative w-full max-w-sm">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search products..."
-            className="pl-8 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div className="flex items-center gap-4">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..."
+              className="pl-8 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Link href="/product-categories">
+            <Button variant="outline" className="flex items-center gap-2">
+              <FolderTree className="h-4 w-4" />
+              Manage Categories
+            </Button>
+          </Link>
         </div>
         <Button onClick={() => setIsAddProductOpen(true)}>
           <PlusCircle className="mr-2 h-4 w-4" />
