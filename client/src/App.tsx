@@ -36,12 +36,9 @@ function Router() {
                 </svg>
                 <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 text-transparent bg-clip-text">MultiVend</span>
               </div>
-              <div className="space-x-4">
-                <Link href="/login" className="px-4 py-2 rounded-md border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <div>
+                <Link href="/login" className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
                   Login
-                </Link>
-                <Link href="/register" className="px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-                  Register
                 </Link>
               </div>
             </div>
@@ -57,7 +54,7 @@ function Router() {
                 A multi-tenant SaaS platform for creating and managing single-vendor eCommerce websites with flexible subscription-based pricing.
               </p>
               <div className="flex justify-center space-x-4">
-                <Link href="/register" className="px-6 py-3 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-lg font-medium">
+                <Link href="/login" className="px-6 py-3 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 transition-colors text-lg font-medium">
                   Get Started
                 </Link>
                 <Link href="#features" className="px-6 py-3 rounded-md border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-lg font-medium">
