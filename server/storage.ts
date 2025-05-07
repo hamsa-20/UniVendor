@@ -105,6 +105,7 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
+  private otpCodes: Map<number, OtpCode>;
   private subscriptionPlans: Map<number, SubscriptionPlan>;
   private vendors: Map<number, Vendor>;
   private domains: Map<number, Domain>;
@@ -117,6 +118,7 @@ export class MemStorage implements IStorage {
   private analytics: Map<number, Analytics>;
 
   private userId: number = 1;
+  private otpId: number = 1;
   private subscriptionPlanId: number = 1;
   private vendorId: number = 1;
   private domainId: number = 1;
@@ -130,6 +132,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.users = new Map();
+    this.otpCodes = new Map();
     this.subscriptionPlans = new Map();
     this.vendors = new Map();
     this.domains = new Map();
@@ -201,12 +204,12 @@ export class MemStorage implements IStorage {
     this.createSubscriptionPlan(enterprisePlan);
     
     // Create super admin user
-    const adminUser: InsertUser = {
+    const adminUser: Partial<InsertUser> = {
       email: "admin@multivend.com",
-      password: "admin123", // In a real app, this would be hashed
       firstName: "Super",
       lastName: "Admin",
       role: "super_admin",
+      isProfileComplete: true,
       avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
     };
     
@@ -236,6 +239,42 @@ export class MemStorage implements IStorage {
     const updatedUser = { ...user, ...data };
     this.users.set(id, updatedUser);
     return updatedUser;
+  }
+
+  // OTP operations
+  async createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode> {
+    const id = this.otpId++;
+    const otpCode: OtpCode = {
+      id,
+      email,
+      code,
+      expiresAt,
+      isUsed: false,
+      createdAt: new Date()
+    };
+    this.otpCodes.set(id, otpCode);
+    return otpCode;
+  }
+
+  async getLatestOtp(email: string): Promise<OtpCode | undefined> {
+    const userOtps = Array.from(this.otpCodes.values())
+      .filter(otp => otp.email === email && !otp.isUsed && otp.expiresAt > new Date());
+    
+    if (userOtps.length === 0) return undefined;
+    
+    // Find the most recent OTP
+    return userOtps.reduce((latest, current) => 
+      latest.createdAt > current.createdAt ? latest : current
+    );
+  }
+
+  async markOtpAsUsed(id: number): Promise<OtpCode | undefined> {
+    const otp = this.otpCodes.get(id);
+    if (!otp) return undefined;
+    
+    const updatedOtp = { ...otp, isUsed: true };
+    this.otpCodes.set(id, updatedOtp);
+    return updatedOtp;
   }
 
   // Subscription plan operations

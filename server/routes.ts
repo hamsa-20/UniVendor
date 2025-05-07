@@ -13,6 +13,7 @@ import {
   insertOrderItemSchema 
 } from "@shared/schema";
 import { ZodError } from "zod";
+import { setupAuth, isAuthenticated, hasRole } from "./auth";
 
 // Helper function to handle validation errors
 function handleValidationError(err: unknown, res: Response) {
@@ -27,72 +28,8 @@ function handleValidationError(err: unknown, res: Response) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Authentication endpoints
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
-      }
-
-      const user = await storage.getUserByEmail(email);
-      if (!user || user.password !== password) {
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      // In a real app, you would use JWT or sessions here
-      return res.status(200).json({ 
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        avatarUrl: user.avatarUrl
-      });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const userData = insertUserSchema.parse(req.body);
-      const existingUser = await storage.getUserByEmail(userData.email);
-      
-      if (existingUser) {
-        return res.status(409).json({ message: "Email already in use" });
-      }
-
-      // Set role to vendor by default for sign-ups
-      userData.role = "vendor";
-      
-      const user = await storage.createUser(userData);
-      
-      // Create vendor profile if vendor role
-      if (userData.role === "vendor" && req.body.companyName) {
-        const vendorData = insertVendorSchema.parse({
-          ...req.body,
-          userId: user.id,
-          // Default to the first subscription plan (usually free)
-          subscriptionPlanId: (await storage.getSubscriptionPlans())[0]?.id
-        });
-        
-        await storage.createVendor(vendorData);
-      }
-
-      // In a real app, you would authenticate the user here
-      return res.status(201).json({ 
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role
-      });
-    } catch (err) {
-      return handleValidationError(err, res);
-    }
-  });
+  // Set up authentication with OTP
+  setupAuth(app);
 
   // User endpoints
   app.get("/api/users/:id", async (req, res) => {
