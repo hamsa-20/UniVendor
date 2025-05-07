@@ -32,9 +32,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
   // User endpoints
-  app.get("/api/users/:id", async (req, res) => {
+  app.get("/api/users/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Only allow users to get their own data or super_admin can get anyone
+      if (id !== req.user.id && req.user.role !== "super_admin") {
+        return res.status(403).json({ message: "Forbidden: You can only access your own user data" });
+      }
+      
       const user = await storage.getUser(id);
       
       if (!user) {
@@ -50,9 +56,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/users/:id", async (req, res) => {
+  app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      
+      // Only allow users to update their own data or super_admin can update anyone
+      if (id !== req.user.id && req.user.role !== "super_admin") {
+        return res.status(403).json({ message: "Forbidden: You can only update your own user data" });
+      }
+      
       // Partial validation, only validate fields that are present
       const userData = Object.keys(req.body).reduce((acc, key) => {
         if (key in insertUserSchema.shape) {
@@ -69,7 +81,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Don't return the password
       const { password, ...userWithoutPassword } = updatedUser;
+      
+      // Update session user data with the updated information
+      req.login(updatedUser, (err) => {
+        if (err) {
+          console.error("Failed to update session:", err);
+        }
+      });
+      
       return res.status(200).json(userWithoutPassword);
+    } catch (err) {
+      return handleValidationError(err, res);
+    }
+  });
+
+  // Special endpoint for profile completion (including vendor creation)
+  app.post("/api/users/complete-profile", isAuthenticated, async (req, res) => {
+    try {
+      const { firstName, lastName, isProfileComplete, vendor } = req.body;
+      
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      // Update the user's profile information
+      const userData = {
+        firstName,
+        lastName,
+        isProfileComplete
+      };
+      
+      const updatedUser = await storage.updateUser(req.user.id, userData);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Create vendor record if vendor data is provided
+      let vendorRecord = null;
+      if (vendor && vendor.companyName && vendor.subdomainName) {
+        // Set up vendor data with the user ID
+        const vendorData = insertVendorSchema.parse({
+          userId: req.user.id,
+          companyName: vendor.companyName,
+          status: "active"
+        });
+        
+        vendorRecord = await storage.createVendor(vendorData);
+        
+        // Create a subdomain for the vendor
+        if (vendorRecord) {
+          const domainData = insertDomainSchema.parse({
+            vendorId: vendorRecord.id,
+            name: `${vendor.subdomainName}.multivend.com`,
+            type: "subdomain",
+            status: "pending",
+            isPrimary: true
+          });
+          
+          await storage.createDomain(domainData);
+        }
+      }
+      
+      // Update session with the new user data
+      req.login(updatedUser, (err) => {
+        if (err) {
+          console.error("Failed to update session:", err);
+        }
+      });
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = updatedUser;
+      
+      return res.status(200).json({
+        ...userWithoutPassword,
+        vendor: vendorRecord
+      });
     } catch (err) {
       return handleValidationError(err, res);
     }
