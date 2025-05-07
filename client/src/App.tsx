@@ -23,11 +23,11 @@ import PrivateRoute from "@/components/PrivateRoute";
 function Router() {
   return (
     <Switch>
-      {/* Simple test route to verify routing is working */}
+      {/* Welcome Route */}
       <Route path="/">
         <div className="p-8">
-          <h1 className="text-2xl font-bold mb-4">Hello World - Test Page</h1>
-          <p className="mb-4">This is a test to verify the application is rendering correctly.</p>
+          <h1 className="text-2xl font-bold mb-4">MultiVend</h1>
+          <p className="mb-4">A multi-tenant SaaS platform for creating and managing single-vendor eCommerce websites with subscription-based pricing.</p>
           <div className="space-x-4">
             <Link href="/login" className="text-blue-500 hover:underline">Login</Link>
             <Link href="/register" className="text-blue-500 hover:underline">Register</Link>
@@ -38,6 +38,17 @@ function Router() {
       {/* Auth Routes */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      
+      {/* Super Admin Route (Basic) */}
+      <Route path="/dashboard">
+        <div className="p-8">
+          <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+          <p className="mb-4">This would be your dashboard once logged in.</p>
+          <div className="space-x-4">
+            <Link href="/" className="text-blue-500 hover:underline">Home</Link>
+          </div>
+        </div>
+      </Route>
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />
