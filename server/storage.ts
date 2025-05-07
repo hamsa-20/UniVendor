@@ -32,6 +32,13 @@ export interface IStorage {
   createUser(user: Partial<InsertUser>): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
   
+  // Cart operations
+  getCartByUserId(userId: number): Promise<any>;
+  addToCart(userId: number, item: any): Promise<any>;
+  updateCartItemQuantity(userId: number, itemId: number, quantity: number): Promise<any>;
+  removeFromCart(userId: number, itemId: number): Promise<any>;
+  clearCart(userId: number): Promise<boolean>;
+  
   // OTP operations
   createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode>;
   getLatestOtp(email: string): Promise<OtpCode | undefined>;
@@ -80,7 +87,8 @@ export interface IStorage {
   // Customer operations
   getCustomer(id: number): Promise<Customer | undefined>;
   getCustomers(vendorId: number): Promise<Customer[]>;
-  getCustomerByEmail(vendorId: number, email: string): Promise<Customer | undefined>;
+  getCustomerByEmail(email: string, vendorId: number): Promise<Customer | undefined>;
+  getCustomerByUserId(userId: number, vendorId: number): Promise<Customer | undefined>;
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   updateCustomer(id: number, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
 
@@ -193,6 +201,7 @@ export class MemStorage implements IStorage {
   private payouts: Map<number, Payout>;
   private customerPaymentMethods: Map<number, CustomerPaymentMethod>;
   private paymentProviderSettings: Map<number, PaymentProviderSettings>;
+  private carts: Map<number, any>; // User ID -> Cart
 
   private userId: number = 1;
   private otpId: number = 1;
@@ -240,6 +249,7 @@ export class MemStorage implements IStorage {
     this.payouts = new Map();
     this.customerPaymentMethods = new Map();
     this.paymentProviderSettings = new Map();
+    this.carts = new Map();
 
     // Initialize with default subscription plans
     this.initializeDefaultData();
