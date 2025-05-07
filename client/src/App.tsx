@@ -14,6 +14,8 @@ import VendorsPage from "@/pages/vendors/VendorsPage";
 import VendorDetails from "@/pages/vendors/VendorDetails";
 import DomainsPage from "@/pages/domains/DomainsPage";
 import SubscriptionsPage from "@/pages/subscriptions/SubscriptionsPage";
+import AnalyticsPage from "@/pages/analytics/AnalyticsPage";
+import SettingsPage from "@/pages/settings/SettingsPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import ProductDetails from "./pages/products/ProductDetails";
 import OrdersPage from "./pages/orders/OrdersPage";
@@ -467,6 +469,16 @@ function Router() {
       <Route path="/subscriptions">
         <PrivateRoute roles={["super_admin"]}>
           <SubscriptionsPage />
+        </PrivateRoute>
+      </Route>
+      <Route path="/analytics">
+        <PrivateRoute roles={["super_admin"]}>
+          <AnalyticsPage />
+        </PrivateRoute>
+      </Route>
+      <Route path="/settings">
+        <PrivateRoute roles={["super_admin"]}>
+          <SettingsPage />
         </PrivateRoute>
       </Route>
       
