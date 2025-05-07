@@ -90,8 +90,8 @@ const PaymentSettingsPage = () => {
     transactionFeeFlat: z.string().min(1, "Required"),
     thresholds: z.array(
       z.object({
-        minAmount: z.string().min(1, "Required"),
-        feePercentage: z.string().min(1, "Required"),
+        threshold: z.string().min(1, "Required"),
+        percentage: z.string().min(1, "Required"),
       })
     ),
   });
@@ -104,9 +104,9 @@ const PaymentSettingsPage = () => {
       baseFeePercentage: commissionSettings?.baseFeePercentage || "2.9",
       transactionFeeFlat: commissionSettings?.transactionFeeFlat || "0.30",
       thresholds: commissionSettings?.thresholds || [
-        { minAmount: "1000", feePercentage: "2.5" },
-        { minAmount: "10000", feePercentage: "2.2" },
-        { minAmount: "50000", feePercentage: "1.9" },
+        { threshold: "1000", percentage: "2.5" },
+        { threshold: "10000", percentage: "2.2" },
+        { threshold: "50000", percentage: "1.9" },
       ],
     },
   });
@@ -268,11 +268,11 @@ const PaymentSettingsPage = () => {
                       <div key={index} className="grid grid-cols-2 gap-4 p-3 border rounded-md">
                         <div>
                           <div className="text-xs text-muted-foreground">Monthly Sales</div>
-                          <div className="font-medium">${threshold.minAmount}+</div>
+                          <div className="font-medium">${threshold.threshold}+</div>
                         </div>
                         <div>
                           <div className="text-xs text-muted-foreground">Fee</div>
-                          <div className="font-medium">{threshold.feePercentage}%</div>
+                          <div className="font-medium">{threshold.percentage}%</div>
                         </div>
                       </div>
                     ))}
