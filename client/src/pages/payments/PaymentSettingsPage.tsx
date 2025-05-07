@@ -264,7 +264,7 @@ const PaymentSettingsPage = () => {
                 <div>
                   <h4 className="text-sm font-medium mb-4">Volume Discounts</h4>
                   <div className="space-y-3">
-                    {(commissionSettings?.thresholds || []).map((threshold, index) => (
+                    {Array.isArray(commissionSettings?.thresholds) && commissionSettings.thresholds.map((threshold, index) => (
                       <div key={index} className="grid grid-cols-2 gap-4 p-3 border rounded-md">
                         <div>
                           <div className="text-xs text-muted-foreground">Monthly Sales</div>

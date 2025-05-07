@@ -53,25 +53,34 @@ const CommissionSettings: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Fetch commission settings
-  const { data: settings, isLoading } = useQuery({
+  const { data: settings, isLoading, error } = useQuery<CommissionSettings>({
     queryKey: ['/api/payments/commission-settings'],
-    onError: () => {
+  });
+  
+  // Effect for handling errors
+  React.useEffect(() => {
+    if (error) {
+      console.error("Commission settings error:", error);
       toast({
         title: "Error",
         description: "Failed to load commission settings",
         variant: "destructive"
       });
     }
-  });
+  }, [error, toast]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(commissionSettingsSchema),
     defaultValues: {
-      baseFeePercentage: settings?.baseFeePercentage || "5",
-      transactionFeeFlat: settings?.transactionFeeFlat || "0.30",
-      thresholds: settings?.thresholds || []
+      baseFeePercentage: "5",
+      transactionFeeFlat: "0.30",
+      thresholds: []
     },
-    values: settings as FormValues
+    values: settings ? {
+      baseFeePercentage: settings.baseFeePercentage || "5",
+      transactionFeeFlat: settings.transactionFeeFlat || "0.30",
+      thresholds: Array.isArray(settings.thresholds) ? settings.thresholds : []
+    } : undefined
   });
 
   // Add new threshold row
@@ -183,7 +192,7 @@ const CommissionSettings: React.FC = () => {
                 Set reduced fee percentages for vendors reaching certain monthly revenue thresholds
               </p>
 
-              {form.watch("thresholds")?.map((_, index) => (
+              {Array.isArray(form.watch("thresholds")) && form.watch("thresholds").map((_, index) => (
                 <div key={index} className="grid grid-cols-12 gap-4 mb-4">
                   <div className="col-span-5">
                     <FormField
