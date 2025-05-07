@@ -27,16 +27,30 @@ export function setupAuth(app: Express) {
     }
   };
 
+  // Trust first proxy for secure cookies if in production
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   app.use(session(sessionSettings));
 
   // Add login and logout to Request
   app.use((req: Request, res: Response, next: NextFunction) => {
     req.login = (user: User, done: (err: any) => void) => {
+      // Store user in session
       req.session.user = user;
-      done(null);
+      
+      // Save explicitly to ensure cookie is sent back
+      req.session.save((err) => {
+        if (err) {
+          console.error('Error saving session:', err);
+        }
+        done(err);
+      });
     };
     
     req.logout = (done: (err: any) => void) => {
+      // Clear the session and regenerate a new one
       req.session.destroy((err) => {
         done(err);
       });
@@ -161,7 +175,15 @@ export function setupAuth(app: Express) {
   // Check session status
   app.get("/api/auth/session", (req, res) => {
     if (req.isAuthenticated()) {
-      return res.status(200).json(req.user);
+      // Ensure the session is kept alive by touching it
+      req.session.touch();
+      // Save the session to ensure cookie expiry is updated
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+        }
+        return res.status(200).json(req.user);
+      });
     } else {
       return res.status(401).json({ message: "Not authenticated" });
     }

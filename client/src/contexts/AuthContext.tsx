@@ -3,7 +3,8 @@ import {
   useQuery, 
   useMutation, 
   UseMutationResult,
-  QueryClient
+  QueryClient,
+  UseQueryOptions
 } from '@tanstack/react-query';
 import { User } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
@@ -36,14 +37,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!res.ok) {
           if (res.status === 401) {
             // Not authenticated is an expected state
-            return null as any;
+            return null;
           }
           throw new Error('Failed to fetch session');
         }
         return await res.json();
       } catch (error) {
         console.error('Error fetching session:', error);
-        return null as any;
+        return null;
       }
     },
     retry: 1, // Retry once in case of network issues
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetchOnReconnect: true, // Refetch when browser reconnects
     refetchOnWindowFocus: true, // Refetch when window gains focus
     staleTime: 1000 * 60 * 30, // Consider data fresh for 30 minutes
-    cacheTime: 1000 * 60 * 60 * 24, // Cache data for 24 hours
+    gcTime: 1000 * 60 * 60 * 24, // Cache data for 24 hours (formerly cacheTime)
   });
 
   // Request OTP mutation
