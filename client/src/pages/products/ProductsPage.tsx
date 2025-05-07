@@ -122,16 +122,32 @@ const ProductsPage = () => {
       ) : products?.length ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {filteredProducts?.map((product) => (
-            <Card key={product.id} className="overflow-hidden shadow-sm hover:shadow transition-shadow">
+            <Card 
+              key={product.id} 
+              className="overflow-hidden shadow-sm hover:shadow transition-shadow cursor-pointer group"
+              onClick={() => setSelectedProductId(product.id)}
+            >
               {product.imageUrl ? (
-                <img 
-                  src={product.imageUrl} 
-                  alt={product.name} 
-                  className="w-full aspect-video object-cover"
-                />
+                <div className="relative">
+                  <img 
+                    src={product.imageUrl} 
+                    alt={product.name} 
+                    className="w-full aspect-video object-cover group-hover:opacity-90 transition-opacity"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <Button size="sm" variant="secondary" className="shadow-md">
+                      Edit Product
+                    </Button>
+                  </div>
+                </div>
               ) : (
-                <div className="w-full aspect-video bg-muted flex items-center justify-center">
+                <div className="w-full aspect-video bg-muted flex items-center justify-center relative">
                   <Package className="h-12 w-12 text-muted-foreground/50" />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <Button size="sm" variant="secondary" className="shadow-md">
+                      Edit Product
+                    </Button>
+                  </div>
                 </div>
               )}
               <CardHeader className="pb-2">
@@ -161,7 +177,7 @@ const ProductsPage = () => {
             <p className="text-muted-foreground text-center max-w-md mb-6">
               Start building your product catalog by adding your first product.
             </p>
-            <Button>
+            <Button onClick={() => setIsAddProductOpen(true)}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Your First Product
             </Button>

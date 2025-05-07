@@ -797,7 +797,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleValidationError(err, res);
     }
   });
-
+  
   app.delete("/api/product-categories/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
@@ -807,12 +807,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Category not found" });
       }
       
-      // Check if any products are using this category
+      // Get any products that are using this category
       const products = await storage.getProductsByCategory(id);
+      
+      // If products are using this category, update them to remove the category
       if (products.length > 0) {
-        return res.status(409).json({ 
-          message: "Cannot delete category that has products associated with it" 
-        });
+        for (const product of products) {
+          await storage.updateProduct(product.id, { categoryId: null });
+        }
       }
       
       const success = await storage.deleteProductCategory(id);
