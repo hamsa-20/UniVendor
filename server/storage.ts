@@ -153,6 +153,7 @@ export interface IStorage {
   getTransactionsByVendorId(vendorId: number): Promise<Transaction[]>;
   getTransactionsByOrderId(orderId: number): Promise<Transaction[]>;
   getTransactionsByInvoiceId(invoiceId: number): Promise<Transaction[]>;
+  getAllTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: number, data: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   processRefund(transactionId: number, amount: string, reason: string): Promise<Transaction | undefined>;
@@ -160,6 +161,7 @@ export interface IStorage {
   // Payout operations
   getPayout(id: number): Promise<Payout | undefined>;
   getPayoutsByVendorId(vendorId: number): Promise<Payout[]>;
+  getAllPayouts(): Promise<Payout[]>;
   createPayout(payout: InsertPayout): Promise<Payout>;
   updatePayout(id: number, data: Partial<InsertPayout>): Promise<Payout | undefined>;
   completePayout(id: number): Promise<Payout | undefined>;
@@ -1145,6 +1147,13 @@ export class MemStorage implements IStorage {
       .where(eq(transactions.invoiceId, invoiceId))
       .orderBy(desc(transactions.createdAt));
   }
+  
+  async getAllTransactions(): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .orderBy(desc(transactions.createdAt));
+  }
 
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const [createdTransaction] = await db
@@ -1232,6 +1241,13 @@ export class MemStorage implements IStorage {
       .select()
       .from(payouts)
       .where(eq(payouts.vendorId, vendorId))
+      .orderBy(desc(payouts.createdAt));
+  }
+  
+  async getAllPayouts(): Promise<Payout[]> {
+    return db
+      .select()
+      .from(payouts)
       .orderBy(desc(payouts.createdAt));
   }
 

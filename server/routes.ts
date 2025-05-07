@@ -13,6 +13,7 @@ import {
   insertOrderItemSchema 
 } from "@shared/schema";
 import { registerPaymentRoutes } from "./paymentRoutes";
+import { registerEarningsRoutes } from "./earningsRoutes";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
@@ -1074,6 +1075,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register payment-related routes
   registerPaymentRoutes(app);
+  
+  // Register earnings and dashboard routes
+  registerEarningsRoutes(app);
   
   // Register PayPal routes
   app.get("/paypal/setup", async (req, res) => {
