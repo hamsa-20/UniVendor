@@ -1458,6 +1458,45 @@ export class MemStorage implements IStorage {
       .returning();
     return updatedSettings;
   }
+  
+  // Commission settings operations
+  async getCommissionSettings(): Promise<CommissionSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(commissionSettings)
+      .limit(1);
+    return settings;
+  }
+  
+  async updateCommissionSettings(data: Partial<InsertCommissionSettings>): Promise<CommissionSettings> {
+    const currentSettings = await this.getCommissionSettings();
+    
+    if (currentSettings) {
+      const [updatedSettings] = await db
+        .update(commissionSettings)
+        .set({
+          ...data,
+          updatedAt: new Date()
+        })
+        .where(eq(commissionSettings.id, currentSettings.id))
+        .returning();
+      return updatedSettings;
+    } else {
+      // Create new settings if none exist
+      const [newSettings] = await db
+        .insert(commissionSettings)
+        .values({
+          ...data,
+          baseFeePercentage: data.baseFeePercentage || "5",
+          transactionFeeFlat: data.transactionFeeFlat || "0.30",
+          thresholds: data.thresholds || [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      return newSettings;
+    }
+  }
 
   // Platform statistics
   async getPlatformStats(): Promise<{

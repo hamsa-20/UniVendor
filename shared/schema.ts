@@ -469,6 +469,25 @@ export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
 export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
 
+// Commission settings for the platform
+export const commissionSettings = pgTable("commission_settings", {
+  id: serial("id").primaryKey(),
+  baseFeePercentage: numeric("base_fee_percentage").notNull().default("5"),
+  transactionFeeFlat: numeric("transaction_fee_flat").notNull().default("0.30"),
+  thresholds: jsonb("thresholds").notNull().default('[]'), // Array of {threshold: "1000", percentage: "4.5"}
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCommissionSettingsSchema = createInsertSchema(commissionSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export type CommissionSettings = typeof commissionSettings.$inferSelect;
+export type InsertCommissionSettings = z.infer<typeof insertCommissionSettingsSchema>;
+
 export type PlatformSubscription = typeof platformSubscriptions.$inferSelect;
 export type InsertPlatformSubscription = z.infer<typeof insertPlatformSubscriptionSchema>;
 
