@@ -636,6 +636,104 @@ export class MemStorage implements IStorage {
     return this.products.delete(id);
   }
 
+  // Cart operations
+  async getCartByUserId(userId: number): Promise<any> {
+    return this.carts.get(userId) || {
+      id: 1,
+      items: [],
+      subtotal: "0.00",
+      total: "0.00",
+      vendorId: 1
+    };
+  }
+
+  async addToCart(userId: number, item: any): Promise<any> {
+    const cart = await this.getCartByUserId(userId);
+    const existingItemIndex = cart.items.findIndex((i: any) => i.productId === item.productId);
+
+    if (existingItemIndex >= 0) {
+      // Update quantity if item exists
+      cart.items[existingItemIndex].quantity += item.quantity;
+    } else {
+      // Add new item with generated ID if it doesn't exist
+      const itemId = Math.floor(Math.random() * 10000);
+      cart.items.push({ ...item, id: itemId });
+    }
+
+    // Recalculate cart totals
+    let subtotal = cart.items.reduce(
+      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
+      0
+    );
+
+    cart.subtotal = subtotal.toFixed(2);
+    cart.total = subtotal.toFixed(2); // Add tax calculation as needed
+
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async updateCartItemQuantity(userId: number, itemId: number, quantity: number): Promise<any> {
+    const cart = await this.getCartByUserId(userId);
+    const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
+
+    if (itemIndex === -1) {
+      throw new Error("Cart item not found");
+    }
+
+    // Update item quantity
+    cart.items[itemIndex].quantity = quantity;
+
+    // Recalculate cart totals
+    let subtotal = cart.items.reduce(
+      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
+      0
+    );
+
+    cart.subtotal = subtotal.toFixed(2);
+    cart.total = subtotal.toFixed(2);
+
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async removeFromCart(userId: number, itemId: number): Promise<any> {
+    const cart = await this.getCartByUserId(userId);
+    const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
+
+    if (itemIndex === -1) {
+      throw new Error("Cart item not found");
+    }
+
+    // Remove item
+    cart.items.splice(itemIndex, 1);
+
+    // Recalculate cart totals
+    let subtotal = cart.items.reduce(
+      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
+      0
+    );
+
+    cart.subtotal = subtotal.toFixed(2);
+    cart.total = subtotal.toFixed(2);
+
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async clearCart(userId: number): Promise<boolean> {
+    const emptyCart = {
+      id: 1,
+      items: [],
+      subtotal: "0.00",
+      total: "0.00",
+      vendorId: 1
+    };
+    
+    this.carts.set(userId, emptyCart);
+    return true;
+  }
+
   // Customer operations
   async getCustomer(id: number): Promise<Customer | undefined> {
     return this.customers.get(id);
@@ -645,9 +743,19 @@ export class MemStorage implements IStorage {
     return Array.from(this.customers.values()).filter(customer => customer.vendorId === vendorId);
   }
 
-  async getCustomerByEmail(vendorId: number, email: string): Promise<Customer | undefined> {
+  async getCustomerByEmail(email: string, vendorId: number): Promise<Customer | undefined> {
     return Array.from(this.customers.values())
       .find(customer => customer.vendorId === vendorId && customer.email === email);
+  }
+  
+  async getCustomerByUserId(userId: number, vendorId: number): Promise<Customer | undefined> {
+    // Find user by ID
+    const user = this.users.get(userId);
+    if (!user || !user.email) return undefined;
+    
+    // Find customer by email and vendor ID
+    return Array.from(this.customers.values())
+      .find(customer => customer.vendorId === vendorId && customer.email === user.email);
   }
 
   async createCustomer(customerData: InsertCustomer): Promise<Customer> {

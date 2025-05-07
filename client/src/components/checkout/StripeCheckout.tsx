@@ -1,113 +1,115 @@
 import { useState, useEffect } from "react";
-import { useStripe, useElements, PaymentElement } from "@stripe/react-stripe-js";
-import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Loader2, AlertCircle } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
-// Check if Stripe public key is available
-const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-
-// Initialize Stripe
-let stripePromise: any = null;
-if (stripePublicKey) {
-  stripePromise = loadStripe(stripePublicKey);
-}
+// Load Stripe outside of the component to avoid recreating it on every render
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
 interface CheckoutFormProps {
   clientSecret: string;
-  amount: number;
-  currency: string;
-  onSuccess: (paymentIntentId: string) => void;
+  orderId: number;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
-const CheckoutForm = ({ clientSecret, amount, currency, onSuccess, onCancel }: CheckoutFormProps) => {
+// The form displayed inside the Stripe Elements
+const CheckoutForm = ({ clientSecret, orderId, onSuccess, onCancel }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!stripe || !elements) {
+      // Stripe.js hasn't loaded yet
       return;
     }
-    
-    setIsProcessing(true);
+
+    setProcessing(true);
     setError(null);
-    
+
     try {
-      const { error, paymentIntent } = await stripe.confirmPayment({
+      // Confirm the payment
+      const { error: paymentError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
-          return_url: window.location.origin + "/payment/success", // Fallback
+          return_url: window.location.origin,
         },
-        redirect: "if_required",
+        redirect: 'if_required',
       });
-      
-      if (error) {
-        setError(error.message || "Something went wrong with your payment.");
-        toast({
-          title: "Payment failed",
-          description: error.message || "There was a problem processing your payment.",
-          variant: "destructive",
-        });
+
+      if (paymentError) {
+        setError(paymentError.message || "An unexpected error occurred");
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        toast({
-          title: "Payment successful",
-          description: "Your payment has been processed successfully.",
+        // Record the successful payment on the server
+        await apiRequest("POST", `/api/orders/${orderId}/payment`, {
+          paymentIntentId: paymentIntent.id,
+          paymentMethod: "stripe",
         });
-        onSuccess(paymentIntent.id);
+        
+        toast({
+          title: "Payment Successful",
+          description: "Your payment has been processed successfully",
+        });
+        
+        onSuccess();
+      } else {
+        setError("Payment status: " + (paymentIntent?.status || "unknown"));
       }
     } catch (err: any) {
-      setError(err.message || "An unexpected error occurred.");
-      toast({
-        title: "Payment error",
-        description: err.message || "An unexpected error occurred.",
-        variant: "destructive",
-      });
+      setError(err.message || "An unexpected error occurred");
     } finally {
-      setIsProcessing(false);
+      setProcessing(false);
     }
   };
-  
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
-      
+    <form onSubmit={handleSubmit}>
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
           <AlertTitle>Payment Error</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       
-      <div className="flex justify-between">
+      <PaymentElement />
+      
+      <div className="flex justify-between mt-6">
         <Button 
           type="button" 
           variant="outline" 
           onClick={onCancel}
-          disabled={isProcessing}
+          disabled={processing}
         >
           Back
         </Button>
+        
         <Button 
           type="submit" 
-          disabled={!stripe || !elements || isProcessing}
+          disabled={!stripe || !elements || processing}
         >
-          {isProcessing ? (
+          {processing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing...
+              Processing
             </>
           ) : (
-            `Pay ${new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount / 100)}`
+            "Pay Now"
           )}
         </Button>
       </div>
@@ -117,105 +119,120 @@ const CheckoutForm = ({ clientSecret, amount, currency, onSuccess, onCancel }: C
 
 interface StripeCheckoutProps {
   vendorId: number;
-  amount: number;
-  currency?: string;
-  orderId: string;
-  onSuccess: (paymentIntentId: string) => void;
+  orderId: number;
+  amount: string;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
 const StripeCheckout = ({ 
   vendorId, 
-  amount, 
-  currency = 'USD', 
   orderId,
-  onSuccess,
-  onCancel
+  amount, 
+  onSuccess, 
+  onCancel 
 }: StripeCheckoutProps) => {
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [clientSecret, setClientSecret] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-  
+
   useEffect(() => {
-    const createPaymentIntent = async () => {
+    // Create a PaymentIntent as soon as the component loads
+    const fetchPaymentIntent = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const response = await fetch(`/api/vendors/${vendorId}/payment/create-intent`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            amount,
-            currency,
-            orderId,
-          }),
+        const response = await apiRequest("POST", `/api/vendors/${vendorId}/payment/create-intent`, {
+          amount,
+          orderId,
+          currency: "usd", // You might want to make this configurable
         });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.message || "Failed to create payment intent");
-        }
-        
+
         const data = await response.json();
         setClientSecret(data.clientSecret);
       } catch (err: any) {
-        setError(err.message || "Failed to initialize payment");
+        console.error("Error creating payment intent:", err);
+        setError("Failed to initialize payment. Please try again.");
         toast({
-          title: "Payment initialization failed",
-          description: err.message || "There was a problem setting up your payment.",
+          title: "Payment Error",
+          description: "Could not initialize payment processing. Please try again.",
           variant: "destructive",
         });
       } finally {
         setLoading(false);
       }
     };
-    
-    createPaymentIntent();
-  }, [vendorId, amount, currency, orderId, toast]);
-  
-  if (!stripePromise) {
-    return (
-      <Alert variant="destructive">
-        <AlertTitle>Configuration Error</AlertTitle>
-        <AlertDescription>
-          Stripe payment is not configured. Please contact the store administrator.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  
+
+    fetchPaymentIntent();
+  }, [vendorId, amount, orderId, toast]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Initializing payment...</span>
-      </div>
+      <Card>
+        <CardContent className="flex justify-center items-center min-h-[300px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
     );
   }
-  
-  if (error || !clientSecret) {
+
+  if (error) {
     return (
-      <Alert variant="destructive">
-        <AlertTitle>Payment Error</AlertTitle>
-        <AlertDescription>
-          {error || "Unable to initialize payment. Please try again later."}
-        </AlertDescription>
-      </Alert>
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment Error</CardTitle>
+          <CardDescription>
+            We encountered an issue initializing your payment
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        </CardContent>
+        <CardFooter>
+          <Button 
+            variant="outline" 
+            onClick={onCancel}
+            className="w-full"
+          >
+            Go Back
+          </Button>
+        </CardFooter>
+      </Card>
     );
   }
-  
+
+  const options = {
+    clientSecret,
+    appearance: {
+      theme: 'stripe',
+    },
+  };
+
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe' } }}>
-      <CheckoutForm 
-        clientSecret={clientSecret} 
-        amount={amount} 
-        currency={currency}
-        onSuccess={onSuccess}
-        onCancel={onCancel}
-      />
-    </Elements>
+    <Card>
+      <CardHeader>
+        <CardTitle>Card Payment</CardTitle>
+        <CardDescription>
+          Complete your purchase securely with Stripe
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {clientSecret && (
+          <Elements stripe={stripePromise} options={options}>
+            <CheckoutForm 
+              clientSecret={clientSecret} 
+              orderId={orderId}
+              onSuccess={onSuccess} 
+              onCancel={onCancel} 
+            />
+          </Elements>
+        )}
+      </CardContent>
+    </Card>
   );
 };
 

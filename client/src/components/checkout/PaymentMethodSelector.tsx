@@ -1,129 +1,189 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { CreditCard, CheckCircle, AlertCircle } from "lucide-react";
-
+import { useState } from "react";
+import { CardContent, Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CreditCard, Landmark, Wallet } from "lucide-react";
+import { SiPaypal, SiStripe } from "react-icons/si";
 
-interface PaymentMethod {
-  id: number;
-  name: string;
-  type: string;
-  isDefault: boolean;
-  isActive: boolean;
-  description?: string;
-  processingFee?: string;
-}
+export type PaymentMethod = "stripe" | "paypal" | "bank_transfer" | "manual";
 
 interface PaymentMethodSelectorProps {
   vendorId: number;
-  value: string;
-  onChange: (value: string) => void;
+  availableMethods: PaymentMethod[];
+  selectedMethod: PaymentMethod;
+  onSelectMethod: (method: PaymentMethod) => void;
 }
 
-const PaymentMethodSelector = ({ vendorId, value, onChange }: PaymentMethodSelectorProps) => {
-  const { data: paymentMethods, isLoading, error } = useQuery({
-    queryKey: ["/api/vendors", vendorId, "payment-methods"],
-    enabled: !!vendorId,
-  });
-  
-  // Set default payment method if available
-  useEffect(() => {
-    if (paymentMethods?.length && !value) {
-      const defaultMethod = paymentMethods.find((method: PaymentMethod) => method.isDefault);
-      if (defaultMethod) {
-        onChange(defaultMethod.id.toString());
-      } else if (paymentMethods[0]) {
-        onChange(paymentMethods[0].id.toString());
-      }
-    }
-  }, [paymentMethods, value, onChange]);
-  
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-[40px] w-full" />
-        <Skeleton className="h-[40px] w-full" />
-        <Skeleton className="h-[40px] w-full" />
-      </div>
-    );
-  }
-  
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>
-          Unable to load payment methods. Please try again later.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  
-  if (!paymentMethods || paymentMethods.length === 0) {
-    return (
-      <Alert>
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>No Payment Methods</AlertTitle>
-        <AlertDescription>
-          No payment methods are available for this vendor.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  
-  // Helper function to get icon based on payment type
-  const getPaymentIcon = (type: string) => {
-    switch (type) {
-      case "credit_card":
-        return <CreditCard className="h-4 w-4" />;
-      case "paypal":
-        return <span className="text-[#0070ba] font-semibold">PayPal</span>;
-      default:
-        return <CreditCard className="h-4 w-4" />;
-    }
-  };
-  
+const PaymentMethodSelector = ({
+  vendorId,
+  availableMethods,
+  selectedMethod,
+  onSelectMethod,
+}: PaymentMethodSelectorProps) => {
+  // Helper function to check if a method is available
+  const isMethodAvailable = (method: PaymentMethod) => availableMethods.includes(method);
+
+  // Payment method item styling
+  const methodItemClass = "flex items-center space-x-2 rounded-lg border p-4 cursor-pointer transition-all";
+  const methodItemActiveClass = `${methodItemClass} border-primary bg-primary/5`;
+  const methodItemInactiveClass = `${methodItemClass} border-border hover:border-primary/50`;
+  const methodItemDisabledClass = `${methodItemClass} border-border opacity-50 cursor-not-allowed`;
+
   return (
-    <RadioGroup
-      value={value}
-      onValueChange={onChange}
-      className="space-y-2"
-    >
-      {paymentMethods.map((method: PaymentMethod) => (
-        <div
-          key={method.id}
-          className={`flex items-center space-x-2 rounded-md border p-4 ${
-            value === method.id.toString() ? "border-primary bg-primary/5" : ""
-          }`}
+    <Card>
+      <CardHeader>
+        <CardTitle>Payment Method</CardTitle>
+        <CardDescription>
+          Select your preferred payment method
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <RadioGroup
+          value={selectedMethod}
+          onValueChange={(value) => onSelectMethod(value as PaymentMethod)}
+          className="space-y-4"
         >
-          <RadioGroupItem value={method.id.toString()} id={`payment-${method.id}`} />
-          <Label
-            htmlFor={`payment-${method.id}`}
-            className="flex flex-1 items-center justify-between cursor-pointer"
+          {/* Credit/Debit Card (Stripe) */}
+          <div 
+            className={
+              isMethodAvailable("stripe")
+                ? selectedMethod === "stripe"
+                  ? methodItemActiveClass
+                  : methodItemInactiveClass
+                : methodItemDisabledClass
+            }
+            onClick={() => isMethodAvailable("stripe") && onSelectMethod("stripe")}
           >
-            <div className="flex items-center space-x-2">
-              {getPaymentIcon(method.type)}
-              <span>{method.name}</span>
-              {method.isDefault && (
-                <span className="inline-flex items-center ml-2 text-xs text-primary">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Default
-                </span>
-              )}
+            <RadioGroupItem 
+              value="stripe" 
+              id="stripe" 
+              disabled={!isMethodAvailable("stripe")} 
+              className="sr-only"
+            />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gray-100 p-2 rounded-md">
+                  <SiStripe className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <Label htmlFor="stripe" className="font-medium">
+                    Credit/Debit Card
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Pay securely with your card
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-1">
+                <CreditCard className="h-5 w-5 text-muted-foreground" />
+              </div>
             </div>
-            {method.processingFee && (
-              <span className="text-sm text-muted-foreground">
-                {method.processingFee}
-              </span>
-            )}
-          </Label>
-        </div>
-      ))}
-    </RadioGroup>
+          </div>
+
+          {/* PayPal */}
+          <div 
+            className={
+              isMethodAvailable("paypal")
+                ? selectedMethod === "paypal"
+                  ? methodItemActiveClass
+                  : methodItemInactiveClass
+                : methodItemDisabledClass
+            }
+            onClick={() => isMethodAvailable("paypal") && onSelectMethod("paypal")}
+          >
+            <RadioGroupItem 
+              value="paypal" 
+              id="paypal" 
+              disabled={!isMethodAvailable("paypal")}
+              className="sr-only"
+            />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gray-100 p-2 rounded-md">
+                  <SiPaypal className="h-6 w-6 text-blue-800" />
+                </div>
+                <div>
+                  <Label htmlFor="paypal" className="font-medium">
+                    PayPal
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Pay with your PayPal account
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bank Transfer */}
+          <div 
+            className={
+              isMethodAvailable("bank_transfer")
+                ? selectedMethod === "bank_transfer"
+                  ? methodItemActiveClass
+                  : methodItemInactiveClass
+                : methodItemDisabledClass
+            }
+            onClick={() => isMethodAvailable("bank_transfer") && onSelectMethod("bank_transfer")}
+          >
+            <RadioGroupItem 
+              value="bank_transfer" 
+              id="bank_transfer" 
+              disabled={!isMethodAvailable("bank_transfer")}
+              className="sr-only"
+            />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gray-100 p-2 rounded-md">
+                  <Landmark className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <Label htmlFor="bank_transfer" className="font-medium">
+                    Bank Transfer
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Pay via bank wire transfer
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Manual Payment */}
+          <div 
+            className={
+              isMethodAvailable("manual")
+                ? selectedMethod === "manual"
+                  ? methodItemActiveClass
+                  : methodItemInactiveClass
+                : methodItemDisabledClass
+            }
+            onClick={() => isMethodAvailable("manual") && onSelectMethod("manual")}
+          >
+            <RadioGroupItem 
+              value="manual" 
+              id="manual" 
+              disabled={!isMethodAvailable("manual")}
+              className="sr-only"
+            />
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center space-x-3">
+                <div className="bg-gray-100 p-2 rounded-md">
+                  <Wallet className="h-6 w-6 text-gray-700" />
+                </div>
+                <div>
+                  <Label htmlFor="manual" className="font-medium">
+                    Pay on Delivery
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Pay cash or card when your order arrives
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </RadioGroup>
+      </CardContent>
+    </Card>
   );
 };
 
