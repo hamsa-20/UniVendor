@@ -23,12 +23,12 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Fetch current user session
+  // Fetch current user session with better persistence handling
   const {
     data: user,
     isLoading,
     error,
-  } = useQuery<User, Error>({
+  } = useQuery<User | null, Error>({
     queryKey: ['/api/auth/session'],
     queryFn: async () => {
       try {
@@ -46,8 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null as any;
       }
     },
-    retry: false,
-    refetchOnWindowFocus: false,
+    retry: 1, // Retry once in case of network issues
+    refetchOnMount: true, // Refetch when component mounts
+    refetchOnReconnect: true, // Refetch when browser reconnects
+    refetchOnWindowFocus: true, // Refetch when window gains focus
+    staleTime: 1000 * 60 * 30, // Consider data fresh for 30 minutes
+    cacheTime: 1000 * 60 * 60 * 24, // Cache data for 24 hours
   });
 
   // Request OTP mutation

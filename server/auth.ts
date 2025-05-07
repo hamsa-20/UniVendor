@@ -20,8 +20,10 @@ export function setupAuth(app: Express) {
     store: storage.sessionStore,
     cookie: {
       secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
-      sameSite: "lax"
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days for longer sessions
+      sameSite: "lax",
+      httpOnly: true,
+      path: "/"
     }
   };
 
