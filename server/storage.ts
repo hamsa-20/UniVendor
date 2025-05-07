@@ -51,6 +51,9 @@ export interface IStorage {
   createDomain(domain: InsertDomain): Promise<Domain>;
   updateDomain(id: number, data: Partial<InsertDomain>): Promise<Domain | undefined>;
   deleteDomain(id: number): Promise<boolean>;
+  verifyDomain(id: number): Promise<Domain | undefined>;
+  generateVerificationToken(id: number): Promise<Domain | undefined>;
+  checkDomainsSSL(): Promise<void>;
 
   // Product category operations
   getProductCategory(id: number): Promise<ProductCategory | undefined>;
@@ -909,6 +912,67 @@ export class DatabaseStorage implements IStorage {
       .delete(domains)
       .where(eq(domains.id, id));
     return result.count > 0;
+  }
+  
+  async verifyDomain(id: number): Promise<Domain | undefined> {
+    // Get the domain
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    // In a real implementation, this would check DNS records for the verification token
+    // For now, we'll simulate a successful verification by setting the status to verified
+    
+    const data = {
+      verificationStatus: 'verified',
+      status: 'active',
+      lastCheckedAt: new Date()
+    };
+    
+    const [updatedDomain] = await db
+      .update(domains)
+      .set(data)
+      .where(eq(domains.id, id))
+      .returning();
+      
+    return updatedDomain;
+  }
+  
+  async generateVerificationToken(id: number): Promise<Domain | undefined> {
+    // Generate a random verification token for the domain
+    const token = `lelekart-verify-${Math.random().toString(36).substring(2, 15)}`;
+    
+    const data = {
+      verificationToken: token,
+      verificationStatus: 'pending',
+      lastCheckedAt: new Date()
+    };
+    
+    const [updatedDomain] = await db
+      .update(domains)
+      .set(data)
+      .where(eq(domains.id, id))
+      .returning();
+      
+    return updatedDomain;
+  }
+  
+  async checkDomainsSSL(): Promise<void> {
+    // In a real implementation, this would check SSL certificates
+    // For this prototype, we'll simulate SSL status updates for active domains
+    
+    const allDomains = await this.getDomains();
+    
+    for (const domain of allDomains) {
+      if (domain.status === 'active' && domain.verificationStatus === 'verified') {
+        await db
+          .update(domains)
+          .set({ 
+            sslStatus: 'active',
+            lastCheckedAt: new Date()
+          })
+          .where(eq(domains.id, domain.id));
+      }
+    }
   }
 
   // Product category operations
