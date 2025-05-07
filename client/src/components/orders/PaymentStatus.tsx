@@ -1,54 +1,87 @@
-import { Badge } from "@/components/ui/badge";
-import { FC } from "react";
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { 
+  CreditCard, 
+  Clock, 
+  CheckCircle2, 
+  XCircle, 
+  RefreshCcw,
+  AlertCircle 
+} from 'lucide-react';
 
-type PaymentStatusType = "pending" | "paid" | "failed" | "refunded";
-
-interface PaymentStatusProps {
-  status: PaymentStatusType;
-  size?: "sm" | "md" | "lg";
-}
-
-const statusConfig: Record<PaymentStatusType, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" }> = {
-  pending: { label: "Pending", variant: "warning" },
-  paid: { label: "Paid", variant: "success" },
-  failed: { label: "Failed", variant: "destructive" },
-  refunded: { label: "Refunded", variant: "secondary" },
+type PaymentStatusProps = {
+  status: string;
+  size?: 'sm' | 'md' | 'lg';
+  showIcon?: boolean;
+  className?: string;
 };
 
-// Extend Badge variants to include success and warning
-const getVariantClass = (variant: string) => {
-  switch (variant) {
-    case "success":
-      return "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-800 dark:text-green-100";
-    case "warning":
-      return "bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-800 dark:text-yellow-100";
-    default:
-      return "";
-  }
-};
+const PaymentStatus = ({ 
+  status, 
+  size = 'md', 
+  showIcon = true,
+  className 
+}: PaymentStatusProps) => {
+  // Define payment statuses with their respective colors and icons
+  const statuses: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+    pending: {
+      color: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+      icon: <Clock className="h-4 w-4" />,
+      label: 'Pending'
+    },
+    paid: {
+      color: 'bg-green-100 text-green-800 hover:bg-green-100',
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      label: 'Paid'
+    },
+    failed: {
+      color: 'bg-red-100 text-red-800 hover:bg-red-100',
+      icon: <XCircle className="h-4 w-4" />,
+      label: 'Failed'
+    },
+    refunded: {
+      color: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+      icon: <RefreshCcw className="h-4 w-4" />,
+      label: 'Refunded'
+    },
+    partially_refunded: {
+      color: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+      icon: <RefreshCcw className="h-4 w-4" />,
+      label: 'Partially Refunded'
+    },
+    authorized: {
+      color: 'bg-indigo-100 text-indigo-800 hover:bg-indigo-100',
+      icon: <CreditCard className="h-4 w-4" />,
+      label: 'Authorized'
+    }
+  };
 
-export const PaymentStatus: FC<PaymentStatusProps> = ({ status, size = "md" }) => {
-  const config = statusConfig[status] || statusConfig.pending;
-  const sizeClass = {
-    sm: "text-xs px-2 py-0.5",
-    md: "text-sm px-2.5 py-0.5",
-    lg: "px-3 py-1"
-  }[size];
+  // Set fallback for unknown statuses
+  const statusConfig = statuses[status.toLowerCase()] || {
+    color: 'bg-gray-100 text-gray-800 hover:bg-gray-100',
+    icon: <AlertCircle className="h-4 w-4" />,
+    label: status
+  };
 
-  // For custom variants, apply custom classes
-  const isCustomVariant = ["success", "warning"].includes(config.variant);
-  
-  if (isCustomVariant) {
-    return (
-      <span className={`inline-flex items-center rounded-full font-medium ${sizeClass} ${getVariantClass(config.variant)}`}>
-        {config.label}
-      </span>
-    );
-  }
-  
+  // Size variations
+  const sizeStyles = {
+    sm: 'px-2 py-1 text-xs',
+    md: 'px-2.5 py-1 text-sm',
+    lg: 'px-3 py-1.5 text-sm'
+  };
+
   return (
-    <Badge variant={config.variant as any} className={sizeClass}>
-      {config.label}
+    <Badge 
+      variant="outline" 
+      className={cn(
+        statusConfig.color, 
+        sizeStyles[size],
+        'font-medium border-0',
+        className
+      )}
+    >
+      {showIcon && <span className="mr-1.5">{statusConfig.icon}</span>}
+      {statusConfig.label}
     </Badge>
   );
 };

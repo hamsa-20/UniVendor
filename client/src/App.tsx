@@ -22,6 +22,7 @@ import ProductsPage from "./pages/products/ProductsPage";
 import ProductDetails from "./pages/products/ProductDetails";
 import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
+import OrderDetailPage from "./pages/orders/OrderDetailPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
 import CheckoutPage from "./pages/checkout/CheckoutPage";
@@ -519,6 +520,12 @@ function Router() {
       <Route path="/orders">
         <PrivateRoute roles={["vendor"]}>
           <OrdersPage />
+        </PrivateRoute>
+      </Route>
+      
+      <Route path="/orders/:id">
+        <PrivateRoute roles={["vendor"]}>
+          <OrderDetailPage />
         </PrivateRoute>
       </Route>
       <Route path="/store-design">

@@ -1,160 +1,215 @@
 import { useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
-import { Badge } from '@/components/ui/badge';
+import { Link, useLocation } from 'wouter';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle,
+  CardDescription 
+} from '@/components/ui/card';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ShoppingCart, Search, Calendar, ArrowUpDown } from 'lucide-react';
+import { Loader2, Search, Eye, Filter } from 'lucide-react';
+import OrderStatus from '@/components/orders/OrderStatus';
+import PaymentStatus from '@/components/orders/PaymentStatus';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { Order } from '@shared/schema';
+import { useAuth } from '@/hooks/use-auth';
 
 const OrdersPage = () => {
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  
-  const vendorId = user?.role === 'vendor' ? user.id : undefined;
-  
-  // Fetch vendor's orders
-  const { data: orders, isLoading } = useQuery({
-    queryKey: [`/api/vendors/${vendorId}/orders`],
-    enabled: !!vendorId,
+
+  const { data: orders, isLoading } = useQuery<Order[]>({
+    queryKey: [user?.vendorId ? `/api/vendors/${user.vendorId}/orders` : null],
+    enabled: !!user?.vendorId,
   });
-  
-  // Filter and sort orders
-  const filteredOrders = orders
-    ? orders
-        .filter(order => 
-          (statusFilter === 'all' || order.status === statusFilter) &&
-          (searchQuery === '' || 
-           order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-           order.customer?.email.toLowerCase().includes(searchQuery.toLowerCase()))
-        )
-        .sort((a, b) => {
-          const dateA = new Date(a.createdAt).getTime();
-          const dateB = new Date(b.createdAt).getTime();
-          return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
-        })
-    : [];
-  
-  // Get badge variant based on order status
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'processing': return 'warning';
-      case 'shipped': return 'secondary';
-      case 'canceled': return 'destructive';
-      default: return 'outline';
-    }
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
-  
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value === 'all' ? null : value);
+  };
+
+  const handlePaymentStatusFilterChange = (value: string) => {
+    setPaymentStatusFilter(value === 'all' ? null : value);
+  };
+
+  const filteredOrders = orders
+    ? orders.filter((order) => {
+        const matchesSearch =
+          !searchQuery ||
+          order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (order.customerName && order.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (order.customerEmail && order.customerEmail.toLowerCase().includes(searchQuery.toLowerCase()));
+
+        const matchesStatus = !statusFilter || order.status === statusFilter;
+        const matchesPaymentStatus = !paymentStatusFilter || order.paymentStatus === paymentStatusFilter;
+
+        return matchesSearch && matchesStatus && matchesPaymentStatus;
+      })
+    : [];
+
+  if (!user?.vendorId) {
+    return (
+      <div className="container py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">No Vendor Access</h1>
+        <p className="mb-4">You need to be associated with a vendor to view orders.</p>
+        <Button onClick={() => setLocation('/')}>Return to Dashboard</Button>
+      </div>
+    );
+  }
+
   return (
-    <DashboardLayout title="Orders" subtitle="Manage customer orders">
-      <Card>
+    <div className="container py-6 max-w-7xl">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">Orders</h1>
+      </div>
+
+      <Card className="mb-6">
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>All Orders</CardTitle>
-              <CardDescription>View and manage all customer orders</CardDescription>
+          <CardTitle>Order Filters</CardTitle>
+          <CardDescription>Filter and search your orders</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Search by order # or customer"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="pl-8"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-              >
-                <Calendar className="mr-2 h-4 w-4" />
-                Date
-                <ArrowUpDown className="ml-2 h-4 w-4" />
-              </Button>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[160px]">
+
+            <div>
+              <Select onValueChange={handleStatusFilterChange} defaultValue="all">
+                <SelectTrigger>
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="canceled">Canceled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by order number or customer email..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-4">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-4 border rounded-md animate-pulse">
-                  <div className="flex items-center space-x-4">
-                    <div className="h-12 w-12 rounded-full bg-muted"></div>
-                    <div className="space-y-2">
-                      <div className="h-4 w-24 bg-muted rounded"></div>
-                      <div className="h-3 w-32 bg-muted rounded"></div>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="h-6 w-16 bg-muted rounded-full"></div>
-                    <div className="h-4 w-20 bg-muted rounded"></div>
-                  </div>
-                </div>
-              ))}
+
+            <div>
+              <Select onValueChange={handlePaymentStatusFilterChange} defaultValue="all">
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by payment" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Payment Statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="refunded">Refunded</SelectItem>
+                  <SelectItem value="partially_refunded">Partially Refunded</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ) : filteredOrders.length > 0 ? (
-            <div className="space-y-4">
-              {filteredOrders.map((order) => (
-                <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-md hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="bg-muted w-10 h-10 rounded-full flex items-center justify-center">
-                      <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Order #{order.orderNumber}</h4>
-                      <p className="text-xs text-muted-foreground">
-                        {formatDate(order.createdAt)} • {order.customer?.email || 'Guest customer'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-4 mt-2 sm:mt-0">
-                    <Badge variant={getStatusBadgeVariant(order.status)}>
-                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                    </Badge>
-                    <span className="text-sm font-medium">{formatCurrency(order.total)}</span>
-                    <Button variant="ghost" size="sm">View</Button>
-                  </div>
-                </div>
-              ))}
-              <div className="py-4 text-center text-sm text-muted-foreground">
-                Showing {filteredOrders.length} of {orders.length} orders
-              </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="text-center py-12">
+              <Filter className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-1">No Orders Found</h3>
+              <p className="text-gray-500">
+                {orders && orders.length > 0
+                  ? 'Try adjusting your filters or search query'
+                  : 'No orders have been placed yet'}
+              </p>
             </div>
           ) : (
-            <div className="py-12 text-center">
-              <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground/30" />
-              <h3 className="mt-4 text-lg font-semibold">No orders found</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {searchQuery || statusFilter !== 'all' 
-                  ? 'Try adjusting your search or filter to find what you\'re looking for.'
-                  : 'When customers place orders, they will appear here.'}
-              </p>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order #</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{order.orderNumber}</TableCell>
+                      <TableCell>{formatDate(order.createdAt || new Date())}</TableCell>
+                      <TableCell>
+                        {order.customerName ? (
+                          <>
+                            <div>{order.customerName}</div>
+                            {order.customerEmail && (
+                              <div className="text-sm text-gray-500">{order.customerEmail}</div>
+                            )}
+                          </>
+                        ) : (
+                          <span className="text-gray-500">Guest</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{formatCurrency(parseFloat(order.total))}</TableCell>
+                      <TableCell>
+                        <OrderStatus status={order.status} />
+                      </TableCell>
+                      <TableCell>
+                        <PaymentStatus status={order.paymentStatus || 'pending'} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/orders/${order.id}`}>
+                          <Button variant="ghost" size="sm">
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </Button>
+                        </Link>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>
       </Card>
-    </DashboardLayout>
+    </div>
   );
 };
 

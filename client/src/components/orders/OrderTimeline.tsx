@@ -1,122 +1,115 @@
-import { FC } from 'react';
-import { CheckCircle2, Clock, Package, Truck, ShoppingBag, XCircle } from 'lucide-react';
-
-export type OrderStatusType = 'pending' | 'processing' | 'shipped' | 'delivered' | 'canceled';
+import { cn } from '@/lib/utils';
+import { formatDateTime } from '@/lib/utils';
+import { Order } from '@shared/schema';
+import {
+  Clock,
+  PackageCheck,
+  Truck,
+  CheckCircle2,
+  XCircle,
+  File
+} from 'lucide-react';
 
 interface OrderTimelineProps {
-  status: OrderStatusType;
-  canceledAt?: Date;
-  processingAt?: Date;
-  shippedAt?: Date;
-  deliveredAt?: Date;
+  order: Order;
 }
 
-interface TimelineStep {
-  id: OrderStatusType;
+interface TimelineEvent {
   name: string;
-  icon: JSX.Element;
+  icon: React.ReactNode;
+  color: string;
+  date: Date | null;
   description: string;
 }
 
-export const OrderTimeline: FC<OrderTimelineProps> = ({
-  status,
-  canceledAt,
-  processingAt,
-  shippedAt,
-  deliveredAt,
-}) => {
-  
-  // Define the timeline steps
-  const steps: TimelineStep[] = [
+const OrderTimeline = ({ order }: OrderTimelineProps) => {
+  // Create timeline events based on order status
+  const events: TimelineEvent[] = [
     {
-      id: 'pending',
       name: 'Order Placed',
-      icon: <ShoppingBag className="h-5 w-5" />,
-      description: 'Your order has been received',
+      icon: <File />,
+      color: 'text-gray-600 bg-gray-100',
+      date: order.createdAt ? new Date(order.createdAt) : null,
+      description: `Order #${order.orderNumber} was placed`
     },
     {
-      id: 'processing',
       name: 'Processing',
-      icon: <Package className="h-5 w-5" />,
-      description: 'Your order is being prepared',
+      icon: <PackageCheck />,
+      color: 'text-blue-600 bg-blue-100',
+      date: order.processingDate ? new Date(order.processingDate) : null,
+      description: 'Order is being processed'
     },
     {
-      id: 'shipped',
       name: 'Shipped',
-      icon: <Truck className="h-5 w-5" />,
-      description: 'Your order is on the way',
+      icon: <Truck />,
+      color: 'text-purple-600 bg-purple-100',
+      date: order.shippedDate ? new Date(order.shippedDate) : null,
+      description: order.trackingNumber 
+        ? `Shipped with tracking: ${order.trackingNumber}` 
+        : 'Order has been shipped'
     },
     {
-      id: 'delivered',
       name: 'Delivered',
-      icon: <CheckCircle2 className="h-5 w-5" />,
-      description: 'Your order has been delivered',
-    },
+      icon: <CheckCircle2 />,
+      color: 'text-green-600 bg-green-100',
+      date: order.deliveredDate ? new Date(order.deliveredDate) : null,
+      description: 'Order has been delivered'
+    }
   ];
 
-  // If order is canceled, show a different timeline
-  if (status === 'canceled') {
+  // Add canceled event if order is canceled
+  if (order.status === 'canceled') {
+    events.push({
+      name: 'Canceled',
+      icon: <XCircle />,
+      color: 'text-red-600 bg-red-100',
+      date: order.canceledDate ? new Date(order.canceledDate) : null,
+      description: order.cancellationReason || 'Order was canceled'
+    });
+  }
+
+  // Filter out events with no date (haven't occurred yet)
+  // Then sort them by date
+  const sortedEvents = events
+    .filter(event => event.date !== null)
+    .sort((a, b) => (a.date && b.date ? a.date.getTime() - b.date.getTime() : 0));
+
+  // No events to show (should never happen as created date should always exist)
+  if (sortedEvents.length === 0) {
     return (
-      <div className="p-4 border rounded-md bg-red-50">
-        <div className="flex items-center gap-3">
-          <XCircle className="h-8 w-8 text-red-500" />
-          <div>
-            <h3 className="font-semibold text-lg text-red-700">Order Canceled</h3>
-            <p className="text-red-600 text-sm">
-              {canceledAt
-                ? `This order was canceled on ${canceledAt.toLocaleDateString()}`
-                : 'This order has been canceled'}
-            </p>
-          </div>
-        </div>
+      <div className="text-center p-4 text-gray-500">
+        <Clock className="mx-auto h-10 w-10 text-gray-400 mb-2" />
+        <p>No order history available</p>
       </div>
     );
   }
 
-  // Find the current step index
-  const currentStepIndex = steps.findIndex(step => step.id === status);
-
   return (
-    <div className="p-4 border rounded-md bg-white">
-      <ol className="relative border-l border-gray-200 ml-3">
-        {steps.map((step, index) => {
-          const isActive = index <= currentStepIndex;
-          const isPending = index === currentStepIndex + 1;
-          const isCompleted = index < currentStepIndex;
-          
-          let date: Date | undefined;
-          if (step.id === 'pending') date = undefined;
-          else if (step.id === 'processing') date = processingAt;
-          else if (step.id === 'shipped') date = shippedAt;
-          else if (step.id === 'delivered') date = deliveredAt;
-
-          return (
-            <li key={step.id} className="mb-6 ml-6">
-              <span className={`absolute flex items-center justify-center w-6 h-6 rounded-full -left-3 ring-4 ring-white
-                ${isActive ? 'bg-blue-500 text-white' : isPending ? 'bg-gray-100 text-gray-500' : 'bg-gray-100 text-gray-400'}`}>
-                {step.icon}
-              </span>
-              <h3 className={`flex items-center mb-1 text-lg font-semibold
-                ${isActive ? 'text-gray-900' : 'text-gray-400'}`}>
-                {step.name}
-                {isCompleted && (
-                  <span className="bg-blue-100 text-blue-800 text-sm font-medium mr-2 px-2.5 py-0.5 rounded ml-3">
-                    Completed
-                  </span>
-                )}
-              </h3>
-              <time className={`block mb-2 text-sm font-normal leading-none
-                ${isActive ? 'text-gray-600' : 'text-gray-400'}`}>
-                {date ? date.toLocaleString() : isPending ? 'Pending' : 'Not started'}
-              </time>
-              <p className={`mb-4 text-base font-normal
-                ${isActive ? 'text-gray-600' : 'text-gray-400'}`}>
-                {step.description}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
+    <div className="space-y-6 mt-2">
+      <h3 className="text-lg font-medium">Order Timeline</h3>
+      <div className="relative pl-8 space-y-8 before:absolute before:inset-y-0 before:left-3 before:ml-px before:border-l-2 before:border-gray-200">
+        {sortedEvents.map((event, index) => (
+          <div key={index} className="relative">
+            <div className={cn(
+              'absolute left-0 mt-1.5 -translate-x-1/2 w-7 h-7 rounded-full flex items-center justify-center',
+              event.color
+            )}>
+              {event.icon}
+            </div>
+            <div className="text-sm">
+              <div className="font-semibold flex items-center">
+                {event.name}
+                <span className="text-gray-500 font-normal ml-2">
+                  {event.date && formatDateTime(event.date)}
+                </span>
+              </div>
+              <div className="mt-0.5 text-gray-600">
+                {event.description}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };
