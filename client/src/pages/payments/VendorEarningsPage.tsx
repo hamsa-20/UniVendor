@@ -67,27 +67,28 @@ const VendorEarningsPage = () => {
       <DashboardHeader 
         title="Earnings Dashboard" 
         description="Track your earnings, request payouts, and view transaction history"
-      >
-        <div className="flex items-center space-x-2">
-          <Select value={dateRange} onValueChange={(value) => setDateRange(value as any)}>
-            <SelectTrigger className="w-[160px]">
-              <Calendar className="mr-2 h-4 w-4" />
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="year">Last year</SelectItem>
-            </SelectContent>
-          </Select>
-          
-          <Button variant="outline" size="sm">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-        </div>
-      </DashboardHeader>
+        action={
+          <div className="flex items-center space-x-2">
+            <Select value={dateRange} onValueChange={(value) => setDateRange(value as any)}>
+              <SelectTrigger className="w-[160px]">
+                <Calendar className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Select period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectItem value="year">Last year</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Button variant="outline" size="sm">
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+          </div>
+        }
+      />
       
       {/* Earnings Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
