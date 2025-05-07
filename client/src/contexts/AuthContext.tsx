@@ -1,123 +1,193 @@
-import { createContext, useEffect, useState, ReactNode } from "react";
-import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import React, { createContext, useContext, ReactNode } from 'react';
+import { 
+  useQuery, 
+  useMutation, 
+  UseMutationResult,
+  QueryClient
+} from '@tanstack/react-query';
+import { User } from '@shared/schema';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { toast } from '@/hooks/use-toast';
 
-type User = {
-  id: number;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: 'super_admin' | 'vendor';
-  avatarUrl?: string;
-};
-
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (userData: RegisterData) => Promise<void>;
-  logout: () => void;
-};
+  isAuthenticated: boolean;
+  error: Error | null;
+  requestOtpMutation: UseMutationResult<{ message: string; previewUrl?: string }, Error, { email: string }>;
+  verifyOtpMutation: UseMutationResult<User, Error, { email: string; otp: string }>;
+  logoutMutation: UseMutationResult<{ message: string }, Error, void>;
+  completeProfileMutation: UseMutationResult<User, Error, Partial<User>>;
+}
 
-type AuthProviderProps = {
-  children: ReactNode;
-};
+export const AuthContext = createContext<AuthContextType | null>(null);
 
-type RegisterData = {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  companyName?: string;
-};
-
-export const AuthContext = createContext<AuthContextType>({
-  user: null,
-  isLoading: true,
-  login: async () => {},
-  register: async () => {},
-  logout: () => {},
-});
-
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [, setLocation] = useLocation();
-
-  // Check if user is already logged in
-  useEffect(() => {
-    const checkAuth = async () => {
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // Fetch current user session
+  const {
+    data: user,
+    isLoading,
+    error,
+  } = useQuery<User, Error>({
+    queryKey: ['/api/auth/session'],
+    queryFn: async () => {
       try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        const res = await apiRequest('GET', '/api/auth/session');
+        if (!res.ok) {
+          if (res.status === 401) {
+            // Not authenticated is an expected state
+            return null as any;
+          }
+          throw new Error('Failed to fetch session');
         }
+        return await res.json();
       } catch (error) {
-        console.error("Failed to restore auth state:", error);
-        localStorage.removeItem('user');
-      } finally {
-        setIsLoading(false);
+        console.error('Error fetching session:', error);
+        return null as any;
       }
-    };
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
-    checkAuth();
-  }, []);
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    try {
-      const res = await apiRequest('POST', '/api/auth/login', { email, password });
-      const userData = await res.json();
-      
-      setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      // Redirect based on role
-      if (userData.role === 'super_admin') {
-        setLocation('/');
-      } else {
-        setLocation('/dashboard');
+  // Request OTP mutation
+  const requestOtpMutation = useMutation<
+    { message: string; previewUrl?: string },
+    Error,
+    { email: string }
+  >({
+    mutationFn: async ({ email }) => {
+      const res = await apiRequest('POST', '/api/auth/request-otp', { email });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to send OTP');
       }
-    } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'OTP Sent',
+        description: 'Check your email for the verification code.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
 
-  const register = async (userData: RegisterData) => {
-    setIsLoading(true);
-    try {
-      const res = await apiRequest('POST', '/api/auth/register', userData);
-      const registeredUser = await res.json();
-      
-      setUser(registeredUser);
-      localStorage.setItem('user', JSON.stringify(registeredUser));
-      
-      // Redirect to appropriate dashboard
-      if (registeredUser.role === 'super_admin') {
-        setLocation('/');
-      } else {
-        setLocation('/dashboard');
+  // Verify OTP mutation
+  const verifyOtpMutation = useMutation<
+    User,
+    Error,
+    { email: string; otp: string }
+  >({
+    mutationFn: async ({ email, otp }) => {
+      const res = await apiRequest('POST', '/api/auth/verify-otp', { email, otp });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Invalid verification code');
       }
-    } catch (error) {
-      console.error("Registration failed:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/auth/session'], data);
+      toast({
+        title: 'Login Successful',
+        description: 'You are now logged in.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Verification Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
-    setLocation('/login');
-  };
+  // Logout mutation
+  const logoutMutation = useMutation<{ message: string }, Error, void>({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/auth/logout');
+      if (!res.ok) {
+        throw new Error('Failed to log out');
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      // Clear the user from the cache
+      queryClient.setQueryData(['/api/auth/session'], null);
+      // Invalidate all queries that depend on authentication
+      queryClient.invalidateQueries();
+      
+      toast({
+        title: 'Logged Out',
+        description: 'You have been logged out successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Logout Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Complete user profile mutation
+  const completeProfileMutation = useMutation<User, Error, Partial<User>>({
+    mutationFn: async (profileData) => {
+      if (!user) throw new Error('Not authenticated');
+      
+      const res = await apiRequest('PATCH', `/api/users/${user.id}`, profileData);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+      return await res.json();
+    },
+    onSuccess: (updatedUser) => {
+      queryClient.setQueryData(['/api/auth/session'], updatedUser);
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Update Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated: !!user,
+        error,
+        requestOtpMutation,
+        verifyOtpMutation,
+        logoutMutation,
+        completeProfileMutation,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
-};
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}

@@ -12,8 +12,13 @@ import {
   orderItems, type OrderItem, type InsertOrderItem,
   analytics, type Analytics, type InsertAnalytics
 } from "@shared/schema";
+import session from "express-session";
+import createMemoryStore from "memorystore";
 
 export interface IStorage {
+  // Session store for authentication
+  sessionStore: session.Store;
+  
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
@@ -104,6 +109,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  public sessionStore: session.Store;
   private users: Map<number, User>;
   private otpCodes: Map<number, OtpCode>;
   private subscriptionPlans: Map<number, SubscriptionPlan>;
@@ -131,6 +137,12 @@ export class MemStorage implements IStorage {
   private analyticsId: number = 1;
 
   constructor() {
+    // Initialize in-memory session store
+    const MemoryStore = createMemoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
+
     this.users = new Map();
     this.otpCodes = new Map();
     this.subscriptionPlans = new Map();
