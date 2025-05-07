@@ -20,7 +20,7 @@ const DashboardLayout = ({ children, title, subtitle }: DashboardLayoutProps) =>
       {/* Sidebar backdrop for mobile */}
       {!sidebarCollapsed && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-30 z-20 md:hidden" 
+          className="fixed inset-0 bg-gray-600 bg-opacity-30 z-20 md:hidden" 
           onClick={toggleSidebar}
         />
       )}
