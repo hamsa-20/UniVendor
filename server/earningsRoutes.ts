@@ -691,6 +691,46 @@ export function registerEarningsRoutes(router: Router) {
     }
   });
 
+  // Get commission settings
+  router.get("/api/payments/commission-settings", requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const settings = await storage.getCommissionSettings();
+      
+      if (!settings) {
+        // Return default values if no settings exist
+        return res.status(200).json({
+          baseFeePercentage: "5",
+          transactionFeeFlat: "0.30",
+          thresholds: []
+        });
+      }
+      
+      res.status(200).json(settings);
+    } catch (error) {
+      console.error("Error getting commission settings:", error);
+      res.status(500).json({ message: "Failed to get commission settings" });
+    }
+  });
+  
+  // Update commission settings (super admin only)
+  router.put("/api/payments/commission-settings", requireSuperAdmin, async (req: AuthRequest, res: Response) => {
+    try {
+      const { baseFeePercentage, transactionFeeFlat, thresholds } = req.body;
+      
+      // Validate the input
+      const updatedSettings = await storage.updateCommissionSettings({
+        baseFeePercentage, 
+        transactionFeeFlat,
+        thresholds
+      });
+      
+      res.status(200).json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating commission settings:", error);
+      res.status(500).json({ message: "Failed to update commission settings" });
+    }
+  });
+
   // Approve payout (super admin only)
   router.patch("/api/platform/payouts/:payoutId/approve", requireSuperAdmin, async (req: AuthRequest, res: Response) => {
     try {
@@ -762,42 +802,5 @@ export function registerEarningsRoutes(router: Router) {
     }
   });
 
-  // Get commission settings
-  router.get("/api/payments/commission-settings", requireAuth, async (req: AuthRequest, res: Response) => {
-    try {
-      // In a real implementation, this would be stored in the database
-      // For this implementation, let's return fixed values
-      const commissionSettings = {
-        baseFeePercentage: "2.5",
-        transactionFeeFlat: "0.30",
-        thresholds: [
-          { monthlyRevenue: "1000", feePercentage: "2.5" },
-          { monthlyRevenue: "5000", feePercentage: "2.25" },
-          { monthlyRevenue: "10000", feePercentage: "2.0" },
-          { monthlyRevenue: "25000", feePercentage: "1.75" },
-          { monthlyRevenue: "50000", feePercentage: "1.5" }
-        ]
-      };
-
-      res.json(commissionSettings);
-    } catch (error: any) {
-      console.error("Error getting commission settings:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Update commission settings (super admin only)
-  router.put("/api/payments/commission-settings", requireSuperAdmin, async (req: AuthRequest, res: Response) => {
-    try {
-      // For this implementation, we'll just return the request data
-      // In a real implementation, this would update the settings in the database
-      res.json({
-        ...req.body,
-        updated: true
-      });
-    } catch (error: any) {
-      console.error("Error updating commission settings:", error);
-      res.status(500).json({ message: error.message });
-    }
-  });
+  // This section intentionally left empty to remove the duplicate routes
 }
