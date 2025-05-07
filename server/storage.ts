@@ -1,0 +1,579 @@
+import {
+  users, type User, type InsertUser,
+  subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
+  vendors, type Vendor, type InsertVendor,
+  domains, type Domain, type InsertDomain,
+  productCategories, type ProductCategory, type InsertProductCategory,
+  products, type Product, type InsertProduct,
+  customers, type Customer, type InsertCustomer,
+  customerAddresses, type CustomerAddress, type InsertCustomerAddress,
+  orders, type Order, type InsertOrder,
+  orderItems, type OrderItem, type InsertOrderItem,
+  analytics, type Analytics, type InsertAnalytics
+} from "@shared/schema";
+
+export interface IStorage {
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+
+  // Subscription plan operations
+  getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined>;
+  getSubscriptionPlans(): Promise<SubscriptionPlan[]>;
+  createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
+  updateSubscriptionPlan(id: number, data: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
+
+  // Vendor operations
+  getVendor(id: number): Promise<Vendor | undefined>;
+  getVendors(): Promise<Vendor[]>;
+  getVendorByUserId(userId: number): Promise<Vendor | undefined>;
+  createVendor(vendor: InsertVendor): Promise<Vendor>;
+  updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined>;
+
+  // Domain operations
+  getDomain(id: number): Promise<Domain | undefined>;
+  getDomains(): Promise<Domain[]>;
+  getDomainsByVendorId(vendorId: number): Promise<Domain[]>;
+  getDomainByName(name: string): Promise<Domain | undefined>;
+  createDomain(domain: InsertDomain): Promise<Domain>;
+  updateDomain(id: number, data: Partial<InsertDomain>): Promise<Domain | undefined>;
+  deleteDomain(id: number): Promise<boolean>;
+
+  // Product category operations
+  getProductCategory(id: number): Promise<ProductCategory | undefined>;
+  getProductCategories(vendorId: number): Promise<ProductCategory[]>;
+  createProductCategory(category: InsertProductCategory): Promise<ProductCategory>;
+  updateProductCategory(id: number, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined>;
+  deleteProductCategory(id: number): Promise<boolean>;
+
+  // Product operations
+  getProduct(id: number): Promise<Product | undefined>;
+  getProducts(vendorId: number): Promise<Product[]>;
+  getProductsByCategory(categoryId: number): Promise<Product[]>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined>;
+  deleteProduct(id: number): Promise<boolean>;
+
+  // Customer operations
+  getCustomer(id: number): Promise<Customer | undefined>;
+  getCustomers(vendorId: number): Promise<Customer[]>;
+  getCustomerByEmail(vendorId: number, email: string): Promise<Customer | undefined>;
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  updateCustomer(id: number, data: Partial<InsertCustomer>): Promise<Customer | undefined>;
+
+  // Customer address operations
+  getCustomerAddress(id: number): Promise<CustomerAddress | undefined>;
+  getCustomerAddresses(customerId: number): Promise<CustomerAddress[]>;
+  createCustomerAddress(address: InsertCustomerAddress): Promise<CustomerAddress>;
+  updateCustomerAddress(id: number, data: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined>;
+  deleteCustomerAddress(id: number): Promise<boolean>;
+
+  // Order operations
+  getOrder(id: number): Promise<Order | undefined>;
+  getOrders(vendorId: number): Promise<Order[]>;
+  getOrderByNumber(orderNumber: string): Promise<Order | undefined>;
+  createOrder(order: InsertOrder): Promise<Order>;
+  updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined>;
+
+  // Order item operations
+  getOrderItem(id: number): Promise<OrderItem | undefined>;
+  getOrderItems(orderId: number): Promise<OrderItem[]>;
+  createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
+  updateOrderItem(id: number, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined>;
+  deleteOrderItem(id: number): Promise<boolean>;
+
+  // Analytics operations
+  getVendorAnalytics(vendorId: number): Promise<Analytics[]>;
+  createAnalyticsEntry(data: InsertAnalytics): Promise<Analytics>;
+  
+  // Platform statistics
+  getPlatformStats(): Promise<{
+    totalVendors: number;
+    activeDomains: number;
+    totalRevenue: number;
+    pendingIssues: number;
+  }>;
+}
+
+export class MemStorage implements IStorage {
+  private users: Map<number, User>;
+  private subscriptionPlans: Map<number, SubscriptionPlan>;
+  private vendors: Map<number, Vendor>;
+  private domains: Map<number, Domain>;
+  private productCategories: Map<number, ProductCategory>;
+  private products: Map<number, Product>;
+  private customers: Map<number, Customer>;
+  private customerAddresses: Map<number, CustomerAddress>;
+  private orders: Map<number, Order>;
+  private orderItems: Map<number, OrderItem>;
+  private analytics: Map<number, Analytics>;
+
+  private userId: number = 1;
+  private subscriptionPlanId: number = 1;
+  private vendorId: number = 1;
+  private domainId: number = 1;
+  private productCategoryId: number = 1;
+  private productId: number = 1;
+  private customerId: number = 1;
+  private customerAddressId: number = 1;
+  private orderId: number = 1;
+  private orderItemId: number = 1;
+  private analyticsId: number = 1;
+
+  constructor() {
+    this.users = new Map();
+    this.subscriptionPlans = new Map();
+    this.vendors = new Map();
+    this.domains = new Map();
+    this.productCategories = new Map();
+    this.products = new Map();
+    this.customers = new Map();
+    this.customerAddresses = new Map();
+    this.orders = new Map();
+    this.orderItems = new Map();
+    this.analytics = new Map();
+
+    // Initialize with default subscription plans
+    this.initializeDefaultData();
+  }
+
+  private initializeDefaultData() {
+    // Create default subscription plans
+    const freePlan: InsertSubscriptionPlan = {
+      name: "Free",
+      description: "Basic solution for small businesses or individuals just starting out.",
+      price: "0",
+      features: ["1 subdomain", "Up to 50 products", "Basic analytics", "Email support"],
+      productLimit: 50,
+      storageLimit: 1,
+      customDomainLimit: 0,
+      supportLevel: "email",
+      isActive: true
+    };
+    
+    const basicPlan: InsertSubscriptionPlan = {
+      name: "Basic",
+      description: "For growing businesses looking to expand their online presence.",
+      price: "29",
+      features: ["1 custom domain", "Up to 500 products", "Advanced analytics", "Priority email support", "Basic customization"],
+      productLimit: 500,
+      storageLimit: 5,
+      customDomainLimit: 1,
+      supportLevel: "priority_email",
+      isActive: true
+    };
+    
+    const proPlan: InsertSubscriptionPlan = {
+      name: "Pro",
+      description: "Complete solution for established businesses with comprehensive needs.",
+      price: "79",
+      features: ["3 custom domains", "Unlimited products", "Full analytics suite", "Phone & email support", "Advanced customization"],
+      productLimit: 10000,
+      storageLimit: 20,
+      customDomainLimit: 3,
+      supportLevel: "phone_email",
+      isActive: true
+    };
+    
+    const enterprisePlan: InsertSubscriptionPlan = {
+      name: "Enterprise",
+      description: "Custom solution for large businesses with complex requirements.",
+      price: "199",
+      features: ["10 custom domains", "Unlimited products", "Enterprise analytics", "Dedicated support", "Custom development"],
+      productLimit: 100000,
+      storageLimit: 100,
+      customDomainLimit: 10,
+      supportLevel: "dedicated",
+      isActive: true
+    };
+    
+    this.createSubscriptionPlan(freePlan);
+    this.createSubscriptionPlan(basicPlan);
+    this.createSubscriptionPlan(proPlan);
+    this.createSubscriptionPlan(enterprisePlan);
+    
+    // Create super admin user
+    const adminUser: InsertUser = {
+      email: "admin@multivend.com",
+      password: "admin123", // In a real app, this would be hashed
+      firstName: "Super",
+      lastName: "Admin",
+      role: "super_admin",
+      avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+    };
+    
+    this.createUser(adminUser);
+  }
+
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.email === email);
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const id = this.userId++;
+    const user: User = { ...userData, id, createdAt: new Date() };
+    this.users.set(id, user);
+    return user;
+  }
+
+  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    
+    const updatedUser = { ...user, ...data };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  // Subscription plan operations
+  async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
+    return this.subscriptionPlans.get(id);
+  }
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return Array.from(this.subscriptionPlans.values());
+  }
+
+  async createSubscriptionPlan(planData: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const id = this.subscriptionPlanId++;
+    const plan: SubscriptionPlan = { ...planData, id, createdAt: new Date() };
+    this.subscriptionPlans.set(id, plan);
+    return plan;
+  }
+
+  async updateSubscriptionPlan(id: number, data: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
+    const plan = await this.getSubscriptionPlan(id);
+    if (!plan) return undefined;
+    
+    const updatedPlan = { ...plan, ...data };
+    this.subscriptionPlans.set(id, updatedPlan);
+    return updatedPlan;
+  }
+
+  // Vendor operations
+  async getVendor(id: number): Promise<Vendor | undefined> {
+    return this.vendors.get(id);
+  }
+
+  async getVendors(): Promise<Vendor[]> {
+    return Array.from(this.vendors.values());
+  }
+
+  async getVendorByUserId(userId: number): Promise<Vendor | undefined> {
+    return Array.from(this.vendors.values()).find(vendor => vendor.userId === userId);
+  }
+
+  async createVendor(vendorData: InsertVendor): Promise<Vendor> {
+    const id = this.vendorId++;
+    const vendor: Vendor = { 
+      ...vendorData, 
+      id, 
+      createdAt: new Date(),
+      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days trial
+      nextBillingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    };
+    this.vendors.set(id, vendor);
+    return vendor;
+  }
+
+  async updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined> {
+    const vendor = await this.getVendor(id);
+    if (!vendor) return undefined;
+    
+    const updatedVendor = { ...vendor, ...data };
+    this.vendors.set(id, updatedVendor);
+    return updatedVendor;
+  }
+
+  // Domain operations
+  async getDomain(id: number): Promise<Domain | undefined> {
+    return this.domains.get(id);
+  }
+
+  async getDomains(): Promise<Domain[]> {
+    return Array.from(this.domains.values());
+  }
+
+  async getDomainsByVendorId(vendorId: number): Promise<Domain[]> {
+    return Array.from(this.domains.values()).filter(domain => domain.vendorId === vendorId);
+  }
+
+  async getDomainByName(name: string): Promise<Domain | undefined> {
+    return Array.from(this.domains.values()).find(domain => domain.name === name);
+  }
+
+  async createDomain(domainData: InsertDomain): Promise<Domain> {
+    const id = this.domainId++;
+    const domain: Domain = { 
+      ...domainData, 
+      id, 
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year expiration
+    };
+    this.domains.set(id, domain);
+    return domain;
+  }
+
+  async updateDomain(id: number, data: Partial<InsertDomain>): Promise<Domain | undefined> {
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    const updatedDomain = { ...domain, ...data };
+    this.domains.set(id, updatedDomain);
+    return updatedDomain;
+  }
+
+  async deleteDomain(id: number): Promise<boolean> {
+    return this.domains.delete(id);
+  }
+
+  // Product category operations
+  async getProductCategory(id: number): Promise<ProductCategory | undefined> {
+    return this.productCategories.get(id);
+  }
+
+  async getProductCategories(vendorId: number): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).filter(category => category.vendorId === vendorId);
+  }
+
+  async createProductCategory(categoryData: InsertProductCategory): Promise<ProductCategory> {
+    const id = this.productCategoryId++;
+    const category: ProductCategory = { ...categoryData, id, createdAt: new Date() };
+    this.productCategories.set(id, category);
+    return category;
+  }
+
+  async updateProductCategory(id: number, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const category = await this.getProductCategory(id);
+    if (!category) return undefined;
+    
+    const updatedCategory = { ...category, ...data };
+    this.productCategories.set(id, updatedCategory);
+    return updatedCategory;
+  }
+
+  async deleteProductCategory(id: number): Promise<boolean> {
+    return this.productCategories.delete(id);
+  }
+
+  // Product operations
+  async getProduct(id: number): Promise<Product | undefined> {
+    return this.products.get(id);
+  }
+
+  async getProducts(vendorId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(product => product.vendorId === vendorId);
+  }
+
+  async getProductsByCategory(categoryId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(product => product.categoryId === categoryId);
+  }
+
+  async createProduct(productData: InsertProduct): Promise<Product> {
+    const id = this.productId++;
+    const product: Product = { 
+      ...productData, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.products.set(id, product);
+    return product;
+  }
+
+  async updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined> {
+    const product = await this.getProduct(id);
+    if (!product) return undefined;
+    
+    const updatedProduct = { ...product, ...data, updatedAt: new Date() };
+    this.products.set(id, updatedProduct);
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: number): Promise<boolean> {
+    return this.products.delete(id);
+  }
+
+  // Customer operations
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+
+  async getCustomers(vendorId: number): Promise<Customer[]> {
+    return Array.from(this.customers.values()).filter(customer => customer.vendorId === vendorId);
+  }
+
+  async getCustomerByEmail(vendorId: number, email: string): Promise<Customer | undefined> {
+    return Array.from(this.customers.values())
+      .find(customer => customer.vendorId === vendorId && customer.email === email);
+  }
+
+  async createCustomer(customerData: InsertCustomer): Promise<Customer> {
+    const id = this.customerId++;
+    const customer: Customer = { ...customerData, id, createdAt: new Date() };
+    this.customers.set(id, customer);
+    return customer;
+  }
+
+  async updateCustomer(id: number, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const customer = await this.getCustomer(id);
+    if (!customer) return undefined;
+    
+    const updatedCustomer = { ...customer, ...data };
+    this.customers.set(id, updatedCustomer);
+    return updatedCustomer;
+  }
+
+  // Customer address operations
+  async getCustomerAddress(id: number): Promise<CustomerAddress | undefined> {
+    return this.customerAddresses.get(id);
+  }
+
+  async getCustomerAddresses(customerId: number): Promise<CustomerAddress[]> {
+    return Array.from(this.customerAddresses.values())
+      .filter(address => address.customerId === customerId);
+  }
+
+  async createCustomerAddress(addressData: InsertCustomerAddress): Promise<CustomerAddress> {
+    const id = this.customerAddressId++;
+    const address: CustomerAddress = { ...addressData, id, createdAt: new Date() };
+    this.customerAddresses.set(id, address);
+    return address;
+  }
+
+  async updateCustomerAddress(id: number, data: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined> {
+    const address = await this.getCustomerAddress(id);
+    if (!address) return undefined;
+    
+    const updatedAddress = { ...address, ...data };
+    this.customerAddresses.set(id, updatedAddress);
+    return updatedAddress;
+  }
+
+  async deleteCustomerAddress(id: number): Promise<boolean> {
+    return this.customerAddresses.delete(id);
+  }
+
+  // Order operations
+  async getOrder(id: number): Promise<Order | undefined> {
+    return this.orders.get(id);
+  }
+
+  async getOrders(vendorId: number): Promise<Order[]> {
+    return Array.from(this.orders.values()).filter(order => order.vendorId === vendorId);
+  }
+
+  async getOrderByNumber(orderNumber: string): Promise<Order | undefined> {
+    return Array.from(this.orders.values()).find(order => order.orderNumber === orderNumber);
+  }
+
+  async createOrder(orderData: InsertOrder): Promise<Order> {
+    const id = this.orderId++;
+    const order: Order = { 
+      ...orderData, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.orders.set(id, order);
+    return order;
+  }
+
+  async updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined> {
+    const order = await this.getOrder(id);
+    if (!order) return undefined;
+    
+    const updatedOrder = { ...order, ...data, updatedAt: new Date() };
+    this.orders.set(id, updatedOrder);
+    return updatedOrder;
+  }
+
+  // Order item operations
+  async getOrderItem(id: number): Promise<OrderItem | undefined> {
+    return this.orderItems.get(id);
+  }
+
+  async getOrderItems(orderId: number): Promise<OrderItem[]> {
+    return Array.from(this.orderItems.values()).filter(item => item.orderId === orderId);
+  }
+
+  async createOrderItem(itemData: InsertOrderItem): Promise<OrderItem> {
+    const id = this.orderItemId++;
+    const item: OrderItem = { ...itemData, id, createdAt: new Date() };
+    this.orderItems.set(id, item);
+    return item;
+  }
+
+  async updateOrderItem(id: number, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined> {
+    const item = await this.getOrderItem(id);
+    if (!item) return undefined;
+    
+    const updatedItem = { ...item, ...data };
+    this.orderItems.set(id, updatedItem);
+    return updatedItem;
+  }
+
+  async deleteOrderItem(id: number): Promise<boolean> {
+    return this.orderItems.delete(id);
+  }
+
+  // Analytics operations
+  async getVendorAnalytics(vendorId: number): Promise<Analytics[]> {
+    return Array.from(this.analytics.values())
+      .filter(analytics => analytics.vendorId === vendorId);
+  }
+
+  async createAnalyticsEntry(data: InsertAnalytics): Promise<Analytics> {
+    const id = this.analyticsId++;
+    const entry: Analytics = { ...data, id, createdAt: new Date() };
+    this.analytics.set(id, entry);
+    return entry;
+  }
+
+  // Platform statistics
+  async getPlatformStats(): Promise<{
+    totalVendors: number;
+    activeDomains: number;
+    totalRevenue: number;
+    pendingIssues: number;
+  }> {
+    const vendors = await this.getVendors();
+    const domains = await this.getDomains();
+    const activeDomains = domains.filter(domain => domain.status === "active").length;
+    
+    let totalRevenue = 0;
+    // Sum up revenue from all vendors
+    for (const vendor of vendors) {
+      const vendorOrders = await this.getOrders(vendor.id);
+      for (const order of vendorOrders) {
+        if (order.paymentStatus === "paid") {
+          totalRevenue += Number(order.total);
+        }
+      }
+    }
+    
+    // Count pending issues (like domains with issues, suspended vendors, etc.)
+    const domainsWithIssues = domains.filter(domain => 
+      domain.status === "error" || domain.sslStatus === "invalid").length;
+    const suspendedVendors = vendors.filter(vendor => vendor.status === "suspended").length;
+    const overdueVendors = vendors.filter(vendor => vendor.subscriptionStatus === "overdue").length;
+    
+    const pendingIssues = domainsWithIssues + suspendedVendors + overdueVendors;
+    
+    return {
+      totalVendors: vendors.length,
+      activeDomains,
+      totalRevenue,
+      pendingIssues
+    };
+  }
+}
+
+export const storage = new MemStorage();
