@@ -10,7 +10,14 @@ import {
   customerAddresses, type CustomerAddress, type InsertCustomerAddress,
   orders, type Order, type InsertOrder,
   orderItems, type OrderItem, type InsertOrderItem,
-  analytics, type Analytics, type InsertAnalytics
+  analytics, type Analytics, type InsertAnalytics,
+  paymentMethods, type PaymentMethod, type InsertPaymentMethod,
+  platformSubscriptions, type PlatformSubscription, type InsertPlatformSubscription,
+  invoices, type Invoice, type InsertInvoice,
+  transactions, type Transaction, type InsertTransaction,
+  payouts, type Payout, type InsertPayout,
+  customerPaymentMethods, type CustomerPaymentMethod, type InsertCustomerPaymentMethod,
+  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings
 } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
@@ -109,6 +116,60 @@ export interface IStorage {
     totalRevenue: number;
     pendingIssues: number;
   }>;
+
+  // Payment methods operations
+  getPaymentMethod(id: number): Promise<PaymentMethod | undefined>;
+  getPaymentMethodsByVendorId(vendorId: number): Promise<PaymentMethod[]>;
+  createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod>;
+  updatePaymentMethod(id: number, data: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined>;
+  deletePaymentMethod(id: number): Promise<boolean>;
+  setDefaultPaymentMethod(id: number, vendorId: number): Promise<PaymentMethod | undefined>;
+
+  // Platform subscription operations
+  getPlatformSubscription(id: number): Promise<PlatformSubscription | undefined>;
+  getPlatformSubscriptionByVendorId(vendorId: number): Promise<PlatformSubscription | undefined>;
+  createPlatformSubscription(subscription: InsertPlatformSubscription): Promise<PlatformSubscription>;
+  updatePlatformSubscription(id: number, data: Partial<InsertPlatformSubscription>): Promise<PlatformSubscription | undefined>;
+  cancelPlatformSubscription(id: number, reason: string): Promise<PlatformSubscription | undefined>;
+
+  // Invoice operations
+  getInvoice(id: number): Promise<Invoice | undefined>;
+  getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined>;
+  getInvoicesByVendorId(vendorId: number): Promise<Invoice[]>;
+  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
+  updateInvoice(id: number, data: Partial<InsertInvoice>): Promise<Invoice | undefined>;
+  markInvoiceAsPaid(id: number): Promise<Invoice | undefined>;
+
+  // Transaction operations
+  getTransaction(id: number): Promise<Transaction | undefined>;
+  getTransactionsByVendorId(vendorId: number): Promise<Transaction[]>;
+  getTransactionsByOrderId(orderId: number): Promise<Transaction[]>;
+  getTransactionsByInvoiceId(invoiceId: number): Promise<Transaction[]>;
+  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  updateTransaction(id: number, data: Partial<InsertTransaction>): Promise<Transaction | undefined>;
+  processRefund(transactionId: number, amount: string, reason: string): Promise<Transaction | undefined>;
+
+  // Payout operations
+  getPayout(id: number): Promise<Payout | undefined>;
+  getPayoutsByVendorId(vendorId: number): Promise<Payout[]>;
+  createPayout(payout: InsertPayout): Promise<Payout>;
+  updatePayout(id: number, data: Partial<InsertPayout>): Promise<Payout | undefined>;
+  completePayout(id: number): Promise<Payout | undefined>;
+
+  // Customer payment methods operations
+  getCustomerPaymentMethod(id: number): Promise<CustomerPaymentMethod | undefined>;
+  getCustomerPaymentMethodsByCustomerId(customerId: number): Promise<CustomerPaymentMethod[]>;
+  createCustomerPaymentMethod(method: InsertCustomerPaymentMethod): Promise<CustomerPaymentMethod>;
+  updateCustomerPaymentMethod(id: number, data: Partial<InsertCustomerPaymentMethod>): Promise<CustomerPaymentMethod | undefined>;
+  deleteCustomerPaymentMethod(id: number): Promise<boolean>;
+  setDefaultCustomerPaymentMethod(id: number, customerId: number): Promise<CustomerPaymentMethod | undefined>;
+
+  // Payment provider settings operations
+  getPaymentProviderSettings(id: number): Promise<PaymentProviderSettings | undefined>;
+  getPaymentProviderSettingsByVendorId(vendorId: number, provider: string): Promise<PaymentProviderSettings | undefined>;
+  createPaymentProviderSettings(settings: InsertPaymentProviderSettings): Promise<PaymentProviderSettings>;
+  updatePaymentProviderSettings(id: number, data: Partial<InsertPaymentProviderSettings>): Promise<PaymentProviderSettings | undefined>;
+  togglePaymentProviderActive(id: number, isActive: boolean): Promise<PaymentProviderSettings | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -125,6 +186,13 @@ export class MemStorage implements IStorage {
   private orders: Map<number, Order>;
   private orderItems: Map<number, OrderItem>;
   private analytics: Map<number, Analytics>;
+  private paymentMethods: Map<number, PaymentMethod>;
+  private platformSubscriptions: Map<number, PlatformSubscription>;
+  private invoices: Map<number, Invoice>;
+  private transactions: Map<number, Transaction>;
+  private payouts: Map<number, Payout>;
+  private customerPaymentMethods: Map<number, CustomerPaymentMethod>;
+  private paymentProviderSettings: Map<number, PaymentProviderSettings>;
 
   private userId: number = 1;
   private otpId: number = 1;
@@ -138,6 +206,13 @@ export class MemStorage implements IStorage {
   private orderId: number = 1;
   private orderItemId: number = 1;
   private analyticsId: number = 1;
+  private paymentMethodId: number = 1;
+  private platformSubscriptionId: number = 1;
+  private invoiceId: number = 1;
+  private transactionId: number = 1;
+  private payoutId: number = 1;
+  private customerPaymentMethodId: number = 1;
+  private paymentProviderSettingsId: number = 1;
 
   constructor() {
     // Initialize in-memory session store
@@ -158,6 +233,13 @@ export class MemStorage implements IStorage {
     this.orders = new Map();
     this.orderItems = new Map();
     this.analytics = new Map();
+    this.paymentMethods = new Map();
+    this.platformSubscriptions = new Map();
+    this.invoices = new Map();
+    this.transactions = new Map();
+    this.payouts = new Map();
+    this.customerPaymentMethods = new Map();
+    this.paymentProviderSettings = new Map();
 
     // Initialize with default subscription plans
     this.initializeDefaultData();

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, primaryKey, foreignKey, numeric, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, primaryKey, foreignKey, numeric, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -279,5 +279,199 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
+// Payment methods for vendors
+export const paymentMethods = pgTable("payment_methods", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  type: text("type").notNull(), // "card", "bank_account", "paypal", etc.
+  name: text("name").notNull(), // Display name for the payment method
+  isDefault: boolean("is_default").default(false),
+  status: text("status").default("active"), // "active", "inactive", "expired", "failed"
+  lastFour: text("last_four"), // Last four digits of card or account number
+  expiryMonth: text("expiry_month"), // For cards
+  expiryYear: text("expiry_year"), // For cards
+  brand: text("brand"), // For cards (Visa, Mastercard, etc.)
+  gatewayId: text("gateway_id"), // ID of this payment method in the payment gateway
+  gatewayData: jsonb("gateway_data"), // Additional data from payment gateway
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPaymentMethodSchema = createInsertSchema(paymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Platform subscription payments (for vendors' subscription to the platform)
+export const platformSubscriptions = pgTable("platform_subscriptions", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  planId: integer("plan_id").notNull().references(() => subscriptionPlans.id),
+  status: text("status").notNull().default("active"), // "active", "canceled", "past_due", "unpaid", "trialing"
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"), // Null for ongoing subscriptions
+  renewalDate: timestamp("renewal_date"),
+  billingCycle: text("billing_cycle").notNull().default("monthly"), // "monthly", "yearly"
+  paymentMethodId: integer("payment_method_id").references(() => paymentMethods.id),
+  gatewaySubscriptionId: text("gateway_subscription_id"), // ID in payment gateway
+  canceledAt: timestamp("canceled_at"),
+  cancelReason: text("cancel_reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPlatformSubscriptionSchema = createInsertSchema(platformSubscriptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Invoices for platform subscriptions
+export const invoices = pgTable("invoices", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  subscriptionId: integer("subscription_id").references(() => platformSubscriptions.id),
+  invoiceNumber: text("invoice_number").notNull().unique(),
+  amount: numeric("amount").notNull(),
+  tax: numeric("tax").default("0"),
+  total: numeric("total").notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "paid", "overdue", "void"
+  currency: text("currency").default("USD"),
+  dueDate: timestamp("due_date").notNull(),
+  paidAt: timestamp("paid_at"),
+  notes: text("notes"),
+  pdfUrl: text("pdf_url"), // URL to download invoice PDF
+  gatewayInvoiceId: text("gateway_invoice_id"), // ID in payment gateway
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertInvoiceSchema = createInsertSchema(invoices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Payment transactions (for both platform subscriptions and customer orders)
+export const transactions = pgTable("transactions", {
+  id: serial("id").primaryKey(),
+  type: text("type").notNull(), // "platform_subscription", "order_payment", "refund", "payout"
+  status: text("status").notNull().default("pending"), // "pending", "completed", "failed", "refunded"
+  amount: numeric("amount").notNull(),
+  currency: text("currency").default("USD"),
+  fee: numeric("fee").default("0"),
+  net: numeric("net").notNull(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  invoiceId: integer("invoice_id").references(() => invoices.id),
+  orderId: integer("order_id").references(() => orders.id),
+  paymentMethodId: integer("payment_method_id").references(() => paymentMethods.id),
+  gatewayTransactionId: text("gateway_transaction_id"),
+  gatewayResponse: jsonb("gateway_response"),
+  refundedAmount: numeric("refunded_amount").default("0"),
+  refundReason: text("refund_reason"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertTransactionSchema = createInsertSchema(transactions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Payouts to vendors
+export const payouts = pgTable("payouts", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  amount: numeric("amount").notNull(),
+  currency: text("currency").default("USD"),
+  fee: numeric("fee").default("0"),
+  net: numeric("net").notNull(),
+  status: text("status").notNull().default("pending"), // "pending", "processing", "completed", "failed"
+  method: text("method").notNull(), // "bank_transfer", "paypal", etc.
+  batchId: text("batch_id"), // For grouping related payouts
+  gatewayPayoutId: text("gateway_payout_id"),
+  gatewayResponse: jsonb("gateway_response"),
+  notes: text("notes"),
+  transactionIds: integer("transaction_ids").array(), // Array of related transaction IDs
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertPayoutSchema = createInsertSchema(payouts).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true
+});
+
+// Customer payment methods
+export const customerPaymentMethods = pgTable("customer_payment_methods", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull().references(() => customers.id),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  type: text("type").notNull(), // "card", "bank_account", "paypal", etc.
+  name: text("name").notNull(), // Display name for the payment method
+  isDefault: boolean("is_default").default(false),
+  status: text("status").default("active"), // "active", "inactive", "expired", "failed"
+  lastFour: text("last_four"), // Last four digits of card or account number
+  expiryMonth: text("expiry_month"), // For cards
+  expiryYear: text("expiry_year"), // For cards
+  brand: text("brand"), // For cards (Visa, Mastercard, etc.)
+  gatewayId: text("gateway_id"), // ID of this payment method in the payment gateway
+  gatewayData: jsonb("gateway_data"), // Additional data from payment gateway
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCustomerPaymentMethodSchema = createInsertSchema(customerPaymentMethods).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Payment provider settings for vendors
+export const paymentProviderSettings = pgTable("payment_provider_settings", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  provider: text("provider").notNull(), // "stripe", "paypal", etc.
+  isActive: boolean("is_active").default(false),
+  isTest: boolean("is_test").default(true),
+  credentials: jsonb("credentials"), // Encrypted credentials
+  webhookSecret: text("webhook_secret"),
+  commissionRate: numeric("commission_rate").default("0"), // Platform commission rate
+  additionalSettings: jsonb("additional_settings"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertPaymentProviderSettingsSchema = createInsertSchema(paymentProviderSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
 export type Analytics = typeof analytics.$inferSelect;
 export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
+
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
+
+export type PlatformSubscription = typeof platformSubscriptions.$inferSelect;
+export type InsertPlatformSubscription = z.infer<typeof insertPlatformSubscriptionSchema>;
+
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
+
+export type Transaction = typeof transactions.$inferSelect;
+export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
+
+export type Payout = typeof payouts.$inferSelect;
+export type InsertPayout = z.infer<typeof insertPayoutSchema>;
+
+export type CustomerPaymentMethod = typeof customerPaymentMethods.$inferSelect;
+export type InsertCustomerPaymentMethod = z.infer<typeof insertCustomerPaymentMethodSchema>;
+
+export type PaymentProviderSettings = typeof paymentProviderSettings.$inferSelect;
+export type InsertPaymentProviderSettings = z.infer<typeof insertPaymentProviderSettingsSchema>;
