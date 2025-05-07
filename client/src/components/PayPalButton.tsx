@@ -94,7 +94,7 @@ export default function PayPalButton({
   }, []);
   const initPayPal = async () => {
     try {
-      const clientToken: string = await fetch("/setup")
+      const clientToken: string = await fetch("/paypal/setup")
         .then((res) => res.json())
         .then((data) => {
           return data.clientToken;
