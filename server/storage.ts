@@ -668,6 +668,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+    // Get the current user to check if it's a super_admin
+    const [currentUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
+    
+    // If the user is a super_admin, prevent changing the role to protect their privileges
+    if (currentUser && currentUser.role === 'super_admin' && 'role' in data && data.role !== 'super_admin') {
+      console.warn(`Attempt to change super_admin role for user ${id} was prevented`);
+      delete data.role; // Remove the role field to prevent the change
+    }
+    
     const [updatedUser] = await db
       .update(users)
       .set(data)
