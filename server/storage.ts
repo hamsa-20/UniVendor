@@ -1,5 +1,6 @@
 import {
   users, type User, type InsertUser,
+  otpCodes, type OtpCode, type InsertOtpCode,
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
   vendors, type Vendor, type InsertVendor,
   domains, type Domain, type InsertDomain,
@@ -16,8 +17,13 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createUser(user: Partial<InsertUser>): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
+  
+  // OTP operations
+  createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode>;
+  getLatestOtp(email: string): Promise<OtpCode | undefined>;
+  markOtpAsUsed(id: number): Promise<OtpCode | undefined>;
 
   // Subscription plan operations
   getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined>;

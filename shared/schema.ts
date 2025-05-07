@@ -6,15 +6,31 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  firstName: text("first_name").notNull(),
-  lastName: text("last_name").notNull(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  phone: text("phone"),
   role: text("role").notNull().default("vendor"), // "super_admin" or "vendor"
   avatarUrl: text("avatar_url"),
+  isProfileComplete: boolean("is_profile_complete").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ 
+  id: true,
+  createdAt: true
+});
+
+// OTP model for passwordless authentication
+export const otpCodes = pgTable("otp_codes", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  code: text("code").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  isUsed: boolean("is_used").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertOtpSchema = createInsertSchema(otpCodes).omit({
   id: true,
   createdAt: true
 });
@@ -228,6 +244,9 @@ export const insertAnalyticsSchema = createInsertSchema(analytics).omit({
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type OtpCode = typeof otpCodes.$inferSelect;
+export type InsertOtpCode = z.infer<typeof insertOtpSchema>;
 
 export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
