@@ -207,7 +207,7 @@ const LoginPage = () => {
                                 render={({ slots }) => (
                                   <div className="flex gap-2 justify-center">
                                     {slots.map((slot, index) => (
-                                      <InputOTPSlot key={index} {...slot} />
+                                      <InputOTPSlot key={index} index={index} {...slot} />
                                     ))}
                                   </div>
                                 )}
