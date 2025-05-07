@@ -16,6 +16,7 @@ import DomainsPage from "@/pages/domains/DomainsPage";
 import DomainDetailPage from "@/pages/domains/DomainDetailPage";
 import SubscriptionsPage from "@/pages/subscriptions/SubscriptionsPage";
 import AnalyticsPage from "@/pages/analytics/AnalyticsPage";
+import VendorAnalyticsPage from "@/pages/analytics/VendorAnalyticsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import ProductsPage from "./pages/products/ProductsPage";
 import ProductDetails from "./pages/products/ProductDetails";
@@ -521,6 +522,11 @@ function Router() {
       <Route path="/store-design">
         <PrivateRoute roles={["vendor"]}>
           <StoreDesignPage />
+        </PrivateRoute>
+      </Route>
+      <Route path="/vendor-analytics">
+        <PrivateRoute roles={["vendor"]}>
+          <VendorAnalyticsPage />
         </PrivateRoute>
       </Route>
       
