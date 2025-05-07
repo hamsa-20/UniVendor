@@ -13,6 +13,7 @@ import {
   insertOrderItemSchema 
 } from "@shared/schema";
 import { registerPaymentRoutes } from "./paymentRoutes";
+import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
 
@@ -1073,6 +1074,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register payment-related routes
   registerPaymentRoutes(app);
+  
+  // Register PayPal routes
+  app.get("/paypal/setup", async (req, res) => {
+    await loadPaypalDefault(req, res);
+  });
+
+  app.post("/paypal/order", async (req, res) => {
+    // Request body should contain: { intent, amount, currency }
+    await createPaypalOrder(req, res);
+  });
+
+  app.post("/paypal/order/:orderID/capture", async (req, res) => {
+    await capturePaypalOrder(req, res);
+  });
 
   const httpServer = createServer(app);
   return httpServer;
