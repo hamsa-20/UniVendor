@@ -1,29 +1,28 @@
-import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, CreditCard, Settings, ChevronsUpDown, ChevronDown } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import {
   Form,
   FormControl,
@@ -33,301 +32,406 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
+import DashboardHeader from "@/components/shared/DashboardHeader";
 import PaymentMethodList from "@/components/payments/PaymentMethodList";
 import PaymentMethodForm from "@/components/payments/PaymentMethodForm";
 import PaymentProviderForm from "@/components/payments/PaymentProviderForm";
-import DashboardHeader from "@/components/shared/DashboardHeader";
 
 const PaymentSettingsPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("methods");
-  const [showAddMethod, setShowAddMethod] = useState(false);
-
-  // Get current vendor ID
-  const { data: vendor, isLoading: isLoadingVendor } = useQuery({
-    queryKey: ["/api/vendors/current"],
-    enabled: !!user,
+  const [isAddMethodOpen, setIsAddMethodOpen] = useState(false);
+  const [activeAccordion, setActiveAccordion] = useState<string | null>(null);
+  
+  // Fetch vendor payment methods
+  const { 
+    data: paymentMethods = [],
+    isLoading: isLoadingMethods,
+    error: methodsError 
+  } = useQuery({
+    queryKey: ["/api/vendors", user?.id, "payment-methods"],
+    enabled: !!user?.id,
   });
-
-  // Get vendor payment methods
-  const { data: paymentMethods, isLoading: isLoadingMethods } = useQuery({
-    queryKey: ["/api/vendors", vendor?.id, "payment-methods"],
-    enabled: !!vendor?.id,
+  
+  // Fetch vendor payment providers
+  const { 
+    data: stripeSettings,
+    isLoading: isLoadingStripe,
+  } = useQuery({
+    queryKey: ["/api/vendors", user?.id, "payment-providers", "stripe"],
+    enabled: !!user?.id,
   });
-
-  // Get payment provider settings
-  const { data: stripeSettings, isLoading: isLoadingStripe } = useQuery({
-    queryKey: ["/api/vendors", vendor?.id, "payment-providers", "stripe"],
-    enabled: !!vendor?.id,
+  
+  const { 
+    data: paypalSettings,
+    isLoading: isLoadingPaypal,
+  } = useQuery({
+    queryKey: ["/api/vendors", user?.id, "payment-providers", "paypal"],
+    enabled: !!user?.id,
   });
-
-  const { data: paypalSettings, isLoading: isLoadingPaypal } = useQuery({
-    queryKey: ["/api/vendors", vendor?.id, "payment-providers", "paypal"],
-    enabled: !!vendor?.id,
-  });
-
-  // Commission settings
-  const { data: commissionSettings, isLoading: isLoadingCommission } = useQuery({
+  
+  // Fetch vendor commission settings
+  const { 
+    data: commissionSettings,
+    isLoading: isLoadingCommissionSettings,
+    error: commissionError 
+  } = useQuery({
     queryKey: ["/api/payments/commission-settings"],
-    enabled: !!user,
+    enabled: !!user?.id,
   });
-
-  // Toggle payment provider active status
-  const toggleProviderMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      const response = await fetch(`/api/payment-providers/${id}/toggle-active`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ isActive }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to update provider status");
-      }
-      
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Provider status updated",
-        description: "The payment provider status has been updated successfully.",
-      });
-      
-      // Invalidate provider settings queries
-      queryClient.invalidateQueries({ queryKey: ["/api/vendors", vendor?.id, "payment-providers"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error updating provider status",
-        description: error.message,
-        variant: "destructive",
-      });
+  
+  // Form schema for commission thresholds
+  const thresholdFormSchema = z.object({
+    baseFeePercentage: z.string().min(1, "Required"),
+    transactionFeeFlat: z.string().min(1, "Required"),
+    thresholds: z.array(
+      z.object({
+        minAmount: z.string().min(1, "Required"),
+        feePercentage: z.string().min(1, "Required"),
+      })
+    ),
+  });
+  
+  type ThresholdFormValues = z.infer<typeof thresholdFormSchema>;
+  
+  const form = useForm<ThresholdFormValues>({
+    resolver: zodResolver(thresholdFormSchema),
+    defaultValues: {
+      baseFeePercentage: commissionSettings?.baseFeePercentage || "2.9",
+      transactionFeeFlat: commissionSettings?.transactionFeeFlat || "0.30",
+      thresholds: commissionSettings?.thresholds || [
+        { minAmount: "1000", feePercentage: "2.5" },
+        { minAmount: "10000", feePercentage: "2.2" },
+        { minAmount: "50000", feePercentage: "1.9" },
+      ],
     },
   });
-
-  if (isLoadingVendor) {
+  
+  const isLoading = isLoadingMethods || isLoadingStripe || isLoadingPaypal || isLoadingCommissionSettings;
+  
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-
-  if (!vendor) {
-    return (
-      <div className="flex flex-col items-center justify-center h-96 gap-4">
-        <h2 className="text-2xl font-semibold">Vendor not found</h2>
-        <p className="text-muted-foreground">
-          You need to create a vendor account to access payment settings.
-        </p>
-      </div>
-    );
+  
+  if (methodsError || commissionError) {
+    toast({
+      title: "Error loading payment settings",
+      description: "There was a problem loading your payment settings.",
+      variant: "destructive",
+    });
   }
-
+  
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <DashboardHeader
-        title="Payment Settings"
-        description="Manage your store's payment settings and connected payment providers."
+    <div className="container mx-auto p-6">
+      <DashboardHeader 
+        title="Payment Settings" 
+        description="Manage your store's payment methods and provider integrations"
       />
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-3 md:w-[400px]">
+      
+      <Tabs defaultValue="methods" className="w-full">
+        <TabsList className="mb-6">
           <TabsTrigger value="methods">Payment Methods</TabsTrigger>
           <TabsTrigger value="providers">Payment Providers</TabsTrigger>
-          <TabsTrigger value="fees">Fees & Commissions</TabsTrigger>
+          <TabsTrigger value="fees">Fees & Commission</TabsTrigger>
+          <TabsTrigger value="payouts">Payout Settings</TabsTrigger>
         </TabsList>
-
+        
+        {/* Payment Methods Tab */}
         <TabsContent value="methods" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium">Available Payment Methods</h3>
-            <Button onClick={() => setShowAddMethod(!showAddMethod)}>
-              {showAddMethod ? "Cancel" : "Add Method"}
-            </Button>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Available Payment Methods</h2>
+            <Dialog open={isAddMethodOpen} onOpenChange={setIsAddMethodOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Payment Method
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Add Payment Method</DialogTitle>
+                  <DialogDescription>
+                    Create a new payment method that your customers can use at checkout.
+                  </DialogDescription>
+                </DialogHeader>
+                <PaymentMethodForm
+                  vendorId={user?.id}
+                  onSuccess={() => setIsAddMethodOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
           </div>
-
-          {showAddMethod && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Payment Method</CardTitle>
-                <CardDescription>
-                  Add a new payment method to your store.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PaymentMethodForm 
-                  vendorId={vendor.id} 
-                  onSuccess={() => {
-                    setShowAddMethod(false);
-                    queryClient.invalidateQueries({ queryKey: ["/api/vendors", vendor.id, "payment-methods"] });
-                  }}
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          {isLoadingMethods ? (
-            <div className="flex items-center justify-center h-40">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : (
-            <PaymentMethodList 
-              methods={paymentMethods || []} 
-              vendorId={vendor.id}
-            />
-          )}
+          
+          <PaymentMethodList 
+            methods={paymentMethods || []} 
+            vendorId={user?.id}
+          />
         </TabsContent>
-
-        <TabsContent value="providers" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Stripe Integration */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Stripe</CardTitle>
-                  <CardDescription>
-                    Accept credit cards and more with Stripe
-                  </CardDescription>
-                </div>
-                {stripeSettings && (
-                  <Switch
-                    checked={stripeSettings.isActive}
-                    onCheckedChange={(checked) => {
-                      toggleProviderMutation.mutate({
-                        id: stripeSettings.id,
-                        isActive: checked,
-                      });
-                    }}
-                  />
-                )}
-              </CardHeader>
-              <CardContent>
-                {isLoadingStripe ? (
-                  <div className="flex items-center justify-center h-20">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  </div>
-                ) : stripeSettings ? (
-                  <div className="space-y-2">
-                    <Badge variant={stripeSettings.isActive ? "default" : "outline"}>
-                      {stripeSettings.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                    <div className="mt-4">
-                      {stripeSettings.configData?.publicKey && (
-                        <p className="text-sm text-muted-foreground">Configuration complete</p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Stripe is not configured</p>
-                )}
-              </CardContent>
-              <CardFooter>
-                <PaymentProviderForm 
-                  vendorId={vendor.id}
-                  provider="stripe"
-                  existingSettings={stripeSettings}
-                />
-              </CardFooter>
-            </Card>
-
-            {/* PayPal Integration */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>PayPal</CardTitle>
-                  <CardDescription>
-                    Accept PayPal payments and PayPal Credit
-                  </CardDescription>
-                </div>
-                {paypalSettings && (
-                  <Switch
-                    checked={paypalSettings.isActive}
-                    onCheckedChange={(checked) => {
-                      toggleProviderMutation.mutate({
-                        id: paypalSettings.id,
-                        isActive: checked,
-                      });
-                    }}
-                  />
-                )}
-              </CardHeader>
-              <CardContent>
-                {isLoadingPaypal ? (
-                  <div className="flex items-center justify-center h-20">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  </div>
-                ) : paypalSettings ? (
-                  <div className="space-y-2">
-                    <Badge variant={paypalSettings.isActive ? "default" : "outline"}>
-                      {paypalSettings.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                    <div className="mt-4">
-                      {paypalSettings.configData?.clientId && (
-                        <p className="text-sm text-muted-foreground">Configuration complete</p>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">PayPal is not configured</p>
-                )}
-              </CardContent>
-              <CardFooter>
-                <PaymentProviderForm 
-                  vendorId={vendor.id}
-                  provider="paypal"
-                  existingSettings={paypalSettings}
-                />
-              </CardFooter>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="fees" className="space-y-4">
+        
+        {/* Payment Providers Tab */}
+        <TabsContent value="providers" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Platform Fees & Commissions</CardTitle>
+              <CardTitle>Stripe Integration</CardTitle>
               <CardDescription>
-                View the current fee structure for your sales
+                Connect your Stripe account to accept credit card payments.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoadingCommission ? (
-                <div className="flex items-center justify-center h-40">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                </div>
-              ) : commissionSettings ? (
-                <div className="space-y-6">
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Base Fee</h4>
-                    <p className="text-2xl font-bold">{commissionSettings.baseFeePercentage}%</p>
+              <div className="flex items-center">
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium mb-1">Status: {stripeSettings?.isActive ? "Connected" : "Not Connected"}</h4>
+                  {stripeSettings?.isActive && (
                     <p className="text-sm text-muted-foreground">
-                      Plus ${commissionSettings.transactionFeeFlat} per transaction
+                      Connected with account ending in {stripeSettings.configData?.publicKey?.slice(-4)}
+                    </p>
+                  )}
+                </div>
+                <PaymentProviderForm 
+                  vendorId={user?.id}
+                  provider="stripe"
+                  existingSettings={stripeSettings}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>PayPal Integration</CardTitle>
+              <CardDescription>
+                Connect your PayPal account to accept PayPal payments.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center">
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium mb-1">Status: {paypalSettings?.isActive ? "Connected" : "Not Connected"}</h4>
+                  {paypalSettings?.isActive && (
+                    <p className="text-sm text-muted-foreground">
+                      Connected with account ID {paypalSettings.configData?.clientId?.slice(-6)}
+                    </p>
+                  )}
+                </div>
+                <PaymentProviderForm 
+                  vendorId={user?.id}
+                  provider="paypal"
+                  existingSettings={paypalSettings}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Fees & Commission Tab */}
+        <TabsContent value="fees" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Fees & Commission</CardTitle>
+              <CardDescription>
+                View the current fee structure applied to your sales.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Base Fee</h4>
+                    <div className="text-2xl font-bold">{commissionSettings?.baseFeePercentage || "2.9"}%</div>
+                    <p className="text-sm text-muted-foreground">
+                      Standard commission on all transactions
                     </p>
                   </div>
-                  
                   <div className="space-y-2">
-                    <h4 className="font-medium">Volume Discounts</h4>
-                    <div className="border rounded-lg divide-y">
-                      <div className="grid grid-cols-2 p-3 font-medium">
-                        <span>Monthly Revenue</span>
-                        <span>Fee Percentage</span>
-                      </div>
-                      {commissionSettings.thresholds.map((threshold: any, index: number) => (
-                        <div className="grid grid-cols-2 p-3" key={index}>
-                          <span>${threshold.monthlyRevenue}+</span>
-                          <span>{threshold.feePercentage}%</span>
-                        </div>
-                      ))}
-                    </div>
+                    <h4 className="text-sm font-medium">Processing Fee</h4>
+                    <div className="text-2xl font-bold">${commissionSettings?.transactionFeeFlat || "0.30"}</div>
+                    <p className="text-sm text-muted-foreground">
+                      Flat fee per transaction
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <p>Fee information not available</p>
-              )}
+                
+                <Separator />
+                
+                <div>
+                  <h4 className="text-sm font-medium mb-4">Volume Discounts</h4>
+                  <div className="space-y-3">
+                    {(commissionSettings?.thresholds || []).map((threshold, index) => (
+                      <div key={index} className="grid grid-cols-2 gap-4 p-3 border rounded-md">
+                        <div>
+                          <div className="text-xs text-muted-foreground">Monthly Sales</div>
+                          <div className="font-medium">${threshold.minAmount}+</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Fee</div>
+                          <div className="font-medium">{threshold.feePercentage}%</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Fee Calculator</CardTitle>
+              <CardDescription>
+                Calculate your estimated fees based on a transaction amount.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex space-x-4">
+                <div className="grow">
+                  <label className="text-sm font-medium mb-1 block">Transaction Amount</label>
+                  <div className="relative mt-1">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">$</span>
+                    <Input type="number" className="pl-8" placeholder="100.00" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">&nbsp;</label>
+                  <Button className="mt-1">Calculate</Button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="p-4 border rounded-md">
+                  <div className="text-sm text-muted-foreground">Platform Fee</div>
+                  <div className="text-lg font-semibold">$2.90</div>
+                </div>
+                <div className="p-4 border rounded-md">
+                  <div className="text-sm text-muted-foreground">Processing Fee</div>
+                  <div className="text-lg font-semibold">$0.30</div>
+                </div>
+                <div className="p-4 border rounded-md">
+                  <div className="text-sm text-muted-foreground">You Receive</div>
+                  <div className="text-lg font-semibold">$96.80</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Payout Settings Tab */}
+        <TabsContent value="payouts">
+          <Card>
+            <CardHeader>
+              <CardTitle>Payout Settings</CardTitle>
+              <CardDescription>
+                Configure how and when you receive payouts from your sales.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Payout Schedule</h3>
+                  <div className="border rounded-md p-4">
+                    <div className="flex justify-between items-center">
+                      <div className="font-medium">Weekly</div>
+                      <Button variant="outline" size="sm">Change</Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Payouts are processed every Monday for the previous week's sales.
+                    </p>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-2">Minimum Payout</h3>
+                  <div className="border rounded-md p-4">
+                    <div className="flex justify-between items-center">
+                      <div className="font-medium">$100.00</div>
+                      <Button variant="outline" size="sm">Change</Button>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Payouts will be held until your balance reaches this amount.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium mb-2">Payout Method</h3>
+                <div className="border rounded-md p-4">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center">
+                      <CreditCard className="h-5 w-5 mr-2 text-muted-foreground" />
+                      <div>
+                        <div className="font-medium">Bank Account (ACH)</div>
+                        <div className="text-sm text-muted-foreground">Ending in 1234</div>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm">Change</Button>
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium mb-4">Payout History</h3>
+                <div className="border rounded-md overflow-hidden">
+                  <table className="min-w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Date</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Amount</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      <tr>
+                        <td className="px-4 py-3 text-sm">May 1, 2023</td>
+                        <td className="px-4 py-3 text-sm font-medium">$1,245.00</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Completed
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <Button variant="ghost" size="sm">Details</Button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm">April 24, 2023</td>
+                        <td className="px-4 py-3 text-sm font-medium">$987.50</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Completed
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <Button variant="ghost" size="sm">Details</Button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-4 py-3 text-sm">April 17, 2023</td>
+                        <td className="px-4 py-3 text-sm font-medium">$1,102.25</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            Completed
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-right">
+                          <Button variant="ghost" size="sm">Details</Button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex justify-center mt-4">
+                  <Button variant="outline">View All Payouts</Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

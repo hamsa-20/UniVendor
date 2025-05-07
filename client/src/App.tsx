@@ -23,6 +23,7 @@ import ProductDetails from "./pages/products/ProductDetails";
 import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
+import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
@@ -527,6 +528,12 @@ function Router() {
       <Route path="/vendor-analytics">
         <PrivateRoute roles={["vendor"]}>
           <VendorAnalyticsPage />
+        </PrivateRoute>
+      </Route>
+      
+      <Route path="/payment-settings">
+        <PrivateRoute roles={["vendor"]}>
+          <PaymentSettingsPage />
         </PrivateRoute>
       </Route>
       

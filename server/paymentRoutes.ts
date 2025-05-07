@@ -215,6 +215,76 @@ export function registerPaymentRoutes(router: Router) {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Delete a payment method for a vendor
+  router.delete("/api/vendors/:vendorId/payment-methods/:id", requireVendorOwnership, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const method = await storage.getPaymentMethod(id);
+      
+      if (!method) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+
+      const vendorId = parseInt(req.params.vendorId);
+      if (method.vendorId !== vendorId) {
+        return res.status(403).json({ message: "You don't have permission to delete this payment method" });
+      }
+
+      await storage.deletePaymentMethod(id);
+      res.status(204).end();
+    } catch (error: any) {
+      console.error("Error deleting payment method:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Toggle a payment method's active status for a vendor
+  router.patch("/api/vendors/:vendorId/payment-methods/:id/toggle-status", requireVendorOwnership, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const vendorId = parseInt(req.params.vendorId);
+      const isActive = req.body.isActive === true;
+      
+      const method = await storage.getPaymentMethod(id);
+      if (!method) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      
+      if (method.vendorId !== vendorId) {
+        return res.status(403).json({ message: "You don't have permission to update this payment method" });
+      }
+      
+      const updatedMethod = await storage.updatePaymentMethod(id, { isActive });
+      res.json(updatedMethod);
+    } catch (error: any) {
+      console.error("Error toggling payment method status:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Set a payment method as default for a vendor
+  router.patch("/api/vendors/:vendorId/payment-methods/:id/set-default", requireVendorOwnership, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const vendorId = parseInt(req.params.vendorId);
+      
+      const method = await storage.getPaymentMethod(id);
+      if (!method) {
+        return res.status(404).json({ message: "Payment method not found" });
+      }
+      
+      if (method.vendorId !== vendorId) {
+        return res.status(403).json({ message: "You don't have permission to update this payment method" });
+      }
+      
+      const updatedMethod = await storage.setDefaultPaymentMethod(id, vendorId);
+      res.json(updatedMethod);
+    } catch (error: any) {
+      console.error("Error setting default payment method:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Set a payment method as default
   router.post("/api/payment-methods/:id/set-default", requireAuth, async (req, res) => {
