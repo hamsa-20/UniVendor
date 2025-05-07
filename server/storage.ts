@@ -2127,6 +2127,45 @@ export class DatabaseStorage implements IStorage {
       pendingIssues: Number(issuesCount?.count || 0)
     };
   }
+  
+  // Commission settings operations
+  async getCommissionSettings(): Promise<CommissionSettings | undefined> {
+    const [settings] = await db.select().from(commissionSettings).limit(1);
+    return settings;
+  }
+  
+  async updateCommissionSettings(data: Partial<InsertCommissionSettings>): Promise<CommissionSettings> {
+    // Get existing settings or create new ones
+    const existingSettings = await this.getCommissionSettings();
+    
+    if (existingSettings) {
+      // Update existing settings
+      const [updatedSettings] = await db
+        .update(commissionSettings)
+        .set({
+          ...data,
+          updatedAt: new Date()
+        })
+        .where(eq(commissionSettings.id, existingSettings.id))
+        .returning();
+      
+      return updatedSettings;
+    } else {
+      // Create new settings with defaults
+      const [newSettings] = await db
+        .insert(commissionSettings)
+        .values({
+          baseFeePercentage: data.baseFeePercentage || "5.0",
+          transactionFeeFlat: data.transactionFeeFlat || "0.30",
+          thresholds: data.thresholds || [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      return newSettings;
+    }
+  }
 }
 
 // Use the database storage implementation
