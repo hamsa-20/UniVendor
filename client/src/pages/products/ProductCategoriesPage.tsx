@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -256,6 +257,36 @@ const ProductCategoriesPage = () => {
                   onChange={(e) => setCategoryFormData({ ...categoryFormData, description: e.target.value })}
                 />
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="parent">Parent Category</Label>
+                <Select
+                  value={categoryFormData.parentId?.toString() || ""}
+                  onValueChange={(value) => setCategoryFormData({ 
+                    ...categoryFormData, 
+                    parentId: value ? parseInt(value) : null
+                  })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No parent (top-level category)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No parent (top-level category)</SelectItem>
+                    {filteredCategories?.filter(cat => 
+                      // Only show top-level categories (level 1 or undefined)
+                      (cat.level === 1 || cat.level === undefined) && 
+                      // Don't show the category itself as a potential parent when editing
+                      (!selectedCategory || cat.id !== selectedCategory.id)
+                    ).map(category => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select a parent to make this a subcategory
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -382,7 +413,7 @@ const ProductCategoriesPage = () => {
             </p>
             <Button onClick={() => {
               setSelectedCategory(null);
-              setCategoryFormData({ name: '', description: '' });
+              setCategoryFormData({ name: '', description: '', parentId: null });
               setIsAddCategoryOpen(true);
             }}>
               <PlusCircle className="mr-2 h-4 w-4" />
