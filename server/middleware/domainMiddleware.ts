@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from '../storage';
 
-// Interface for the request with domain data
 export interface DomainRequest extends Request {
   domain?: {
     id: number;
@@ -21,6 +20,11 @@ export interface DomainRequest extends Request {
   isVendorStore?: boolean;
 }
 
+// Helper to get host without port
+function getHostname(host: string): string {
+  return host.split(':')[0];
+}
+
 /**
  * Middleware to handle domain-based routing
  * This determines which vendor's store to display based on the domain
@@ -30,97 +34,69 @@ export const domainMiddleware = async (
   res: Response,
   next: NextFunction
 ) => {
-  // Skip for API requests and static assets
-  if (req.path.startsWith('/api/') || 
-      req.path.startsWith('/@fs/') || 
-      req.path.startsWith('/@vite/') ||
-      req.path.match(/\.(ico|png|jpg|jpeg|svg|css|js|json|woff|woff2|ttf|eot)$/i)) {
-    return next();
-  }
-
-  // Extract hostname
-  const hostname = req.hostname;
-  
-  // Skip for localhost/development domains when not explicitly testing domains
-  if (hostname === 'localhost' || 
-      hostname === '127.0.0.1' || 
-      hostname.includes('replit.dev') ||
-      hostname.includes('repl.co')) {
-    
-    // Check if we're testing a specific domain with ?domain=test.com query param
-    const testDomain = req.query.domain as string;
-    if (testDomain) {
-      return handleDomainRouting(testDomain, req, res, next);
-    }
-    
+  // Skip for API requests to avoid unnecessary DB queries
+  if (req.path.startsWith('/api') && !req.path.startsWith('/api/store')) {
     return next();
   }
   
-  return handleDomainRouting(hostname, req, res, next);
+  // Get the hostname from the request headers
+  const host = req.headers.host || '';
+  
+  // Process domain routing
+  await handleDomainRouting(host, req, res, next);
 };
 
 /**
  * Handle the domain routing logic based on hostname
  */
 async function handleDomainRouting(
-  hostname: string,
+  host: string,
   req: DomainRequest,
   res: Response,
   next: NextFunction
-) {
+): Promise<void> {
   try {
-    // Check if this is a subdomain of our main domain (e.g., vendor.multivend.com)
-    const isSubdomain = hostname.endsWith('.multivend.com');
+    // Get the hostname without port
+    const hostname = getHostname(host);
     
-    let domain;
+    // Skip routing for localhost/internal hostnames during development
+    if (process.env.NODE_ENV === 'development' && 
+        (hostname === 'localhost' || hostname === '0.0.0.0' || hostname.includes('.repl.co'))) {
+      req.isVendorStore = false;
+      return next();
+    }
     
-    if (isSubdomain) {
-      // Extract subdomain name from hostname (vendor.multivend.com -> vendor)
-      const subdomain = hostname.split('.')[0];
+    // Check if this is a vendor domain (either custom or subdomain)
+    const domain = await storage.getDomainByName(hostname);
+    
+    if (domain && domain.status === 'active') {
+      // We found a matching domain that is active
+      const vendor = await storage.getVendor(domain.vendorId);
       
-      // Find domain by subdomain name
-      domain = await storage.getDomainByName(`${subdomain}.multivend.com`);
+      if (vendor) {
+        // Set domain and vendor information on the request object
+        req.domain = domain;
+        req.vendor = {
+          id: vendor.id,
+          companyName: vendor.companyName,
+          storeTheme: vendor.storeTheme || 'default',
+          customCss: vendor.customCss || undefined,
+          logoUrl: vendor.logoUrl || undefined
+        };
+        req.isVendorStore = true;
+      } else {
+        // Domain exists but vendor doesn't - unusual case
+        req.isVendorStore = false;
+      }
     } else {
-      // This is a custom domain, find it directly
-      domain = await storage.getDomainByName(hostname);
+      // No matching domain found
+      req.isVendorStore = false;
     }
     
-    // If domain not found or not active, continue to regular routes
-    if (!domain || domain.status !== 'active') {
-      return next();
-    }
-    
-    // Get vendor details
-    const vendor = await storage.getVendor(domain.vendorId);
-    
-    if (!vendor) {
-      return next();
-    }
-    
-    // Add domain and vendor info to request
-    req.domain = {
-      id: domain.id,
-      name: domain.name,
-      vendorId: domain.vendorId,
-      type: domain.type,
-      status: domain.status,
-      isPrimary: domain.isPrimary
-    };
-    
-    req.vendor = {
-      id: vendor.id,
-      companyName: vendor.companyName,
-      storeTheme: vendor.storeTheme || 'default',
-      customCss: vendor.customCss,
-      logoUrl: vendor.logoUrl
-    };
-    
-    req.isVendorStore = true;
-    
-    // Continue to next middleware/route handler
     next();
   } catch (error) {
-    console.error('Domain routing error:', error);
+    console.error('Error in domain middleware:', error);
+    req.isVendorStore = false;
     next();
   }
 }
