@@ -71,8 +71,26 @@ const VendorAnalyticsPage = () => {
   const toDate = format(range.to, 'yyyy-MM-dd');
 
   // Fetch vendor analytics data
-  const { data: analyticsData, isLoading } = useQuery({
+  const { data: analyticsData, isLoading: isLoadingAnalytics } = useQuery({
     queryKey: vendorId ? [`/api/vendors/${vendorId}/analytics`, fromDate, toDate] : null,
+    enabled: !!vendorId,
+  });
+  
+  // Fetch top products data
+  const { data: topProductsData, isLoading: isLoadingTopProducts } = useQuery({
+    queryKey: vendorId ? [`/api/vendors/${vendorId}/analytics/top-products`] : null,
+    enabled: !!vendorId,
+  });
+  
+  // Fetch sales by hour data
+  const { data: salesByHourData, isLoading: isLoadingSalesByHour } = useQuery({
+    queryKey: vendorId ? [`/api/vendors/${vendorId}/analytics/sales-by-hour`] : null,
+    enabled: !!vendorId,
+  });
+  
+  // Fetch sales by category data
+  const { data: salesByCategoryData, isLoading: isLoadingSalesByCategory } = useQuery({
+    queryKey: vendorId ? [`/api/vendors/${vendorId}/analytics/sales-by-category`] : null,
     enabled: !!vendorId,
   });
 
@@ -226,13 +244,13 @@ const VendorAnalyticsPage = () => {
           <CardContent>
             <div className="flex justify-between items-center">
               <div className="text-2xl font-bold">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <Skeleton className="h-8 w-24" />
                 ) : (
                   `$${summary.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 )}
               </div>
-              {!isLoading && (
+              {!isLoadingAnalytics && (
                 <div className={`${summary.revenueGrowth >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex items-center text-xs px-2 py-1 rounded`}>
                   {summary.revenueGrowth >= 0 ? (
                     <TrendingUp className="h-3 w-3 mr-1" />

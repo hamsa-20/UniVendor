@@ -1084,6 +1084,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // New analytics endpoints for dashboard visualizations
+  app.get("/api/vendors/:vendorId/analytics/top-products", async (req, res) => {
+    try {
+      const vendorId = parseInt(req.params.vendorId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+      
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
+      const topProducts = await storage.getTopProducts(vendorId, limit);
+      return res.status(200).json(topProducts);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.get("/api/vendors/:vendorId/analytics/sales-by-hour", async (req, res) => {
+    try {
+      const vendorId = parseInt(req.params.vendorId);
+      
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
+      const salesByHour = await storage.getSalesByHour(vendorId);
+      return res.status(200).json(salesByHour);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  app.get("/api/vendors/:vendorId/analytics/sales-by-category", async (req, res) => {
+    try {
+      const vendorId = parseInt(req.params.vendorId);
+      
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
+      const salesByCategory = await storage.getSalesByCategory(vendorId);
+      return res.status(200).json(salesByCategory);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Platform statistics endpoint (for super admin)
   app.get("/api/platform-stats", async (_req, res) => {
