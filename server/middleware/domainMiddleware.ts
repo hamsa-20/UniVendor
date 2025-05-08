@@ -75,13 +75,20 @@ async function handleDomainRouting(
       
       if (vendor) {
         // Set domain and vendor information on the request object
-        req.domain = domain;
+        req.domain = {
+          id: domain.id,
+          name: domain.name,
+          vendorId: domain.vendorId,
+          type: domain.type,
+          status: domain.status,
+          isPrimary: domain.isPrimary === null ? false : domain.isPrimary
+        };
         req.vendor = {
           id: vendor.id,
           companyName: vendor.companyName,
           storeTheme: vendor.storeTheme || 'default',
-          customCss: vendor.customCss || undefined,
-          logoUrl: vendor.logoUrl || undefined
+          customCss: vendor.customCss === null ? undefined : vendor.customCss,
+          logoUrl: vendor.logoUrl === null ? undefined : vendor.logoUrl
         };
         req.isVendorStore = true;
       } else {

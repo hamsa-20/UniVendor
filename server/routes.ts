@@ -16,6 +16,7 @@ import { registerPaymentRoutes } from "./paymentRoutes";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
+import { DomainRequest } from "./middleware/domainMiddleware";
 
 // Helper function to handle validation errors
 function handleValidationError(err: unknown, res: Response) {
@@ -1068,6 +1069,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(stats);
     } catch (err) {
       console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Domain and store-related endpoints
+  app.get("/api/store/current", (req: DomainRequest, res) => {
+    try {
+      if (!req.isVendorStore || !req.vendor || !req.domain) {
+        return res.status(404).json({ 
+          message: "Not a vendor store domain",
+          isVendorStore: false
+        });
+      }
+      
+      return res.status(200).json({
+        isVendorStore: true,
+        vendor: req.vendor,
+        domain: req.domain
+      });
+    } catch (err) {
+      console.error('Error fetching store information:', err);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
