@@ -141,7 +141,7 @@ export const products = pgTable("products", {
   featuredImageUrl: text("featured_image_url"),
   images: text("images").array(),
   tags: text("tags").array(),
-  hasVariants: boolean("has_variants").default(false),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
