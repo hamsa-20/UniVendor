@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Impersonate user mutation (admin only)
   const impersonateUserMutation = useMutation<User, Error, { userId: number }>({
     mutationFn: async ({ userId }) => {
-      const res = await apiRequest('POST', `/api/auth/impersonate/${userId}`);
+      const res = await apiRequest('POST', `/api/impersonate/${userId}`);
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Failed to impersonate user');
@@ -228,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Stop impersonating and return to original user
   const stopImpersonatingMutation = useMutation<User, Error, void>({
     mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/auth/stop-impersonating');
+      const res = await apiRequest('POST', '/api/end-impersonation');
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Failed to stop impersonation');
@@ -257,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   // Check if the current user is being impersonated
-  const isImpersonating = !!user && (user as any)._impersonated === true;
+  const isImpersonating = !!user && !!user.impersonatedBy;
 
   return (
     <AuthContext.Provider

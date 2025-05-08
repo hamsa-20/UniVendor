@@ -453,10 +453,16 @@ function Router() {
         <PrivateRoute roles={["super_admin"]}>
           <SuperAdminDashboard />
         </PrivateRoute>
+
+        <Route path="/admin/dashboard">
+          <PrivateRoute roles={["super_admin"]}>
+            <AdminDashboard />
+          </PrivateRoute>
+        </Route>
       </Route>
       <Route path="/admin/vendors">
         <PrivateRoute roles={["super_admin"]}>
-          <AdminDashboard />
+          <VendorsPage />
         </PrivateRoute>
       </Route>
       <Route path="/vendors">
