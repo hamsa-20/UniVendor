@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
-import ProductVariantsManager from './ProductVariantsManager';
 
 import {
   Form,
@@ -46,7 +45,6 @@ const productFormSchema = z.object({
   featuredImageUrl: z.string().optional(),
   images: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
-  hasVariants: z.boolean().default(false),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -109,7 +107,6 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       featuredImageUrl: '',
       images: [],
       tags: [],
-      hasVariants: false,
     },
   });
 
@@ -149,7 +146,6 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         featuredImageUrl: product.featuredImageUrl || '',
         images: product.images || [],
         tags: product.tags || [],
-        hasVariants: product.hasVariants || false,
       });
     }
   }, [product, productId, form, categories]);
