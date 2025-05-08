@@ -59,11 +59,47 @@ async function handleDomainRouting(
     // Get the hostname without port
     const hostname = getHostname(host);
     
-    // Skip routing for localhost/internal hostnames during development
-    if (process.env.NODE_ENV === 'development' && 
-        (hostname === 'localhost' || hostname === '0.0.0.0' || hostname.includes('.repl.co'))) {
-      req.isVendorStore = false;
-      return next();
+    // For development environment, handle test domains or use a special header
+    if (process.env.NODE_ENV === 'development') {
+      // For localhost/Replit domains, check for test header or query parameter
+      if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname.includes('.repl.co')) {
+        // Check for special test header or query param
+        const testDomain = req.headers['x-test-domain'] || req.query.test_domain;
+        
+        if (testDomain) {
+          // If test domain specified, look it up
+          console.log(`Testing with domain: ${testDomain}`);
+          const domain = await storage.getDomainByName(testDomain as string);
+          
+          if (domain && domain.status === 'active') {
+            const vendor = await storage.getVendor(domain.vendorId);
+            
+            if (vendor) {
+              req.domain = {
+                id: domain.id,
+                name: domain.name,
+                vendorId: domain.vendorId,
+                type: domain.type,
+                status: domain.status,
+                isPrimary: domain.isPrimary === null ? false : domain.isPrimary
+              };
+              req.vendor = {
+                id: vendor.id,
+                companyName: vendor.companyName,
+                storeTheme: vendor.storeTheme || 'default',
+                customCss: vendor.customCss === null ? undefined : vendor.customCss,
+                logoUrl: vendor.logoUrl === null ? undefined : vendor.logoUrl
+              };
+              req.isVendorStore = true;
+              return next();
+            }
+          }
+        }
+        
+        // Default for local development if no test domain
+        req.isVendorStore = false;
+        return next();
+      }
     }
     
     // Check if this is a vendor domain (either custom or subdomain)
