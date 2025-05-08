@@ -10,8 +10,17 @@ import { Loader2 } from 'lucide-react';
 export default function TestStorePage() {
   const [domainName, setDomainName] = useState('');
   
+  interface Domain {
+    id: number;
+    name: string;
+    vendorId: number;
+    type: string;
+    status: string;
+    isPrimary: boolean;
+  }
+
   // Fetch available domains for testing
-  const { data: domains = [], isLoading } = useQuery({
+  const { data: domains = [], isLoading } = useQuery<Domain[]>({
     queryKey: ['/api/domains'],
   });
   
@@ -69,7 +78,7 @@ export default function TestStorePage() {
               </div>
             ) : domains.length > 0 ? (
               <ul className="space-y-2">
-                {domains.map((domain: any) => (
+                {domains.map((domain: Domain) => (
                   <li key={domain.id} className="flex justify-between items-center">
                     <span className="font-medium">{domain.name}</span>
                     <Button variant="outline" size="sm" onClick={() => navigateToStore(domain.name)}>

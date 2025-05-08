@@ -144,6 +144,11 @@ function Router() {
                   <div className="flex space-x-4">
                     <a href="#" className="bg-white text-indigo-600 hover:bg-gray-100 px-6 py-3 rounded-lg font-medium">Shop Now</a>
                     <a href="#" className="bg-transparent border border-white text-white hover:bg-white/10 px-6 py-3 rounded-lg font-medium">Learn More</a>
+                    {process.env.NODE_ENV === 'development' && (
+                      <Link href="/test-store" className="bg-amber-500 text-white hover:bg-amber-600 px-6 py-3 rounded-lg font-medium ml-4">
+                        Test Vendor Stores
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
