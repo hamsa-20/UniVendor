@@ -614,6 +614,20 @@ const ProductVariantsManager = ({
     return value ? value.value : 'Unknown value';
   };
   
+  // Helper to get color value name by ID
+  const getColorValueName = (colorValueId: string) => {
+    if (!colorOption) return 'Unknown color';
+    const colorValue = colorOption.values.find(v => v.id?.toString() === colorValueId);
+    return colorValue ? colorValue.value : 'Unknown color';
+  };
+  
+  // Helper to get size value name by ID
+  const getSizeValueName = (sizeValueId: string) => {
+    if (!sizeOption) return 'Unknown size';
+    const sizeValue = sizeOption.values.find(v => v.id?.toString() === sizeValueId);
+    return sizeValue ? sizeValue.value : 'Unknown size';
+  };
+  
   // Generate variant combinations
   const generateVariantCombinations = () => {
     // First, validate that we have options with values
