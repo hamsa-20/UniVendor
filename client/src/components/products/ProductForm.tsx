@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, Image, X, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 
 // Validation schema for product form
 const productFormSchema = z.object({
@@ -41,6 +42,7 @@ const productFormSchema = z.object({
   featuredImageUrl: z.string().optional(),
   images: z.array(z.string()).optional(),
   tags: z.array(z.string()).optional(),
+  hasVariants: z.boolean().default(false),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -89,6 +91,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       featuredImageUrl: '',
       images: [],
       tags: [],
+      hasVariants: false,
     },
   });
 
@@ -110,6 +113,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         featuredImageUrl: product.featuredImageUrl || '',
         images: product.images || [],
         tags: product.tags || [],
+        hasVariants: product.hasVariants || false,
       });
     }
   }, [product, productId, form]);
@@ -349,6 +353,29 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                     />
                   </div>
 
+                  <Separator />
+                  
+                  <FormField
+                    control={form.control}
+                    name="hasVariants"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                        <div className="space-y-0.5">
+                          <FormLabel>Product Variants</FormLabel>
+                          <FormDescription>
+                            Enable if this product comes in multiple variants like different sizes or colors
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  
                   <Separator />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
