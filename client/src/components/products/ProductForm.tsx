@@ -180,15 +180,16 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   // Product mutation for create/update
   const mutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
+      // Properly convert string fields to numbers or null to avoid DB errors
       const numericFields = {
-        purchasePrice: data.purchasePrice || null,
-        sellingPrice: data.sellingPrice,
-        mrp: data.mrp || null,
-        gst: data.gst || null,
-        weight: data.weight || null,
-        length: data.length || null,
-        width: data.width || null,
-        height: data.height || null,
+        purchasePrice: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
+        sellingPrice: data.sellingPrice ? parseFloat(data.sellingPrice) : 0, // Required field
+        mrp: data.mrp ? parseFloat(data.mrp) : null,
+        gst: data.gst ? parseFloat(data.gst) : null,
+        weight: data.weight ? parseFloat(data.weight) : null,
+        length: data.length ? parseFloat(data.length) : null,
+        width: data.width ? parseFloat(data.width) : null,
+        height: data.height ? parseFloat(data.height) : null,
         inventoryQuantity: parseInt(data.inventoryQuantity || '0'),
       };
 

@@ -30,6 +30,18 @@ function handleValidationError(err: unknown, res: Response) {
       errors: err.errors 
     });
   }
+  
+  // Handle database errors more explicitly
+  if (err && typeof err === 'object' && 'code' in err) {
+    // Handle numeric format errors
+    if (err.code === '22P02') {
+      return res.status(400).json({ 
+        message: "Invalid numeric value provided", 
+        details: err.message || "Please check all numeric fields" 
+      });
+    }
+  }
+  
   console.error(err);
   return res.status(500).json({ message: "Internal server error" });
 }
