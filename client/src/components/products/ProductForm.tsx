@@ -63,12 +63,16 @@ type ProductFormProps = {
 const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, impersonationStatus } = useAuth();
   const [activeTab, setActiveTab] = useState('basic');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   
   // Get vendor ID from user context
-  const vendorId = user?.role === 'vendor' ? user.id : undefined;
+  // If we're impersonating a vendor, we should use the user's ID (currentUser)
+  // If not impersonating, check if the user's role is 'vendor'
+  const vendorId = impersonationStatus?.isImpersonating 
+    ? user?.id 
+    : (user?.role === 'vendor' ? user.id : undefined);
 
   // Define extended category type with subcategory support
   type Category = {
