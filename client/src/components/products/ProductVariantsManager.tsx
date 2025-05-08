@@ -460,38 +460,21 @@ const ProductVariantsManager = ({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Product Options</h3>
-          <Button 
-            size="sm" 
-            onClick={() => {
-              optionForm.reset({
-                name: '',
-                values: [{ value: '' }],
-              });
-              setIsAddOptionDialogOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Option
-          </Button>
-        </div>
-        
-        <Alert variant="default" className="bg-blue-50">
-          <AlertTitle className="text-blue-600">Variant Hierarchy</AlertTitle>
-          <AlertDescription>
-            For proper variant organization, create options in this exact order:
-            <ol className="list-decimal pl-5 mt-2 space-y-1">
-              <li className={options.some(o => o.name.toLowerCase().includes('color')) ? "text-green-600 font-medium" : "font-medium"}>
-                Color (Primary) - {options.some(o => o.name.toLowerCase().includes('color')) ? "✓" : "Not added yet"}
-              </li>
-              <li className={options.some(o => o.name.toLowerCase().includes('size')) ? "text-green-600 font-medium" : "font-medium"}>
-                Size (Secondary) - {options.some(o => o.name.toLowerCase().includes('size')) ? "✓" : "Not added yet"}
-              </li>
-            </ol>
-          </AlertDescription>
-        </Alert>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">Product Options</h3>
+        <Button 
+          size="sm" 
+          onClick={() => {
+            optionForm.reset({
+              name: '',
+              values: [{ value: '' }],
+            });
+            setIsAddOptionDialogOpen(true);
+          }}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Option
+        </Button>
       </div>
       
       {options.length === 0 ? (
@@ -557,41 +540,26 @@ const ProductVariantsManager = ({
       
       <Separator />
       
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Product Variants</h3>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={generateVariantCombinations}
-              disabled={options.length === 0}
-            >
-              Generate All Combinations
-            </Button>
-            <Button 
-              size="sm" 
-              onClick={() => setIsAddVariantDialogOpen(true)}
-              disabled={options.length === 0}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Variant
-            </Button>
-          </div>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">Product Variants</h3>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={generateVariantCombinations}
+            disabled={options.length === 0}
+          >
+            Generate All Combinations
+          </Button>
+          <Button 
+            size="sm" 
+            onClick={() => setIsAddVariantDialogOpen(true)}
+            disabled={options.length === 0}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Variant
+          </Button>
         </div>
-        
-        {options.length >= 2 && (
-          <Alert variant="default" className="bg-green-50">
-            <AlertTitle className="text-green-600">Ready to Create Variants</AlertTitle>
-            <AlertDescription>
-              You have set up both Color and Size options. You can now:
-              <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>Click <strong>Generate All Combinations</strong> to automatically create all possible Color/Size combinations</li>
-                <li>Or click <strong>Add Variant</strong> to manually create specific Color/Size combinations</li>
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
       </div>
       
       {options.length === 0 ? (
@@ -677,23 +645,12 @@ const ProductVariantsManager = ({
           <DialogHeader>
             <DialogTitle>Add Product Option</DialogTitle>
             <DialogDescription>
-              Create options in this order: 1) Color (primary), 2) Size (secondary)
+              Add option like Color or Size to create product variants
             </DialogDescription>
           </DialogHeader>
           
           <Form {...optionForm}>
             <form onSubmit={optionForm.handleSubmit(handleOptionSubmit)} className="space-y-4">
-              <Alert variant="default" className="bg-blue-50 mb-4">
-                <AlertTitle className="text-blue-600">Option Hierarchy</AlertTitle>
-                <AlertDescription>
-                  {options.length === 0 ? 
-                    "Add Color first, then Size for proper variant hierarchy." : 
-                    options.some(o => o.name.toLowerCase().includes('color')) ? 
-                      "Color already added. Now add Size option." : 
-                      "Add Color option first for proper variant hierarchy."
-                  }
-                </AlertDescription>
-              </Alert>
               
               <FormField
                 control={optionForm.control}
@@ -849,7 +806,7 @@ const ProductVariantsManager = ({
           <DialogHeader>
             <DialogTitle>Add Product Variant</DialogTitle>
             <DialogDescription>
-              Create a new variant with specific color and size combination.
+              Create a new variant with your selected options.
             </DialogDescription>
           </DialogHeader>
           
@@ -858,13 +815,6 @@ const ProductVariantsManager = ({
               <div className="space-y-4">
                 <h4 className="font-medium">Variant Options</h4>
                 
-                <Alert variant="default" className="bg-blue-50 mb-4">
-                  <AlertTitle className="text-blue-600">Select Options in Order</AlertTitle>
-                  <AlertDescription>
-                    Select values in this hierarchy: first choose Color, then Size
-                  </AlertDescription>
-                </Alert>
-                
                 {options.map((option, optionIndex) => (
                   <FormField
                     key={option.id}
@@ -872,11 +822,7 @@ const ProductVariantsManager = ({
                     name={`optionValues.${optionIndex}.optionValueId`}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{option.name.toLowerCase().includes('color') ? 
-                          "1. Color (Primary)" : 
-                          option.name.toLowerCase().includes('size') ? 
-                            "2. Size (Secondary)" : 
-                            option.name}</FormLabel>
+                        <FormLabel>{option.name}</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
