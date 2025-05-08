@@ -215,9 +215,17 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       return createdProductId;
     },
     onSuccess: (newProductId) => {
+      // Get the current form values to determine if this is a draft save
+      const currentStatus = form.getValues().status;
+      const isDraft = currentStatus === 'draft';
+      
       toast({
-        title: productId ? "Product updated" : "Product created",
-        description: productId ? "The product has been updated successfully." : "The product has been created successfully.",
+        title: isDraft 
+          ? (productId ? "Draft updated" : "Product saved as draft") 
+          : (productId ? "Product updated" : "Product created"),
+        description: isDraft
+          ? (productId ? "The draft has been updated successfully." : "The product has been saved as draft successfully.")
+          : (productId ? "The product has been updated successfully." : "The product has been created successfully."),
       });
       
       // Save variants if we have a product ID
