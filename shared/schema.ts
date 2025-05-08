@@ -66,6 +66,8 @@ export const vendors = pgTable("vendors", {
   status: text("status").notNull().default("pending"), // "pending", "active", "suspended"
   storeTheme: text("store_theme").default("default"),
   customCss: text("custom_css"),
+  colorPalette: text("color_palette").default("default"),
+  fontSettings: jsonb("font_settings"), // Stores headingFont, bodyFont, fontSize, and useCustomFonts
   createdAt: timestamp("created_at").defaultNow(),
   subscriptionStatus: text("subscription_status").default("trial"), // "trial", "active", "overdue"
   trialEndsAt: timestamp("trial_ends_at"),
