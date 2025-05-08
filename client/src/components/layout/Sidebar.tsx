@@ -67,7 +67,7 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
       )}
     >
       <div className="p-4 flex justify-between items-center border-b h-16">
-        <Link href={isSuperAdmin ? "/admin" : "/dashboard"} className={cn("flex items-center cursor-pointer hover:opacity-80 transition-opacity", collapsed && "justify-center w-full")}>
+        <Link href="/" className={cn("flex items-center cursor-pointer hover:opacity-80 transition-opacity", collapsed && "justify-center w-full")}>
           <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-white font-bold">
             MV
           </div>
