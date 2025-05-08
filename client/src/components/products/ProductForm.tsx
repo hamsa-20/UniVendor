@@ -39,6 +39,7 @@ const productFormSchema = z.object({
   dimensions: z.string().optional(),
   inventoryQuantity: z.string().transform(val => val === '' ? '0' : val),
   status: z.string().default('draft'),
+  mainCategoryId: z.string().default("0"),
   categoryId: z.string().optional(),
   featuredImageUrl: z.string().optional(),
   images: z.array(z.string()).optional(),
@@ -111,6 +112,20 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   // Update form values when product data is loaded
   useEffect(() => {
     if (product && productId) {
+      // Find the parent category for this product's category
+      let mainCategoryId = "0"; 
+      if (product.categoryId) {
+        // Get the subcategory object from the categories list
+        const subCategory = categories?.find(cat => cat.id === product.categoryId);
+        // If it has a parent, that's our main category
+        if (subCategory?.parentId) {
+          mainCategoryId = subCategory.parentId.toString();
+        } else {
+          // If the selected category is a main category itself, use that
+          mainCategoryId = product.categoryId.toString();
+        }
+      }
+
       form.reset({
         name: product.name,
         description: product.description || '',
@@ -122,6 +137,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         dimensions: product.dimensions || '',
         inventoryQuantity: product.inventoryQuantity?.toString() || '0',
         status: product.status,
+        mainCategoryId: mainCategoryId,
         categoryId: product.categoryId?.toString() || '',
         featuredImageUrl: product.featuredImageUrl || '',
         images: product.images || [],
@@ -129,7 +145,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         hasVariants: product.hasVariants || false,
       });
     }
-  }, [product, productId, form]);
+  }, [product, productId, form, categories]);
 
   // Product mutation for create/update
   const mutation = useMutation({
@@ -275,55 +291,89 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="categoryId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="0">None</SelectItem>
-                            
-                            {/* Create an organized category hierarchy */}
-                            {categories?.filter(cat => !cat.parentId)?.map((category) => (
-                              <React.Fragment key={category.id}>
-                                {/* Main category */}
-                                <SelectItem value={category.id.toString()}>
+                  {/* Main Category Dropdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="mainCategoryId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Main Category</FormLabel>
+                          <Select 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              // Reset subcategory when main category changes
+                              form.setValue("categoryId", "0");
+                            }} 
+                            defaultValue={field.value}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a main category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="0">None</SelectItem>
+                              
+                              {/* Only top-level categories */}
+                              {categories?.filter(cat => !cat.parentId)?.map((category) => (
+                                <SelectItem key={category.id} value={category.id.toString()}>
                                   {category.name}
                                 </SelectItem>
-                                
-                                {/* Subcategories under this parent */}
-                                {categories
-                                  ?.filter(subcat => subcat.parentId === category.id)
-                                  ?.map((subcategory) => (
-                                    <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                                      <div className="flex items-center">
-                                        <div className="w-4 border-l-2 border-b-2 h-4 border-muted-foreground/30 mr-2"></div>
-                                        {subcategory.name}
-                                      </div>
-                                    </SelectItem>
-                                  ))
-                                }
-                              </React.Fragment>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Categories help organize your products
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select the main product category
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Subcategory Dropdown - Only appears if a main category is selected */}
+                    <FormField
+                      control={form.control}
+                      name="categoryId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Subcategory</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                            value={field.value}
+                            disabled={!form.watch('mainCategoryId') || form.watch('mainCategoryId') === "0"}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a subcategory" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="0">None</SelectItem>
+                              
+                              {/* Filter subcategories based on the selected main category */}
+                              {categories
+                                ?.filter(subcat => 
+                                  subcat.parentId === (form.watch('mainCategoryId') ? parseInt(form.watch('mainCategoryId')) : 0)
+                                )
+                                ?.map((subcategory) => (
+                                  <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                                    {subcategory.name}
+                                  </SelectItem>
+                                ))
+                              }
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Select a subcategory if applicable
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
 
                   <div className="flex justify-end space-x-2">
                     <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
