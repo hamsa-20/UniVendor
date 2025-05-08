@@ -25,6 +25,8 @@ import { Loader2, Image, X, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import ProductVariantManager from './ProductVariantManager';
+import { ProductVariant } from '@shared/schema';
 
 // Validation schema for product form
 const productFormSchema = z.object({
@@ -59,6 +61,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('basic');
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
   
   // Get vendor ID from user context
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
@@ -84,6 +87,12 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   // Fetch product data if editing
   const { data: product, isLoading: isLoadingProduct } = useQuery({
     queryKey: ['/api/products', productId],
+    enabled: !!productId,
+  });
+  
+  // Fetch product variants if editing
+  const { data: productVariants = [] } = useQuery<ProductVariant[]>({
+    queryKey: ['/api/products', productId, 'variants'],
     enabled: !!productId,
   });
 
@@ -149,6 +158,13 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       });
     }
   }, [product, productId, form, categories]);
+  
+  // Set variants when productVariants data is loaded
+  useEffect(() => {
+    if (productVariants && productVariants.length > 0) {
+      setVariants(productVariants);
+    }
+  }, [productVariants]);
 
   // Product mutation for create/update
   const mutation = useMutation({
@@ -169,19 +185,31 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         vendorId: vendorId,
       };
 
+      let createdProductId = productId;
+
       if (productId) {
         // Update existing product
         await apiRequest('PATCH', `/api/products/${productId}`, productData);
       } else {
         // Create new product
-        await apiRequest('POST', '/api/products', productData);
+        const response = await apiRequest('POST', '/api/products', productData);
+        const responseData = await response.json();
+        createdProductId = responseData.id;
       }
+      
+      return createdProductId;
     },
-    onSuccess: () => {
+    onSuccess: (newProductId) => {
       toast({
         title: productId ? "Product updated" : "Product created",
         description: productId ? "The product has been updated successfully." : "The product has been created successfully.",
       });
+      
+      // Save variants if we have a product ID
+      if (newProductId && variants.length > 0) {
+        variantsMutation.mutate({ productId: newProductId, variants });
+      }
+      
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/products`] });
       if (productId) {
         queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
@@ -194,6 +222,37 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       toast({
         title: "Error",
         description: `Failed to ${productId ? 'update' : 'create'} product: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Variants mutation for save/update
+  const variantsMutation = useMutation({
+    mutationFn: async ({ productId, variants }: { productId: number, variants: ProductVariant[] }) => {
+      // Make sure all variants have the correct productId
+      const preparedVariants = variants.map(variant => ({
+        ...variant,
+        productId
+      }));
+      
+      await apiRequest('POST', `/api/products/${productId}/variants`, preparedVariants);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Variants saved",
+        description: "Product variants have been saved successfully.",
+      });
+      
+      // Invalidate variants query to refresh the list
+      if (productId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/products', productId, 'variants'] });
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to save product variants: ${error.message}`,
         variant: "destructive",
       });
     },
@@ -225,9 +284,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
                 <TabsTrigger value="pricing">Pricing & Inventory</TabsTrigger>
+                <TabsTrigger value="variants">Variants</TabsTrigger>
                 <TabsTrigger value="images">Images</TabsTrigger>
                 <TabsTrigger value="additional">Additional Info</TabsTrigger>
               </TabsList>
@@ -661,6 +721,56 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                       {productId ? 'Update Product' : 'Create Product'}
                     </Button>
                   </div>
+                </TabsContent>
+                
+                {/* Variants Tab */}
+                <TabsContent value="variants" className="space-y-6">
+                  <div className="mb-6">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-medium">Product Variants</h3>
+                      <p className="text-muted-foreground">
+                        Add multiple variants of this product with different sizes, colors, and prices.
+                      </p>
+                    </div>
+                    
+                    {/* Product Variant Manager */}
+                    <ProductVariantManager 
+                      productId={productId} 
+                      variants={variants}
+                      onChange={setVariants}
+                    />
+                  </div>
+                  
+                  <div className="flex justify-between space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
+                      Back: Pricing & Inventory
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={() => setActiveTab('images')}
+                    >
+                      Next: Images
+                    </Button>
+                  </div>
+                  
+                  {productId && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          if (variants.length > 0) {
+                            variantsMutation.mutate({ productId, variants });
+                          }
+                        }}
+                        disabled={variantsMutation.isPending || variants.length === 0}
+                        className="w-full"
+                      >
+                        {variantsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Variants
+                      </Button>
+                    </div>
+                  )}
                 </TabsContent>
               </div>
             </Tabs>
