@@ -137,6 +137,7 @@ export const products = pgTable("products", {
   featuredImageUrl: text("featured_image_url"),
   images: text("images").array(),
   tags: text("tags").array(),
+  hasVariants: boolean("has_variants").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -246,6 +247,15 @@ export const insertAnalyticsSchema = createInsertSchema(analytics).omit({
   id: true,
   createdAt: true
 });
+
+// Relations code is commented out for now
+// It will be used in the application code for joins, but we'll skip it for the schema migration
+// since drizzle-kit doesn't support it properly
+/*
+export const usersRelations = relations(users, ({ one, many }) => ({
+  // Relations here
+}));
+*/
 
 // Export types
 export type User = typeof users.$inferSelect;
@@ -474,6 +484,110 @@ export type InsertPayout = z.infer<typeof insertPayoutSchema>;
 
 export type CustomerPaymentMethod = typeof customerPaymentMethods.$inferSelect;
 export type InsertCustomerPaymentMethod = z.infer<typeof insertCustomerPaymentMethodSchema>;
+
+// Product options (e.g., Size, Color)
+export const productOptions = pgTable("product_options", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  name: text("name").notNull(), // e.g., "Size", "Color"
+  displayName: text("display_name"), // Optional display name
+  position: integer("position").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProductOptionSchema = createInsertSchema(productOptions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Product option values (e.g., "Small", "Medium", "Large" for Size)
+export const productOptionValues = pgTable("product_option_values", {
+  id: serial("id").primaryKey(),
+  optionId: integer("option_id").notNull().references(() => productOptions.id),
+  value: text("value").notNull(), // e.g., "Small", "Red"
+  displayValue: text("display_value"), // Optional display value
+  position: integer("position").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProductOptionValueSchema = createInsertSchema(productOptionValues).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Product variants (e.g., Small Blue T-shirt)
+export const productVariants = pgTable("product_variants", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  sku: text("sku"),
+  barcode: text("barcode"),
+  price: numeric("price").notNull(),
+  compareAtPrice: numeric("compare_at_price"),
+  inventoryQuantity: integer("inventory_quantity").default(0),
+  weight: numeric("weight"),
+  imageUrl: text("image_url"),
+  position: integer("position").default(0),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertProductVariantSchema = createInsertSchema(productVariants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Joining table for product variants and option values
+export const productVariantOptionValues = pgTable("product_variant_option_values", {
+  id: serial("id").primaryKey(),
+  variantId: integer("variant_id").notNull().references(() => productVariants.id),
+  optionValueId: integer("option_value_id").notNull().references(() => productOptionValues.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertProductVariantOptionValueSchema = createInsertSchema(productVariantOptionValues).omit({
+  id: true,
+  createdAt: true
+});
+
+// Product option assignments (which options are available for which products)
+export const productOptionAssignments = pgTable("product_option_assignments", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull().references(() => products.id),
+  optionId: integer("option_id").notNull().references(() => productOptions.id),
+  position: integer("position").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+},
+(table) => {
+  return {
+    productOptionUnique: uniqueIndex("product_option_unique_idx").on(table.productId, table.optionId),
+  };
+});
+
+export const insertProductOptionAssignmentSchema = createInsertSchema(productOptionAssignments).omit({
+  id: true,
+  createdAt: true
+});
+
+export type ProductOption = typeof productOptions.$inferSelect;
+export type InsertProductOption = z.infer<typeof insertProductOptionSchema>;
+
+export type ProductOptionValue = typeof productOptionValues.$inferSelect;
+export type InsertProductOptionValue = z.infer<typeof insertProductOptionValueSchema>;
+
+export type ProductVariant = typeof productVariants.$inferSelect;
+export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+
+export type ProductVariantOptionValue = typeof productVariantOptionValues.$inferSelect;
+export type InsertProductVariantOptionValue = z.infer<typeof insertProductVariantOptionValueSchema>;
+
+export type ProductOptionAssignment = typeof productOptionAssignments.$inferSelect;
+export type InsertProductOptionAssignment = z.infer<typeof insertProductOptionAssignmentSchema>;
 
 export type PaymentProviderSettings = typeof paymentProviderSettings.$inferSelect;
 export type InsertPaymentProviderSettings = z.infer<typeof insertPaymentProviderSettingsSchema>;
