@@ -21,8 +21,8 @@ type CheckoutStep = "cart" | "details" | "payment" | "confirmation";
 type PaymentProcessor = "stripe" | "paypal" | "manual";
 
 // Helper function to format currency
-const formatCurrency = (amount: string | number, currency = "USD") => {
-  return new Intl.NumberFormat("en-US", {
+const formatCurrency = (amount: string | number, currency = "INR") => {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency,
   }).format(typeof amount === "string" ? parseFloat(amount) : amount);
@@ -290,7 +290,7 @@ const CheckoutPage = () => {
                     <StripeCheckout
                       vendorId={vendorId || 0}
                       amount={parseFloat(cart?.total || "0") * 100} // Convert to cents
-                      currency="USD"
+                      currency="INR"
                       orderId={orderId}
                       onSuccess={handlePaymentSuccess}
                       onCancel={handlePaymentCancel}
@@ -301,7 +301,7 @@ const CheckoutPage = () => {
                     <PayPalCheckout
                       vendorId={vendorId || 0}
                       amount={cart?.total || "0"}
-                      currency="USD"
+                      currency="INR"
                       orderId={orderId}
                       onSuccess={handlePaymentSuccess}
                       onCancel={handlePaymentCancel}
