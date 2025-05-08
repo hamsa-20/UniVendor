@@ -137,18 +137,30 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Pricing</h3>
                 <div className="flex items-baseline">
-                  <span className="text-3xl font-bold">${parseFloat(product.price).toFixed(2)}</span>
-                  {product.compareAtPrice && (
+                  <span className="text-3xl font-bold">${parseFloat(product.sellingPrice).toFixed(2)}</span>
+                  {product.mrp && parseFloat(product.mrp) > parseFloat(product.sellingPrice) && (
                     <span className="ml-2 text-muted-foreground line-through">
-                      ${parseFloat(product.compareAtPrice).toFixed(2)}
+                      ${parseFloat(product.mrp).toFixed(2)}
                     </span>
                   )}
                 </div>
-                {product.compareAtPrice && parseFloat(product.compareAtPrice) > parseFloat(product.price) && (
+                {product.mrp && parseFloat(product.mrp) > parseFloat(product.sellingPrice) && (
                   <div className="mt-1">
                     <span className="text-green-600 text-sm font-medium">
-                      Save {Math.round((1 - parseFloat(product.price) / parseFloat(product.compareAtPrice)) * 100)}%
+                      Save {Math.round((1 - parseFloat(product.sellingPrice) / parseFloat(product.mrp)) * 100)}%
                     </span>
+                  </div>
+                )}
+                
+                {product.purchasePrice && (
+                  <div className="mt-2">
+                    <span className="text-sm text-muted-foreground">Purchase Price: ${parseFloat(product.purchasePrice).toFixed(2)}</span>
+                  </div>
+                )}
+                
+                {product.gst && (
+                  <div className="mt-1">
+                    <span className="text-sm text-muted-foreground">GST: {product.gst}%</span>
                   </div>
                 )}
               </div>

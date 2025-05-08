@@ -44,8 +44,10 @@ type ProductCardProps = {
     id: number;
     name: string;
     description?: string;
-    price: string | number;
-    compareAtPrice?: string | number;
+    sellingPrice: string | number;
+    purchasePrice?: string | number;
+    mrp?: string | number;
+    gst?: string | number;
     featuredImageUrl?: string;
     inventoryQuantity?: number;
     status: string;
@@ -194,10 +196,10 @@ const ProductCard = ({ product, onEdit, onDelete, isVendorView = true }: Product
 
           {/* Price */}
           <div className="flex items-center mt-1">
-            <span className="font-semibold text-lg">{formatPrice(product.price)}</span>
-            {product.compareAtPrice && parseFloat(product.compareAtPrice.toString()) > 0 && (
+            <span className="font-semibold text-lg">{formatPrice(product.sellingPrice)}</span>
+            {product.mrp && parseFloat(product.mrp.toString()) > parseFloat(product.sellingPrice.toString()) && (
               <span className="text-sm text-muted-foreground line-through ml-2">
-                {formatPrice(product.compareAtPrice)}
+                {formatPrice(product.mrp)}
               </span>
             )}
             {getInventoryBadge()}
