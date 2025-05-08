@@ -235,53 +235,195 @@ const ProductVariantsManager = ({
     }
   }, [variants, onVariantsChange]);
   
-  // Convert color variants to regular variants for saving
-  useEffect(() => {
-    if (colorVariants.length > 0) {
-      // Convert hierarchical variants to flat variants
-      const newVariants: ProductVariant[] = [];
-      let isFirstVariant = variants.length === 0;
-      
-      colorVariants.forEach(colorVariant => {
-        const colorOption = options.find(o => o.id?.toString() === colorVariant.colorOptionId);
-        const colorValue = colorOption?.values.find(v => v.id?.toString() === colorVariant.colorValueId);
-        
-        colorVariant.sizes.forEach(sizeVariant => {
-          const sizeOption = options.find(o => o.id?.toString() === sizeVariant.sizeOptionId);
-          const sizeValue = sizeOption?.values.find(v => v.id?.toString() === sizeVariant.sizeValueId);
+  // Hierarchical variant handlers
+  const handleAddColorVariant = () => {
+    if (!colorOption) {
+      toast({
+        title: "Color option missing",
+        description: "Please add a color option before creating variants.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!sizeOption) {
+      toast({
+        title: "Size option missing",
+        description: "Please add a size option before creating variants.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setSelectedColorOption(colorOption.id?.toString() || '');
+    setSelectedSizeOption(sizeOption.id?.toString() || '');
+    setIsAddHierarchicalVariantOpen(true);
+  };
+  
+  const handleColorSelection = (colorValueId: string) => {
+    setSelectedColorValue(colorValueId);
+    
+    // Check if this color already exists in our variants
+    const existing = colorVariants.find(cv => 
+      cv.colorOptionId === selectedColorOption && 
+      cv.colorValueId === colorValueId
+    );
+    
+    if (existing) {
+      setCurrentColorVariant(existing);
+    } else {
+      // Create a new color variant
+      setCurrentColorVariant({
+        id: Date.now(),
+        colorOptionId: selectedColorOption,
+        colorValueId: colorValueId,
+        sizes: [],
+      });
+    }
+  };
+  
+  const handleAddSizeToColor = (data: SizeVariant) => {
+    if (!currentColorVariant) return;
+    
+    const newSize: SizeVariant = {
+      ...data,
+      id: Date.now()
+    };
+    
+    // Check if we're updating an existing color variant or adding a new one
+    if (colorVariants.some(cv => cv.id === currentColorVariant.id)) {
+      // Update existing color variant with new size
+      const updatedColorVariants = colorVariants.map(cv => {
+        if (cv.id === currentColorVariant.id) {
+          // Check if size already exists
+          const existingSize = cv.sizes.findIndex(s => 
+            s.sizeOptionId === data.sizeOptionId && 
+            s.sizeValueId === data.sizeValueId
+          );
           
-          if (colorOption && colorValue && sizeOption && sizeValue) {
-            const optionValues = [
-              { optionId: colorVariant.colorOptionId, optionValueId: colorVariant.colorValueId },
-              { optionId: sizeVariant.sizeOptionId, optionValueId: sizeVariant.sizeValueId }
-            ];
-            
-            // Create a regular variant from the color-size combination
-            const newVariant: ProductVariant = {
-              id: Date.now() + newVariants.length,
-              optionValues,
-              purchasePrice: sizeVariant.purchasePrice,
-              sellingPrice: sizeVariant.sellingPrice,
-              mrp: sizeVariant.mrp,
-              gst: sizeVariant.gst,
-              sku: sizeVariant.sku || '',
-              inventoryQuantity: sizeVariant.inventoryQuantity,
-              isDefault: isFirstVariant, // First variant is default
-              imageUrl: sizeVariant.imageUrl || '',
-            };
-            
-            newVariants.push(newVariant);
-            isFirstVariant = false;
+          if (existingSize >= 0) {
+            // Update existing size
+            const updatedSizes = [...cv.sizes];
+            updatedSizes[existingSize] = newSize;
+            return { ...cv, sizes: updatedSizes };
+          } else {
+            // Add new size
+            return { ...cv, sizes: [...cv.sizes, newSize] };
           }
-        });
+        }
+        return cv;
       });
       
-      if (newVariants.length > 0) {
-        setVariants(prevVariants => [...prevVariants, ...newVariants]);
-        setColorVariants([]);
-      }
+      setColorVariants(updatedColorVariants);
+    } else {
+      // Add new color variant with this size
+      const newColorVariant: ColorVariant = {
+        ...currentColorVariant,
+        sizes: [newSize],
+      };
+      
+      setColorVariants([...colorVariants, newColorVariant]);
     }
-  }, [colorVariants, options, variants.length]);
+    
+    // Reset the size form
+    sizeVariantForm.reset({
+      sizeOptionId: data.sizeOptionId,
+      sizeValueId: '',
+      purchasePrice: '',
+      sellingPrice: '',
+      mrp: '',
+      gst: '',
+      sku: '',
+      inventoryQuantity: '0',
+      imageUrl: '',
+    });
+    
+    toast({
+      title: "Size variant added",
+      description: "The size has been added to this color variant.",
+    });
+  };
+  
+  const handleDeleteSizeFromColor = (colorId: number | undefined, sizeId: number | undefined) => {
+    if (!colorId || !sizeId) return;
+    
+    const updatedColorVariants = colorVariants.map(cv => {
+      if (cv.id === colorId) {
+        return {
+          ...cv,
+          sizes: cv.sizes.filter(s => s.id !== sizeId),
+        };
+      }
+      return cv;
+    });
+    
+    // If we removed all sizes from a color, remove the color variant
+    const finalColorVariants = updatedColorVariants.filter(cv => cv.sizes.length > 0);
+    
+    setColorVariants(finalColorVariants);
+    
+    toast({
+      title: "Size variant removed",
+      description: "The size has been removed from this color variant.",
+    });
+  };
+  
+  const finalizeHierarchicalVariants = () => {
+    // Convert hierarchical color/size variants to regular product variants
+    const newVariants: ProductVariant[] = [];
+    let isFirstVariant = variants.length === 0;
+    
+    colorVariants.forEach(colorVariant => {
+      const colorOption = options.find(o => o.id?.toString() === colorVariant.colorOptionId);
+      const colorValue = colorOption?.values.find(v => v.id?.toString() === colorVariant.colorValueId);
+      
+      colorVariant.sizes.forEach(sizeVariant => {
+        const sizeOption = options.find(o => o.id?.toString() === sizeVariant.sizeOptionId);
+        const sizeValue = sizeOption?.values.find(v => v.id?.toString() === sizeVariant.sizeValueId);
+        
+        if (colorOption && colorValue && sizeOption && sizeValue) {
+          const optionValues = [
+            { optionId: colorVariant.colorOptionId, optionValueId: colorVariant.colorValueId },
+            { optionId: sizeVariant.sizeOptionId, optionValueId: sizeVariant.sizeValueId }
+          ];
+          
+          // Create a regular variant from the color-size combination
+          const newVariant: ProductVariant = {
+            id: Date.now() + newVariants.length,
+            optionValues,
+            purchasePrice: sizeVariant.purchasePrice,
+            sellingPrice: sizeVariant.sellingPrice,
+            mrp: sizeVariant.mrp,
+            gst: sizeVariant.gst,
+            sku: sizeVariant.sku || '',
+            inventoryQuantity: sizeVariant.inventoryQuantity,
+            isDefault: isFirstVariant, // First variant is default
+            imageUrl: sizeVariant.imageUrl || '',
+          };
+          
+          newVariants.push(newVariant);
+          isFirstVariant = false;
+        }
+      });
+    });
+    
+    if (newVariants.length > 0) {
+      setVariants(prevVariants => [...prevVariants, ...newVariants]);
+      setColorVariants([]);
+      setIsAddHierarchicalVariantOpen(false);
+      
+      toast({
+        title: "Variants added",
+        description: `Added ${newVariants.length} new variants.`,
+      });
+    } else {
+      toast({
+        title: "No variants to add",
+        description: "Please add at least one color with size variants.",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Initialize variant form with option values - enforcing Color→Size hierarchy
   useEffect(() => {
@@ -670,12 +812,21 @@ const ProductVariantsManager = ({
             Generate All Combinations
           </Button>
           <Button 
+            variant="outline"
+            size="sm" 
+            onClick={handleAddColorVariant}
+            disabled={!colorOption || !sizeOption}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Color→Size Variants
+          </Button>
+          <Button 
             size="sm" 
             onClick={() => setIsAddVariantDialogOpen(true)}
             disabled={options.length === 0}
           >
             <Plus className="mr-2 h-4 w-4" />
-            Add Variant
+            Add Single Variant
           </Button>
         </div>
       </div>
@@ -1161,6 +1312,296 @@ const ProductVariantsManager = ({
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Hierarchical Variant Dialog */}
+      <Dialog 
+        open={isAddHierarchicalVariantOpen} 
+        onOpenChange={setIsAddHierarchicalVariantOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Add Color → Size Variants</DialogTitle>
+            <DialogDescription>
+              First select a color, then add sizes with specific pricing for that color.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mt-4">
+            {/* Color selection column */}
+            <div className="md:col-span-1 border-r pr-4">
+              <h4 className="font-medium mb-3">Colors</h4>
+              
+              {colorOption && (
+                <div className="space-y-2">
+                  {colorOption.values.map((colorValue) => (
+                    <Button
+                      key={colorValue.id}
+                      type="button"
+                      variant={selectedColorValue === colorValue.id?.toString() ? "default" : "outline"}
+                      className="w-full justify-start"
+                      onClick={() => handleColorSelection(colorValue.id?.toString() || '')}
+                    >
+                      {colorValue.value}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Size form column */}
+            <div className="md:col-span-2">
+              {currentColorVariant && (
+                <>
+                  <h4 className="font-medium mb-3">
+                    Add Sizes for {getColorValueName(currentColorVariant.colorValueId)}
+                  </h4>
+                  
+                  <Form {...sizeVariantForm}>
+                    <form onSubmit={sizeVariantForm.handleSubmit(handleAddSizeToColor)} className="space-y-4">
+                      <input
+                        type="hidden"
+                        {...sizeVariantForm.register("sizeOptionId")}
+                        value={selectedSizeOption}
+                      />
+                      
+                      <FormField
+                        control={sizeVariantForm.control}
+                        name="sizeValueId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Size</FormLabel>
+                            <Select 
+                              onValueChange={field.onChange} 
+                              value={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select size" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {sizeOption?.values.map((sizeValue) => (
+                                  <SelectItem 
+                                    key={sizeValue.id} 
+                                    value={sizeValue.id?.toString() || ''}
+                                  >
+                                    {sizeValue.value}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={sizeVariantForm.control}
+                          name="purchasePrice"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Purchase Price</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="0.00" 
+                                  {...field}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={sizeVariantForm.control}
+                          name="sellingPrice"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Selling Price</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="0.00" 
+                                  {...field}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={sizeVariantForm.control}
+                          name="mrp"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>MRP</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="0.00" 
+                                  {...field}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={sizeVariantForm.control}
+                          name="gst"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>GST %</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="0" 
+                                  {...field}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={sizeVariantForm.control}
+                          name="sku"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>SKU</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="SKU identifier" 
+                                  {...field}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={sizeVariantForm.control}
+                          name="inventoryQuantity"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Stock Quantity</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  placeholder="0" 
+                                  type="number"
+                                  {...field}
+                                  className="w-full"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={sizeVariantForm.control}
+                        name="imageUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Image URL</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="https://example.com/image.jpg" 
+                                {...field}
+                                className="w-full"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <Button type="submit" className="w-full">
+                        Add Size Variant
+                      </Button>
+                    </form>
+                  </Form>
+                </>
+              )}
+            </div>
+            
+            {/* Size list column */}
+            <div className="md:col-span-2 border-l pl-4">
+              <h4 className="font-medium mb-3">Added Variants</h4>
+              
+              {colorVariants.length === 0 ? (
+                <Alert variant="default" className="bg-muted/50">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>No variants added yet</AlertTitle>
+                  <AlertDescription>
+                    Select a color and add size variants.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <div className="space-y-4">
+                  {colorVariants.map((colorVariant) => (
+                    <div key={colorVariant.id} className="border rounded-md p-3">
+                      <h5 className="font-medium mb-2">
+                        {getColorValueName(colorVariant.colorValueId)}
+                      </h5>
+                      
+                      {colorVariant.sizes.length > 0 ? (
+                        <div className="space-y-2">
+                          {colorVariant.sizes.map((sizeVariant) => (
+                            <div key={sizeVariant.id} className="flex items-center justify-between bg-muted/20 p-2 rounded">
+                              <div>
+                                <div className="font-medium">
+                                  {getSizeValueName(sizeVariant.sizeValueId)}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  Price: ₹{sizeVariant.sellingPrice} | Stock: {sizeVariant.inventoryQuantity}
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteSizeFromColor(colorVariant.id, sizeVariant.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-muted-foreground">
+                          No sizes added yet
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter className="mt-6">
+            <Button variant="outline" onClick={() => setIsAddHierarchicalVariantOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={finalizeHierarchicalVariants}>
+              Convert to Variants
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
