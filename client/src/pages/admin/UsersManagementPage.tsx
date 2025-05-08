@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UsersList } from "@/components/admin/UsersList";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 

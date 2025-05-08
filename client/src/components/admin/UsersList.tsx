@@ -25,7 +25,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 
-export function UsersList() {
+interface UsersListProps {
+  filter?: 'all' | 'super_admin' | 'admin' | 'vendor' | 'customer';
+}
+
+export function UsersList({ filter = 'all' }: UsersListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
@@ -35,13 +39,19 @@ export function UsersList() {
     queryKey: ['/api/users'],
   });
   
-  // Filter users based on search term
+  // Filter users based on role and search term
   const filteredUsers = users 
-    ? users.filter(user => 
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
+    ? users.filter(user => {
+        // Filter by role first
+        if (filter !== 'all' && user.role !== filter) {
+          return false;
+        }
+        
+        // Then filter by search term
+        return user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.firstName && user.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (user.lastName && user.lastName.toLowerCase().includes(searchTerm.toLowerCase()));
+      })
     : [];
     
   // Calculate pagination
@@ -217,10 +227,15 @@ export function UsersList() {
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious 
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-              />
+              {currentPage === 1 ? (
+                <span className="cursor-not-allowed opacity-50">
+                  <PaginationPrevious />
+                </span>
+              ) : (
+                <PaginationPrevious 
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                />
+              )}
             </PaginationItem>
             
             {[...Array(totalPages)].map((_, index) => {
@@ -251,10 +266,15 @@ export function UsersList() {
             })}
             
             <PaginationItem>
-              <PaginationNext
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-              />
+              {currentPage === totalPages ? (
+                <span className="cursor-not-allowed opacity-50">
+                  <PaginationNext />
+                </span>
+              ) : (
+                <PaginationNext
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                />
+              )}
             </PaginationItem>
           </PaginationContent>
         </Pagination>
