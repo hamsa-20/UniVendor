@@ -8,7 +8,13 @@ import { generateOtp, sendOtpEmail } from "./emailService";
 
 declare global {
   namespace Express {
-    interface User extends User {}
+    interface User extends User {
+      originalUserId?: number; // Used for impersonation
+    }
+    
+    interface Session {
+      originalUser?: User; // Store the original user when impersonating
+    }
   }
 }
 
@@ -191,13 +197,93 @@ export function setupAuth(app: Express) {
 
   // Logout endpoint
   app.post("/api/auth/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        console.error("Logout error:", err);
-        return res.status(500).json({ message: "Failed to log out" });
+    // Check if user is impersonating someone
+    if (req.session.originalUser) {
+      // Restore the original user
+      const originalUser = req.session.originalUser;
+      delete req.session.originalUser;
+      
+      // Log in as the original user
+      req.login(originalUser, (err) => {
+        if (err) {
+          console.error("Error returning to original user:", err);
+          return res.status(500).json({ message: "Failed to return to original account" });
+        }
+        
+        return res.status(200).json({ 
+          message: "Returned to original account", 
+          user: originalUser,
+          impersonationEnded: true
+        });
+      });
+    } else {
+      // Normal logout
+      req.logout((err) => {
+        if (err) {
+          console.error("Logout error:", err);
+          return res.status(500).json({ message: "Failed to log out" });
+        }
+        
+        return res.status(200).json({ message: "Logged out successfully" });
+      });
+    }
+  });
+  
+  // Start impersonation (Super Admin only)
+  app.post("/api/auth/impersonate/:userId", hasRole(["super_admin"]), async (req, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Get the target user
+      const targetUser = await storage.getUser(parseInt(userId));
+      
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
       }
       
-      return res.status(200).json({ message: "Logged out successfully" });
+      // Store original user in session
+      req.session.originalUser = req.user;
+      
+      // Add impersonation flags to target user
+      const impersonatedUser = {
+        ...targetUser,
+        originalUserId: req.user.id,
+        isImpersonated: true
+      };
+      
+      // Login as the target user
+      req.login(impersonatedUser, (err) => {
+        if (err) {
+          console.error("Impersonation login error:", err);
+          return res.status(500).json({ message: "Failed to impersonate user" });
+        }
+        
+        return res.status(200).json({ 
+          message: "Impersonation started", 
+          user: impersonatedUser,
+          impersonationStarted: true
+        });
+      });
+    } catch (error) {
+      console.error("Error during impersonation:", error);
+      return res.status(500).json({ message: "Failed to impersonate user" });
+    }
+  });
+  
+  // Check impersonation status
+  app.get("/api/auth/impersonation-status", isAuthenticated, (req, res) => {
+    const isImpersonating = Boolean(req.session.originalUser);
+    const originalUser = req.session.originalUser || null;
+    
+    return res.status(200).json({
+      isImpersonating,
+      originalUser: isImpersonating ? {
+        id: originalUser.id,
+        email: originalUser.email,
+        role: originalUser.role,
+        firstName: originalUser.firstName,
+        lastName: originalUser.lastName
+      } : null
     });
   });
 }

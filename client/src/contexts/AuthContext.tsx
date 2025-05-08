@@ -10,15 +10,30 @@ import { User } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
 
+interface ImpersonationStatus {
+  isImpersonating: boolean;
+  originalUser: {
+    id: number;
+    email: string;
+    role: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+}
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: Error | null;
+  impersonationStatus: ImpersonationStatus | null;
+  isLoadingImpersonationStatus: boolean;
   requestOtpMutation: UseMutationResult<{ message: string; previewUrl?: string }, Error, { email: string }>;
   verifyOtpMutation: UseMutationResult<User, Error, { email: string; otp: string }>;
   logoutMutation: UseMutationResult<{ message: string }, Error, void>;
   completeProfileMutation: UseMutationResult<User, Error, Partial<User>>;
+  impersonateUserMutation: UseMutationResult<{ message: string; user: User; impersonationStarted: boolean }, Error, number>;
+  endImpersonationMutation: UseMutationResult<{ message: string; user: User; impersonationEnded: boolean }, Error, void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -170,6 +185,106 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
   });
+  
+  // Fetch impersonation status
+  const {
+    data: impersonationStatus,
+    isLoading: isLoadingImpersonationStatus,
+  } = useQuery<ImpersonationStatus, Error>({
+    queryKey: ['/api/auth/impersonation-status'],
+    queryFn: async () => {
+      if (!user) return { isImpersonating: false, originalUser: null };
+      
+      try {
+        const res = await apiRequest('GET', '/api/auth/impersonation-status');
+        if (!res.ok) {
+          if (res.status === 401) {
+            return { isImpersonating: false, originalUser: null };
+          }
+          throw new Error('Failed to fetch impersonation status');
+        }
+        return await res.json();
+      } catch (error) {
+        console.error('Error fetching impersonation status:', error);
+        return { isImpersonating: false, originalUser: null };
+      }
+    },
+    enabled: !!user, // Only run if user is logged in
+  });
+  
+  // Impersonate user mutation
+  const impersonateUserMutation = useMutation<
+    { message: string; user: User; impersonationStarted: boolean },
+    Error,
+    number
+  >({
+    mutationFn: async (userId) => {
+      const res = await apiRequest('POST', `/api/auth/impersonate/${userId}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to impersonate user');
+      }
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      // Update the current user in the cache
+      queryClient.setQueryData(['/api/auth/session'], data.user);
+      // Invalidate the impersonation status to refetch it
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/impersonation-status'] });
+      // Invalidate other queries that might be affected
+      queryClient.invalidateQueries({ queryKey: ['/api/vendors'] });
+      
+      toast({
+        title: 'Impersonation Started',
+        description: `You are now viewing the application as ${data.user.email}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Impersonation Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  
+  // End impersonation (return to original user) mutation
+  const endImpersonationMutation = useMutation<
+    { message: string; user: User; impersonationEnded: boolean },
+    Error,
+    void
+  >({
+    mutationFn: async () => {
+      // Using the logout endpoint which handles returning to original user
+      const res = await apiRequest('POST', '/api/auth/logout');
+      if (!res.ok) {
+        throw new Error('Failed to end impersonation');
+      }
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      // Update the current user in the cache
+      if (data.user) {
+        queryClient.setQueryData(['/api/auth/session'], data.user);
+      }
+      // Invalidate the impersonation status to refetch it
+      queryClient.invalidateQueries({ queryKey: ['/api/auth/impersonation-status'] });
+      // Invalidate other queries that might be affected
+      queryClient.invalidateQueries({ queryKey: ['/api/vendors'] });
+      
+      toast({
+        title: 'Impersonation Ended',
+        description: 'You have returned to your original account.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Failed to End Impersonation',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
 
   return (
     <AuthContext.Provider
@@ -178,10 +293,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         error,
+        impersonationStatus: impersonationStatus || null,
+        isLoadingImpersonationStatus,
         requestOtpMutation,
         verifyOtpMutation,
         logoutMutation,
         completeProfileMutation,
+        impersonateUserMutation,
+        endImpersonationMutation,
       }}
     >
       {children}
