@@ -229,7 +229,9 @@ const StoreDesignForm = () => {
                     
                     <div>
                       <ThemePreview 
-                        themeName={form.watch('storeTheme')} 
+                        themeName={form.watch('storeTheme')}
+                        colorPalette={form.watch('colorPalette')}
+                        fontSettings={form.watch('fontSettings')}
                         vendorId={vendorId} 
                       />
                     </div>
