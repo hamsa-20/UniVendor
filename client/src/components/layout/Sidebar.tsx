@@ -24,6 +24,11 @@ type SidebarProps = {
 const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
   const [location] = useLocation();
   const { user, logoutMutation } = useAuth();
+  
+  // Helper function to check if the current location matches or is a child of a path
+  const isActive = (path: string) => {
+    return location === path || (location !== '/' && location.startsWith(path + '/'));
+  };
 
   // Determine if current user is super admin
   const isSuperAdmin = user?.role === "super_admin";
@@ -75,8 +80,8 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
               to={item.path}
               className={cn(
                 "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                location.startsWith(item.path)
-                  ? "bg-primary text-white"
+                isActive(item.path)
+                  ? "bg-primary text-white" 
                   : "text-gray-700 hover:bg-gray-100 hover:text-primary",
                 collapsed && "justify-center"
               )}
