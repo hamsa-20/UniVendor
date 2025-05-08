@@ -387,7 +387,7 @@ const VendorAnalyticsPage = () => {
             {/* Revenue Chart */}
             <TabsContent value="revenue" className="mt-0">
               <div className="h-[400px]">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <div className="h-full w-full flex items-center justify-center">
                     <Skeleton className="h-full w-full" />
                   </div>
@@ -436,7 +436,7 @@ const VendorAnalyticsPage = () => {
             {/* Orders Chart */}
             <TabsContent value="orders" className="mt-0">
               <div className="h-[400px]">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <div className="h-full w-full flex items-center justify-center">
                     <Skeleton className="h-full w-full" />
                   </div>
@@ -482,7 +482,7 @@ const VendorAnalyticsPage = () => {
             {/* Visitors Chart */}
             <TabsContent value="visitors" className="mt-0">
               <div className="h-[400px]">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <div className="h-full w-full flex items-center justify-center">
                     <Skeleton className="h-full w-full" />
                   </div>
@@ -541,7 +541,7 @@ const VendorAnalyticsPage = () => {
             {/* Conversion Rate Chart */}
             <TabsContent value="conversion" className="mt-0">
               <div className="h-[400px]">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <div className="h-full w-full flex items-center justify-center">
                     <Skeleton className="h-full w-full" />
                   </div>
