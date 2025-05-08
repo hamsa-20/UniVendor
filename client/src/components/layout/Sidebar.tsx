@@ -37,6 +37,10 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
         { label: "Subscriptions", path: "/subscriptions", icon: <CreditCard className="h-5 w-5" /> },
         { label: "Analytics", path: "/analytics", icon: <LineChart className="h-5 w-5" /> },
         { label: "Settings", path: "/settings", icon: <Settings className="h-5 w-5" /> },
+        // Only show Test Stores in development mode
+        ...(process.env.NODE_ENV === 'development' 
+          ? [{ label: "Test Stores", path: "/test-store", icon: <Store className="h-5 w-5 text-amber-500" /> }] 
+          : []),
       ]
     : [
         { label: "Dashboard", path: "/dashboard", icon: <LayoutDashboard className="h-5 w-5" /> },
@@ -47,6 +51,10 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
         { label: "Analytics", path: "/vendor-analytics", icon: <LineChart className="h-5 w-5" /> },
         { label: "Store Design", path: "/store-design", icon: <Brush className="h-5 w-5" /> },
         { label: "Settings", path: "/settings", icon: <Settings className="h-5 w-5" /> },
+        // Only show Test Stores in development mode
+        ...(process.env.NODE_ENV === 'development' 
+          ? [{ label: "Test Stores", path: "/test-store", icon: <Store className="h-5 w-5 text-amber-500" /> }] 
+          : []),
       ];
 
   return (
