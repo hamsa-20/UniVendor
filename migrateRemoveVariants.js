@@ -1,6 +1,11 @@
-require('dotenv').config();
-const { Pool } = require('@neondatabase/serverless');
-const ws = require('ws');
+import dotenv from 'dotenv';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
+
+dotenv.config();
+
+// Set the WebSocket constructor for Neon database
+neonConfig.webSocketConstructor = ws;
 
 /**
  * Remove the hasVariants field from the products table
