@@ -116,6 +116,9 @@ export interface IStorage {
   // Analytics operations
   getVendorAnalytics(vendorId: number): Promise<Analytics[]>;
   createAnalyticsEntry(data: InsertAnalytics): Promise<Analytics>;
+  getTopProducts(vendorId: number, limit?: number): Promise<{ name: string, sales: number, revenue: string }[]>;
+  getSalesByHour(vendorId: number): Promise<{ hour: string, sales: number }[]>;
+  getSalesByCategory(vendorId: number): Promise<{ name: string, value: number, amount: string }[]>;
   
   // Platform statistics
   getPlatformStats(): Promise<{
@@ -878,6 +881,152 @@ export class MemStorage implements IStorage {
     const entry: Analytics = { ...data, id, createdAt: new Date() };
     this.analytics.set(id, entry);
     return entry;
+  }
+  
+  async getTopProducts(vendorId: number, limit: number = 5): Promise<{ name: string, sales: number, revenue: string }[]> {
+    // Get all products for this vendor
+    const vendorProducts = Array.from(this.products.values())
+      .filter(product => product.vendorId === vendorId);
+    
+    // Get all orders for this vendor
+    const vendorOrders = Array.from(this.orders.values())
+      .filter(order => order.vendorId === vendorId && order.status === "completed");
+    
+    // Get all order items for these orders
+    const orderItemsList = Array.from(this.orderItems.values())
+      .filter(item => {
+        const order = this.orders.get(item.orderId);
+        return order && order.vendorId === vendorId && order.status === "completed";
+      });
+    
+    // Aggregate sales data by product
+    const productSales: Record<number, { name: string, sales: number, revenue: number }> = {};
+    
+    // Initialize sales data for all products
+    vendorProducts.forEach(product => {
+      productSales[product.id] = {
+        name: product.name,
+        sales: 0,
+        revenue: 0
+      };
+    });
+    
+    // Add up sales for each product
+    orderItemsList.forEach(item => {
+      const product = this.products.get(item.productId);
+      if (product && product.vendorId === vendorId) {
+        productSales[product.id].sales += item.quantity;
+        productSales[product.id].revenue += parseFloat(item.price) * item.quantity;
+      }
+    });
+    
+    // Convert to array, sort by sales and limit results
+    return Object.values(productSales)
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, limit)
+      .map(product => ({
+        name: product.name,
+        sales: product.sales,
+        revenue: `$${product.revenue.toFixed(2)}`
+      }));
+  }
+  
+  async getSalesByHour(vendorId: number): Promise<{ hour: string, sales: number }[]> {
+    // Get all orders for this vendor
+    const vendorOrders = Array.from(this.orders.values())
+      .filter(order => order.vendorId === vendorId && order.status === "completed");
+    
+    // Group by hour
+    const hourMap: Record<number, number> = {};
+    
+    // Initialize all hours to 0
+    for (let i = 0; i < 24; i++) {
+      hourMap[i] = 0;
+    }
+    
+    // Count orders by hour
+    vendorOrders.forEach(order => {
+      if (order.createdAt) {
+        const hour = new Date(order.createdAt).getHours();
+        hourMap[hour]++;
+      }
+    });
+    
+    // Convert to the expected format
+    return Object.entries(hourMap)
+      .map(([hour, count]) => {
+        const hourNum = parseInt(hour);
+        let hourLabel: string;
+        
+        if (hourNum === 0) {
+          hourLabel = "12am";
+        } else if (hourNum < 12) {
+          hourLabel = `${hourNum}am`;
+        } else if (hourNum === 12) {
+          hourLabel = "12pm";
+        } else {
+          hourLabel = `${hourNum - 12}pm`;
+        }
+        
+        return {
+          hour: hourLabel,
+          sales: count
+        };
+      })
+      // Reorder for better visualization - 12am, 3am, 6am, etc.
+      .filter((_, index) => index % 3 === 0);
+  }
+  
+  async getSalesByCategory(vendorId: number): Promise<{ name: string, value: number, amount: string }[]> {
+    // Get all categories
+    const categories = Array.from(this.productCategories.values());
+    
+    // Get all products for this vendor
+    const vendorProducts = Array.from(this.products.values())
+      .filter(product => product.vendorId === vendorId);
+    
+    // Get all order items for these products
+    const orderItemsList = Array.from(this.orderItems.values());
+    
+    // Aggregate sales by category
+    const categorySales: Record<number, { name: string, value: number, amount: number }> = {};
+    let totalSales = 0;
+    
+    // Process each order item
+    orderItemsList.forEach(item => {
+      const product = this.products.get(item.productId);
+      const order = this.orders.get(item.orderId);
+      
+      if (product && order && product.vendorId === vendorId && 
+          product.categoryId && order.status === "completed") {
+        
+        const categoryId = product.categoryId;
+        const category = categories.find(c => c.id === categoryId);
+        
+        if (category) {
+          if (!categorySales[categoryId]) {
+            categorySales[categoryId] = {
+              name: category.name,
+              value: 0,
+              amount: 0
+            };
+          }
+          
+          const amount = parseFloat(item.total);
+          categorySales[categoryId].amount += amount;
+          totalSales += amount;
+        }
+      }
+    });
+    
+    // Calculate percentages and format amounts
+    return Object.values(categorySales)
+      .map(category => ({
+        name: category.name,
+        value: Math.round((category.amount / (totalSales || 1)) * 100),
+        amount: `$${category.amount.toFixed(2)}`
+      }))
+      .sort((a, b) => b.value - a.value);
   }
 
   // Payment methods operations
@@ -2010,6 +2159,144 @@ export class DatabaseStorage implements IStorage {
       .values(data)
       .returning();
     return newEntry;
+  }
+  
+  async getTopProducts(vendorId: number, limit: number = 5): Promise<{ name: string, sales: number, revenue: string }[]> {
+    // Get all order items for this vendor's products
+    const items = await db
+      .select({
+        productId: orderItems.productId,
+        productName: products.name,
+        quantity: orderItems.quantity,
+        price: orderItems.price
+      })
+      .from(orderItems)
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .innerJoin(orders, eq(orderItems.orderId, orders.id))
+      .where(eq(products.vendorId, vendorId))
+      .where(eq(orders.status, "completed"));
+      
+    // Aggregate the data
+    const productSales: Record<number, { name: string, sales: number, revenue: number }> = {};
+    
+    items.forEach(item => {
+      if (!productSales[item.productId]) {
+        productSales[item.productId] = {
+          name: item.productName,
+          sales: 0,
+          revenue: 0
+        };
+      }
+      
+      productSales[item.productId].sales += item.quantity;
+      productSales[item.productId].revenue += parseFloat(item.price.toString()) * item.quantity;
+    });
+    
+    // Convert to array and sort by sales
+    return Object.values(productSales)
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, limit)
+      .map(product => ({
+        name: product.name,
+        sales: product.sales,
+        revenue: `$${product.revenue.toFixed(2)}`
+      }));
+  }
+  
+  async getSalesByHour(vendorId: number): Promise<{ hour: string, sales: number }[]> {
+    // Get all orders for this vendor
+    const vendorOrders = await db
+      .select({
+        createdAt: orders.createdAt,
+        status: orders.status
+      })
+      .from(orders)
+      .where(eq(orders.vendorId, vendorId))
+      .where(eq(orders.status, "completed"));
+    
+    // Group by hour
+    const hourMap: Record<number, number> = {};
+    
+    // Initialize all hours to 0
+    for (let i = 0; i < 24; i++) {
+      hourMap[i] = 0;
+    }
+    
+    vendorOrders.forEach(order => {
+      if (order.createdAt) {
+        const hour = new Date(order.createdAt).getHours();
+        hourMap[hour]++;
+      }
+    });
+    
+    // Convert to the expected format
+    return Object.entries(hourMap)
+      .map(([hour, count]) => {
+        const hourNum = parseInt(hour);
+        let hourLabel: string;
+        
+        if (hourNum === 0) {
+          hourLabel = "12am";
+        } else if (hourNum < 12) {
+          hourLabel = `${hourNum}am`;
+        } else if (hourNum === 12) {
+          hourLabel = "12pm";
+        } else {
+          hourLabel = `${hourNum - 12}pm`;
+        }
+        
+        return {
+          hour: hourLabel,
+          sales: count
+        };
+      })
+      // Reorder for better visualization - 12am, 3am, 6am, etc.
+      .filter((_, index) => index % 3 === 0);
+  }
+  
+  async getSalesByCategory(vendorId: number): Promise<{ name: string, value: number, amount: string }[]> {
+    // Get product sales by category
+    const items = await db
+      .select({
+        categoryId: products.categoryId,
+        categoryName: productCategories.name,
+        total: orderItems.total
+      })
+      .from(orderItems)
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .innerJoin(productCategories, eq(products.categoryId, productCategories.id))
+      .innerJoin(orders, eq(orderItems.orderId, orders.id))
+      .where(eq(products.vendorId, vendorId))
+      .where(eq(orders.status, "completed"));
+    
+    // Aggregate by category
+    const categorySales: Record<number, { name: string, value: number, amount: number }> = {};
+    let totalSales = 0;
+    
+    items.forEach(item => {
+      if (item.categoryId) {
+        if (!categorySales[item.categoryId]) {
+          categorySales[item.categoryId] = {
+            name: item.categoryName || "Uncategorized",
+            value: 0,
+            amount: 0
+          };
+        }
+        
+        const amount = parseFloat(item.total.toString());
+        categorySales[item.categoryId].amount += amount;
+        totalSales += amount;
+      }
+    });
+    
+    // Calculate percentages and format amounts
+    return Object.values(categorySales)
+      .map(category => ({
+        name: category.name,
+        value: Math.round((category.amount / (totalSales || 1)) * 100),
+        amount: `$${category.amount.toFixed(2)}`
+      }))
+      .sort((a, b) => b.value - a.value);
   }
 
   // Platform statistics - we'll use SQL aggregation for better performance
