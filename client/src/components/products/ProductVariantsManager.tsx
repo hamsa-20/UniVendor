@@ -628,7 +628,7 @@ const ProductVariantsManager = ({
           <DialogHeader>
             <DialogTitle>Add Product Option</DialogTitle>
             <DialogDescription>
-              Create a new option like Size or Color with its values.
+              Create options in this order: 1) Color (primary), 2) Size (secondary)
             </DialogDescription>
           </DialogHeader>
           
@@ -788,7 +788,7 @@ const ProductVariantsManager = ({
           <DialogHeader>
             <DialogTitle>Add Product Variant</DialogTitle>
             <DialogDescription>
-              Create a new variant with specific option values.
+              Create a new variant with specific color and size combination.
             </DialogDescription>
           </DialogHeader>
           
