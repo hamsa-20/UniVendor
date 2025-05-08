@@ -83,7 +83,7 @@ const DomainList = () => {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Domain Management</CardTitle>
         <Button asChild>
-          <Link href="/domains">Add New Domain</Link>
+          <Link to="/domains">Add New Domain</Link>
         </Button>
       </CardHeader>
       <CardContent>

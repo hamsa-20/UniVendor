@@ -72,7 +72,7 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
           {navItems.map((item) => (
             <Link
               key={item.path}
-              href={item.path}
+              to={item.path}
               className={cn(
                 "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
                 location === item.path
