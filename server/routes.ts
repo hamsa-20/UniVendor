@@ -1093,6 +1093,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Get products for a vendor (either for admin panel or storefront)
+  app.get("/api/vendors/:id/products", async (req, res) => {
+    try {
+      const vendorId = parseInt(req.params.id);
+      
+      if (isNaN(vendorId)) {
+        return res.status(400).json({ message: "Invalid vendor ID" });
+      }
+      
+      // Check if the vendor exists
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
+      // Get the vendor's products
+      const products = await storage.getProducts(vendorId);
+      
+      return res.status(200).json(products);
+    } catch (err) {
+      console.error('Error fetching vendor products:', err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Register payment-related routes
   registerPaymentRoutes(app);

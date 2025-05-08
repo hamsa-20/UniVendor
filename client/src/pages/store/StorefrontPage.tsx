@@ -1,33 +1,34 @@
 import { useEffect, useState } from 'react';
 import { useVendorStore } from '@/contexts/VendorStoreContext';
-import { Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Loader2, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+interface Product {
+  id: number;
+  name: string;
+  price: string;
+  compareAtPrice: string | null;
+  imageUrl: string | null;
+  description: string | null;
+  status: string;
+  sku: string;
+  categoryId: number;
+  inventoryQuantity: number;
+}
 
 export default function StorefrontPage() {
   const { isVendorStore, vendor, domain, loading, error } = useVendorStore();
-  const [products, setProducts] = useState([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-
-  useEffect(() => {
-    // Fetch store products if it's a vendor store
-    const fetchProducts = async () => {
-      if (isVendorStore && vendor) {
-        try {
-          setLoadingProducts(true);
-          const res = await fetch(`/api/vendors/${vendor.id}/products`);
-          if (res.ok) {
-            const data = await res.json();
-            setProducts(data);
-          }
-        } catch (err) {
-          console.error('Error fetching products:', err);
-        } finally {
-          setLoadingProducts(false);
-        }
-      }
-    };
-
-    fetchProducts();
-  }, [isVendorStore, vendor]);
+  
+  // Use React Query to fetch products for better caching and loading states
+  const { 
+    data: products = [],
+    isLoading: loadingProducts,
+    error: productsError
+  } = useQuery<Product[]>({
+    queryKey: vendor ? ['/api/vendors', vendor.id, 'products'] : null,
+    enabled: !!isVendorStore && !!vendor,
+  });
 
   if (loading) {
     return (
@@ -112,14 +113,42 @@ export default function StorefrontPage() {
               </div>
             ) : products.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {/* Products would be rendered here */}
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                  <div className="aspect-square bg-gray-100"></div>
-                  <div className="p-4">
-                    <h3 className="font-medium text-gray-900 mb-2 truncate">Example Product</h3>
-                    <p className="text-primary font-bold">$49.99</p>
+                {products.map((product) => (
+                  <div key={product.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                    <div className="aspect-square bg-gray-100 relative">
+                      {product.imageUrl ? (
+                        <img 
+                          src={product.imageUrl} 
+                          alt={product.name}
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ShoppingBag className="h-12 w-12 text-gray-300" />
+                        </div>
+                      )}
+                      {product.compareAtPrice && (
+                        <div className="absolute top-2 left-2">
+                          <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">SALE</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-medium text-gray-900 mb-2 truncate">{product.name}</h3>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-primary font-bold">${product.price}</span>
+                          {product.compareAtPrice && (
+                            <span className="text-sm text-gray-500 line-through ml-2">${product.compareAtPrice}</span>
+                          )}
+                        </div>
+                        <Button size="sm" variant="outline" className="rounded-full p-2">
+                          <ShoppingCart className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-lg">
