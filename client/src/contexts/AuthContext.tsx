@@ -15,10 +15,13 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   error: Error | null;
+  isImpersonating: boolean;
   requestOtpMutation: UseMutationResult<{ message: string; previewUrl?: string }, Error, { email: string }>;
   verifyOtpMutation: UseMutationResult<User, Error, { email: string; otp: string }>;
   logoutMutation: UseMutationResult<{ message: string }, Error, void>;
   completeProfileMutation: UseMutationResult<User, Error, Partial<User>>;
+  impersonateUserMutation: UseMutationResult<User, Error, { userId: number }>;
+  stopImpersonatingMutation: UseMutationResult<User, Error, void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -191,6 +194,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Impersonate user mutation (admin only)
+  const impersonateUserMutation = useMutation<User, Error, { userId: number }>({
+    mutationFn: async ({ userId }) => {
+      const res = await apiRequest('POST', `/api/auth/impersonate/${userId}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to impersonate user');
+      }
+      return await res.json();
+    },
+    onSuccess: (impersonatedUser) => {
+      // Update the current user in the cache with the impersonated user
+      queryClient.setQueryData(['/api/auth/session'], impersonatedUser);
+      
+      // Invalidate queries that might be affected by the user change
+      queryClient.invalidateQueries();
+      
+      toast({
+        title: 'Impersonating User',
+        description: `You are now viewing the application as ${impersonatedUser.firstName || impersonatedUser.email}`,
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Impersonation Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Stop impersonating and return to original user
+  const stopImpersonatingMutation = useMutation<User, Error, void>({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/auth/stop-impersonating');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to stop impersonation');
+      }
+      return await res.json();
+    },
+    onSuccess: (originalUser) => {
+      // Update the current user in the cache with the original user
+      queryClient.setQueryData(['/api/auth/session'], originalUser);
+      
+      // Invalidate queries that might be affected by the user change
+      queryClient.invalidateQueries();
+      
+      toast({
+        title: 'Returned to Admin',
+        description: 'You are no longer impersonating a user.',
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Check if the current user is being impersonated
+  const isImpersonating = !!user && (user as any)._impersonated === true;
+
   return (
     <AuthContext.Provider
       value={{
@@ -198,10 +266,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         error,
+        isImpersonating,
         requestOtpMutation,
         verifyOtpMutation,
         logoutMutation,
         completeProfileMutation,
+        impersonateUserMutation,
+        stopImpersonatingMutation
       }}
     >
       {children}
