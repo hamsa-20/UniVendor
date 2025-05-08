@@ -257,7 +257,10 @@ export const insertAnalyticsSchema = createInsertSchema(analytics).omit({
 });
 
 // Export types
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & {
+  impersonatedBy?: number; // ID of the admin who is impersonating this user
+  isImpersonating?: boolean; // Flag indicating this user is being impersonated
+};
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type OtpCode = typeof otpCodes.$inferSelect;
