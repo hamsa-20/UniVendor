@@ -191,7 +191,7 @@ const VendorDashboard = () => {
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-500">Status:</span>
                     <Badge variant={vendor?.status === 'active' ? 'success' : 'warning'}>
-                      {vendor?.status.charAt(0).toUpperCase() + vendor?.status.slice(1)}
+                      {vendor?.status ? `${vendor.status.charAt(0).toUpperCase()}${vendor.status.slice(1)}` : 'Unknown'}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
@@ -235,7 +235,7 @@ const VendorDashboard = () => {
                               domain.status === 'active' ? "bg-green-500" :
                               domain.status === 'pending' ? "bg-amber-500" : "bg-red-500"
                             )} />
-                            {domain.status.charAt(0).toUpperCase() + domain.status.slice(1)}
+                            {domain.status ? `${domain.status.charAt(0).toUpperCase()}${domain.status.slice(1)}` : 'Unknown'}
                             {domain.isPrimary && (
                               <Badge variant="outline" className="ml-2 text-[10px] py-0 h-4">Primary</Badge>
                             )}
