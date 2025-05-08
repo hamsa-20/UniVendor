@@ -26,6 +26,7 @@ import ProductDetails from "./pages/products/ProductDetails";
 import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import ProductSubcategoriesPage from "./pages/products/ProductSubcategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
+import CustomersPage from "./pages/customers/CustomersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import StorefrontPage from "./pages/store/StorefrontPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
