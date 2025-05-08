@@ -23,7 +23,7 @@ type SidebarProps = {
 
 const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
   const [location] = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logoutMutation } = useAuth();
 
   // Determine if current user is super admin
   const isSuperAdmin = user?.role === "super_admin";
@@ -75,7 +75,7 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
               to={item.path}
               className={cn(
                 "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                location === item.path
+                location.startsWith(item.path)
                   ? "bg-primary text-white"
                   : "text-gray-700 hover:bg-gray-100 hover:text-primary",
                 collapsed && "justify-center"
@@ -114,7 +114,7 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
           )}
           
           <button 
-            onClick={logout}
+            onClick={() => logoutMutation.mutate()}
             className={cn(
               "text-gray-400 hover:text-gray-600 transition-colors",
               collapsed ? "ml-auto" : "ml-auto"
