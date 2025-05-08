@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { VendorStoreProvider, useVendorStore } from "@/contexts/VendorStoreContext";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import SuperAdminDashboard from "@/pages/dashboard/SuperAdminDashboard";
@@ -593,6 +594,7 @@ function App() {
               <Toaster />
               {/* Force light theme as per user requirement */}
               <div className="light">
+                <ImpersonationBanner />
                 <Router />
               </div>
             </TooltipProvider>
