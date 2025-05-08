@@ -277,13 +277,13 @@ const VendorAnalyticsPage = () => {
           <CardContent>
             <div className="flex justify-between items-center">
               <div className="text-2xl font-bold">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   summary.totalOrders.toLocaleString()
                 )}
               </div>
-              {!isLoading && (
+              {!isLoadingAnalytics && (
                 <div className={`${summary.ordersGrowth >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex items-center text-xs px-2 py-1 rounded`}>
                   {summary.ordersGrowth >= 0 ? (
                     <TrendingUp className="h-3 w-3 mr-1" />
@@ -310,13 +310,13 @@ const VendorAnalyticsPage = () => {
           <CardContent>
             <div className="flex justify-between items-center">
               <div className="text-2xl font-bold">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <Skeleton className="h-8 w-20" />
                 ) : (
                   summary.totalVisitors.toLocaleString()
                 )}
               </div>
-              {!isLoading && (
+              {!isLoadingAnalytics && (
                 <div className={`${summary.visitorsGrowth >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex items-center text-xs px-2 py-1 rounded`}>
                   {summary.visitorsGrowth >= 0 ? (
                     <TrendingUp className="h-3 w-3 mr-1" />
@@ -343,13 +343,13 @@ const VendorAnalyticsPage = () => {
           <CardContent>
             <div className="flex justify-between items-center">
               <div className="text-2xl font-bold">
-                {isLoading ? (
+                {isLoadingAnalytics ? (
                   <Skeleton className="h-8 w-16" />
                 ) : (
                   `${summary.avgConversionRate.toFixed(2)}%`
                 )}
               </div>
-              {!isLoading && (
+              {!isLoadingAnalytics && (
                 <div className={`${summary.conversionGrowth >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} flex items-center text-xs px-2 py-1 rounded`}>
                   {summary.conversionGrowth >= 0 ? (
                     <TrendingUp className="h-3 w-3 mr-1" />
@@ -604,21 +604,20 @@ const VendorAnalyticsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="h-[250px]">
-              {isLoading ? (
+              {isLoadingSalesByHour ? (
                 <Skeleton className="h-full w-full" />
+              ) : !salesByHourData || !salesByHourData.length ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center">
+                  <Calendar className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h4 className="text-lg font-semibold mb-1">No data available</h4>
+                  <p className="text-muted-foreground text-sm max-w-md">
+                    There is no hourly sales data available.
+                  </p>
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <ReChartsBarChart
-                    data={[
-                      { hour: '12am', sales: 5 },
-                      { hour: '3am', sales: 2 },
-                      { hour: '6am', sales: 8 },
-                      { hour: '9am', sales: 15 },
-                      { hour: '12pm', sales: 25 },
-                      { hour: '3pm', sales: 23 },
-                      { hour: '6pm', sales: 30 },
-                      { hour: '9pm', sales: 18 },
-                    ]}
+                    data={salesByHourData}
                     margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                   >
                     <XAxis dataKey="hour" tick={{ fontSize: 12 }} />
@@ -646,7 +645,7 @@ const VendorAnalyticsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {isLoading ? (
+              {isLoadingTopProducts ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="flex items-center">
                     <Skeleton className="h-8 w-8 rounded-md mr-3" />
@@ -657,24 +656,26 @@ const VendorAnalyticsPage = () => {
                     <Skeleton className="h-5 w-16" />
                   </div>
                 ))
+              ) : !topProductsData || !topProductsData.length ? (
+                <div className="h-[200px] w-full flex flex-col items-center justify-center text-center">
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h4 className="text-lg font-semibold mb-1">No data available</h4>
+                  <p className="text-muted-foreground text-sm max-w-md">
+                    There are no product sales to display.
+                  </p>
+                </div>
               ) : (
                 <>
-                  {[
-                    { name: "Premium Headphones", sales: 48, revenue: "$8,640" },
-                    { name: "Wireless Earbuds", sales: 36, revenue: "$3,960" },
-                    { name: "Smartwatch Pro", sales: 29, revenue: "$7,250" },
-                    { name: "Fitness Tracker", sales: 24, revenue: "$2,880" },
-                    { name: "Bluetooth Speaker", sales: 18, revenue: "$1,980" }
-                  ].map((product, index) => (
+                  {topProductsData.map((product, index) => (
                     <div key={index} className="flex items-center py-1">
                       <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center text-primary font-medium mr-3">
                         {index + 1}
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium truncate">{product.name}</p>
-                        <p className="text-xs text-muted-foreground">{product.sales} units</p>
+                        <p className="text-xs text-muted-foreground">{product.quantity} units</p>
                       </div>
-                      <p className="text-sm font-semibold">{product.revenue}</p>
+                      <p className="text-sm font-semibold">${parseFloat(product.revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                   ))}
                 </>
@@ -694,33 +695,32 @@ const VendorAnalyticsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="h-[180px] mb-4">
-              {isLoading ? (
+              {isLoadingSalesByCategory ? (
                 <Skeleton className="h-full w-full rounded-full" />
+              ) : !salesByCategoryData || !salesByCategoryData.length ? (
+                <div className="h-full w-full flex flex-col items-center justify-center text-center">
+                  <FolderTree className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h4 className="text-lg font-semibold mb-1">No data available</h4>
+                  <p className="text-muted-foreground text-sm max-w-md">
+                    There is no category sales data available.
+                  </p>
+                </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={[
-                        { name: 'Electronics', value: 42 },
-                        { name: 'Clothing', value: 28 },
-                        { name: 'Home', value: 15 },
-                        { name: 'Other', value: 15 }
-                      ]}
+                      data={salesByCategoryData}
                       cx="50%"
                       cy="50%"
                       innerRadius={60}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
+                      nameKey="name"
                       label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                       labelLine={false}
                     >
-                      {[
-                        { name: 'Electronics', value: 42 },
-                        { name: 'Clothing', value: 28 },
-                        { name: 'Home', value: 15 },
-                        { name: 'Other', value: 15 }
-                      ].map((entry, index) => (
+                      {salesByCategoryData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -731,23 +731,20 @@ const VendorAnalyticsPage = () => {
                 </ResponsiveContainer>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { name: 'Electronics', color: COLORS[0], value: '$10,560' },
-                { name: 'Clothing', color: COLORS[1], value: '$7,056' },
-                { name: 'Home', color: COLORS[2], value: '$3,780' },
-                { name: 'Other', color: COLORS[3], value: '$3,725' }
-              ].map((item, index) => (
-                <div key={index} className="flex items-center">
-                  <div
-                    className="w-3 h-3 rounded-full mr-2"
-                    style={{ backgroundColor: item.color }}
-                  />
-                  <span className="text-xs">{item.name}</span>
-                  <span className="text-xs font-semibold ml-auto">{item.value}</span>
-                </div>
-              ))}
-            </div>
+            {salesByCategoryData && salesByCategoryData.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {salesByCategoryData.map((item, index) => (
+                  <div key={index} className="flex items-center">
+                    <div
+                      className="w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                    />
+                    <span className="text-xs">{item.name}</span>
+                    <span className="text-xs font-semibold ml-auto">${parseFloat(item.revenue).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
