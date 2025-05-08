@@ -200,7 +200,7 @@ const ProductSubcategoriesPage = () => {
 
   // Get parent category name by ID
   const getParentCategoryName = (parentId: number) => {
-    const parent = categories.find((cat: any) => cat.id === parentId);
+    const parent = categories.find((cat: Category) => cat.id === parentId);
     return parent ? parent.name : 'Unknown';
   };
 
@@ -245,7 +245,7 @@ const ProductSubcategoriesPage = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  subcategories.map((category: any) => (
+                  subcategories.map((category: Category) => (
                     <TableRow key={category.id}>
                       <TableCell className="font-medium">{category.name}</TableCell>
                       <TableCell>{getParentCategoryName(category.parentId)}</TableCell>
