@@ -29,8 +29,8 @@ interface Cart {
 }
 
 // Helper function to format currency
-const formatCurrency = (amount: string | number, currency = "USD") => {
-  return new Intl.NumberFormat("en-US", {
+const formatCurrency = (amount: string | number, currency = "INR") => {
+  return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency,
   }).format(typeof amount === "string" ? parseFloat(amount) : amount);

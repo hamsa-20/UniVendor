@@ -207,6 +207,7 @@ const SettingsPage = () => {
                       className="w-full h-10 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                       {...generalForm.register('defaultCurrency')}
                     >
+                      <option value="INR">INR - Indian Rupee (₹)</option>
                       <option value="USD">USD - US Dollar</option>
                       <option value="EUR">EUR - Euro</option>
                       <option value="GBP">GBP - British Pound</option>
