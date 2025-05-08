@@ -1,6 +1,8 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 import { 
   insertUserSchema, 
   insertVendorSchema, 
@@ -226,6 +228,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Vendor endpoints
+  // Database migration endpoint (TEMPORARY - FOR DEVELOPMENT ONLY)
+  app.post("/api/migrate", async (req, res) => {
+    try {
+      const pool = db.client;
+      
+      // Run migrations
+      await pool.execute(sql`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS color_palette text DEFAULT 'default'
+      `);
+      
+      await pool.execute(sql`
+        ALTER TABLE vendors 
+        ADD COLUMN IF NOT EXISTS font_settings jsonb
+      `);
+      
+      return res.status(200).json({ message: "Migration completed successfully" });
+    } catch (err) {
+      console.error("Migration error:", err);
+      return res.status(500).json({ message: "Migration failed", error: (err as Error).message });
+    }
+  });
+
   app.get("/api/vendors", async (_req, res) => {
     try {
       const vendors = await storage.getVendors();
