@@ -1,6 +1,6 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { useLocation, useRouter } from 'wouter';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/use-auth';
 import { Loader2 } from 'lucide-react';
 
 type PrivateRouteProps = {
