@@ -1,93 +1,57 @@
-import React from 'react';
-import { UsersList } from '@/components/admin/UsersList';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageHeader } from "@/components/ui/page-header";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UsersList } from "@/components/admin/UsersList";
+import { useAuth } from "@/hooks/use-auth";
+import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 export default function UsersManagementPage() {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  
-  // Show loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Redirect if not a super admin
+  useEffect(() => {
+    if (user && user.role !== "super_admin") {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
+  if (!user || user.role !== "super_admin") {
+    return null; // Don't render anything while redirecting
   }
-  
-  // Only super_admin can access this page
-  if (!isAuthenticated || user?.role !== 'super_admin') {
-    return (
-      <div className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-red-600">Access Denied</CardTitle>
-            <CardDescription>
-              You don't have permission to access the user management section.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            This page is only accessible to super administrators.
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-  
+
   return (
-    <div className="p-6">
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>User Management</CardTitle>
-          <CardDescription>
-            Manage all platform users including vendors and administrators. As a super admin, you can impersonate users to assist them with their account.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+    <div className="container py-6 max-w-7xl">
+      <PageHeader 
+        heading="User Management" 
+        subheading="Manage all users across the platform" 
+      />
       
-      <Tabs defaultValue="all-users" className="space-y-4">
-        <TabsList>
+      <Separator className="my-6" />
+      
+      <Tabs defaultValue="all-users" className="w-full">
+        <TabsList className="mb-6">
           <TabsTrigger value="all-users">All Users</TabsTrigger>
+          <TabsTrigger value="super-admins">Super Admins</TabsTrigger>
           <TabsTrigger value="vendors">Vendors</TabsTrigger>
-          <TabsTrigger value="admins">Administrators</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="all-users" className="space-y-4">
-          <UsersList />
+        <TabsContent value="all-users">
+          <UsersList filter="all" />
         </TabsContent>
         
-        <TabsContent value="vendors" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Vendor Users</CardTitle>
-              <CardDescription>
-                Manage vendor accounts and their access to the platform.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500">
-                Vendor filtering will be implemented soon.
-              </p>
-            </CardContent>
-          </Card>
+        <TabsContent value="super-admins">
+          <UsersList filter="super_admin" />
         </TabsContent>
         
-        <TabsContent value="admins" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Administrator Users</CardTitle>
-              <CardDescription>
-                Manage administrator accounts and their permissions.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-500">
-                Administrator filtering will be implemented soon.
-              </p>
-            </CardContent>
-          </Card>
+        <TabsContent value="vendors">
+          <UsersList filter="vendor" />
+        </TabsContent>
+        
+        <TabsContent value="customers">
+          <UsersList filter="customer" />
         </TabsContent>
       </Tabs>
     </div>

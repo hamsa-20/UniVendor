@@ -37,6 +37,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
 
   // User endpoints
+  app.get("/api/users", hasRole(["super_admin"]), async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      return res.status(200).json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      return res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  
   app.get("/api/users/:id", isAuthenticated, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
