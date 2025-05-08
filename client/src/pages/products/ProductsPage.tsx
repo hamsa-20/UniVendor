@@ -166,7 +166,7 @@ const ProductsPage = () => {
                   ) : (
                     <span className="text-red-600 font-medium">Out of Stock</span>
                   )}
-                  {' • '}${typeof product.price === 'string' ? parseFloat(product.price).toFixed(2) : product.price.toFixed(2)}
+                  {' • '}₹{typeof product.price === 'string' ? parseFloat(product.price).toFixed(2) : product.price.toFixed(2)}
                 </CardDescription>
               </CardHeader>
               <CardContent>

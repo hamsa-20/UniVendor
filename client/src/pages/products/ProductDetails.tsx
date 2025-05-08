@@ -137,10 +137,10 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Pricing</h3>
                 <div className="flex items-baseline">
-                  <span className="text-3xl font-bold">${parseFloat(product.sellingPrice).toFixed(2)}</span>
+                  <span className="text-3xl font-bold">₹{parseFloat(product.sellingPrice).toFixed(2)}</span>
                   {product.mrp && parseFloat(product.mrp) > parseFloat(product.sellingPrice) && (
                     <span className="ml-2 text-muted-foreground line-through">
-                      ${parseFloat(product.mrp).toFixed(2)}
+                      ₹{parseFloat(product.mrp).toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -154,7 +154,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
                 
                 {product.purchasePrice && (
                   <div className="mt-2">
-                    <span className="text-sm text-muted-foreground">Purchase Price: ${parseFloat(product.purchasePrice).toFixed(2)}</span>
+                    <span className="text-sm text-muted-foreground">Purchase Price: ₹{parseFloat(product.purchasePrice).toFixed(2)}</span>
                   </div>
                 )}
                 
