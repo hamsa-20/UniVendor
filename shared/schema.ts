@@ -128,8 +128,10 @@ export const products = pgTable("products", {
   categoryId: integer("category_id").references(() => productCategories.id),
   name: text("name").notNull(),
   description: text("description"),
-  price: numeric("price").notNull(),
-  compareAtPrice: numeric("compare_at_price"),
+  purchasePrice: numeric("purchase_price"), // Added purchase price
+  sellingPrice: numeric("selling_price").notNull(), // Renamed from price to sellingPrice
+  mrp: numeric("mrp"), // Added Maximum Retail Price
+  gst: numeric("gst"), // Added GST percentage
   sku: text("sku"),
   barcode: text("barcode"),
   weight: numeric("weight"),
@@ -527,8 +529,10 @@ export const productVariants = pgTable("product_variants", {
   productId: integer("product_id").notNull().references(() => products.id),
   sku: text("sku"),
   barcode: text("barcode"),
-  price: numeric("price").notNull(),
-  compareAtPrice: numeric("compare_at_price"),
+  purchasePrice: numeric("purchase_price"), // Added purchase price
+  sellingPrice: numeric("selling_price").notNull(), // Renamed from price to sellingPrice
+  mrp: numeric("mrp"), // Added Maximum Retail Price
+  gst: numeric("gst"), // Added GST percentage
   inventoryQuantity: integer("inventory_quantity").default(0),
   weight: numeric("weight"),
   imageUrl: text("image_url"),

@@ -31,8 +31,10 @@ import { Switch } from '@/components/ui/switch';
 const productFormSchema = z.object({
   name: z.string().min(2, 'Product name must be at least 2 characters'),
   description: z.string().optional(),
-  price: z.string().min(1, 'Price is required'),
-  compareAtPrice: z.string().optional(),
+  purchasePrice: z.string().optional(), // Made optional as it might not be required for all products
+  sellingPrice: z.string().min(1, 'Selling Price is required'),
+  mrp: z.string().optional(), // Maximum Retail Price
+  gst: z.string().optional(), // GST percentage
   sku: z.string().optional(),
   barcode: z.string().optional(),
   weight: z.string().optional(),
@@ -93,8 +95,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
     defaultValues: {
       name: '',
       description: '',
-      price: '',
-      compareAtPrice: '',
+      purchasePrice: '',
+      sellingPrice: '',
+      mrp: '',
+      gst: '',
       sku: '',
       barcode: '',
       weight: '',
@@ -129,8 +133,11 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       form.reset({
         name: product.name,
         description: product.description || '',
-        price: product.price.toString(),
-        compareAtPrice: product.compareAtPrice?.toString() || '',
+        // Use the new pricing fields
+        purchasePrice: product.purchasePrice?.toString() || '',
+        sellingPrice: product.sellingPrice?.toString() || '',
+        mrp: product.mrp?.toString() || '',
+        gst: product.gst?.toString() || '',
         sku: product.sku || '',
         barcode: product.barcode || '',
         weight: product.weight?.toString() || '',
@@ -151,8 +158,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const mutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
       const numericFields = {
-        price: data.price,
-        compareAtPrice: data.compareAtPrice || null,
+        purchasePrice: data.purchasePrice || null,
+        sellingPrice: data.sellingPrice,
+        mrp: data.mrp || null,
+        gst: data.gst || null,
         weight: data.weight || null,
         inventoryQuantity: parseInt(data.inventoryQuantity || '0'),
       };
