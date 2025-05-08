@@ -67,14 +67,14 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
       )}
     >
       <div className="p-4 flex justify-between items-center border-b h-16">
-        <div className={cn("flex items-center", collapsed && "justify-center w-full")}>
+        <Link href={isSuperAdmin ? "/admin" : "/dashboard"} className={cn("flex items-center cursor-pointer hover:opacity-80 transition-opacity", collapsed && "justify-center w-full")}>
           <div className="w-8 h-8 bg-primary rounded-md flex items-center justify-center text-white font-bold">
             MV
           </div>
           {!collapsed && (
             <span className="ml-3 text-lg font-semibold text-gray-900">MultiVend</span>
           )}
-        </div>
+        </Link>
       </div>
 
       <div className="flex-1 overflow-y-auto py-4">
