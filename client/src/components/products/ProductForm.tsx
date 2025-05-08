@@ -404,7 +404,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                             <FormLabel>Purchase Price</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
                                 <Input 
                                   type="number" 
                                   min="0" 
@@ -431,7 +431,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                             <FormLabel>Selling Price *</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
                                 <Input 
                                   type="number" 
                                   min="0" 
@@ -458,7 +458,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                             <FormLabel>MRP (Maximum Retail Price)</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
                                 <Input 
                                   type="number" 
                                   min="0" 

@@ -67,7 +67,7 @@ const ProductCard = ({ product, onEdit, onDelete, isVendorView = true }: Product
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
   
   const formatPrice = (price: string | number) => {
-    return typeof price === 'string' ? `$${parseFloat(price).toFixed(2)}` : `$${price.toFixed(2)}`;
+    return typeof price === 'string' ? `₹${parseFloat(price).toFixed(2)}` : `₹${price.toFixed(2)}`;
   };
 
   const getInventoryBadge = () => {
