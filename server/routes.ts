@@ -1076,6 +1076,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all vendors (for admin)
+  app.get("/api/vendors", isAuthenticated, async (req, res) => {
+    try {
+      // Check if the user is a super admin
+      if (req.user.role !== 'super_admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const vendors = await storage.getVendors();
+      
+      // Enrich vendors with user data
+      const enrichedVendors = await Promise.all(vendors.map(async (vendor) => {
+        const user = await storage.getUser(vendor.userId);
+        return {
+          ...vendor,
+          email: user?.email,
+          firstName: user?.firstName,
+          lastName: user?.lastName,
+          avatarUrl: user?.avatarUrl,
+          storeName: vendor.companyName
+        };
+      }));
+      
+      return res.status(200).json(enrichedVendors);
+    } catch (err) {
+      console.error("Error fetching vendors:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
   // Platform statistics endpoint (for super admin)
   app.get("/api/platform-stats", async (_req, res) => {
     try {
