@@ -37,19 +37,31 @@ const ProductSubcategoriesPage = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   
+  // Define the category type
+  type Category = {
+    id: number;
+    name: string;
+    description?: string;
+    vendorId: number;
+    parentId?: number | null;
+    level?: number;
+    slug?: string;
+    isActive?: boolean;
+  };
+
   // Fetch categories data for the vendor
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [] } = useQuery<Category[]>({
     queryKey: [`/api/vendors/${vendorId}/product-categories`],
     enabled: !!vendorId,
   });
   
   // Get only main categories for parent selection
-  const mainCategories = categories.filter((cat: any) => !cat.parentId);
+  const mainCategories = categories.filter((cat) => !cat.parentId);
   
   // Get only subcategories to display
-  const subcategories = categories.filter((cat: any) => cat.parentId);
+  const subcategories = categories.filter((cat) => cat.parentId);
   
   // Form for creating/editing subcategories
   const form = useForm<SubcategoryFormValues>({
@@ -72,18 +84,18 @@ const ProductSubcategoriesPage = () => {
   };
 
   // Set form values when opening edit dialog
-  const openEditDialog = (category: any) => {
+  const openEditDialog = (category: Category) => {
     setSelectedCategory(category);
     form.reset({
       name: category.name,
       description: category.description || '',
-      parentId: category.parentId.toString(),
+      parentId: category.parentId?.toString() || '',
     });
     setIsEditDialogOpen(true);
   };
 
   // Confirm delete dialog
-  const openDeleteDialog = (category: any) => {
+  const openDeleteDialog = (category: Category) => {
     setSelectedCategory(category);
     setIsDeleteDialogOpen(true);
   };
@@ -122,6 +134,10 @@ const ProductSubcategoriesPage = () => {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: async (data: SubcategoryFormValues) => {
+      if (!selectedCategory) {
+        throw new Error("No category selected for update");
+      }
+      
       // Prepare category data
       const categoryData = {
         ...data,
@@ -151,6 +167,9 @@ const ProductSubcategoriesPage = () => {
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
+      if (!selectedCategory) {
+        throw new Error("No category selected for deletion");
+      }
       return await apiRequest('DELETE', `/api/vendors/${vendorId}/product-categories/${selectedCategory.id}`);
     },
     onSuccess: () => {
@@ -186,7 +205,7 @@ const ProductSubcategoriesPage = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Product Subcategories">
       <div className="container mx-auto py-6">
         <div className="flex justify-between items-center mb-6">
           <div>
