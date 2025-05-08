@@ -67,12 +67,17 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   
+  // Debug - log user and impersonation status to console
+  useEffect(() => {
+    console.log('User:', user);
+    console.log('Impersonation Status:', impersonationStatus);
+  }, [user, impersonationStatus]);
+  
   // Get vendor ID from user context
-  // If we're impersonating a vendor, we should use the user's ID (currentUser)
-  // If not impersonating, check if the user's role is 'vendor'
-  const vendorId = impersonationStatus?.isImpersonating 
-    ? user?.id 
-    : (user?.role === 'vendor' ? user.id : undefined);
+  // When impersonating, we need to check if the current user is a vendor
+  // If the user has vendorId property, use that directly
+  const vendorId = user?.vendorId || 
+    (user?.role === 'vendor' ? user.id : undefined);
 
   // Define extended category type with subcategory support
   type Category = {
