@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { CreditCard, Landmark, Wallet } from "lucide-react";
 import { SiPaypal, SiStripe } from "react-icons/si";
 
-export type PaymentMethod = "stripe" | "paypal" | "bank_transfer" | "manual"; // manual = Cash on Delivery (COD)
+export type PaymentMethod = "stripe" | "paypal" | "bank_transfer" | "manual";
 
 interface PaymentMethodSelectorProps {
   vendorId: number;

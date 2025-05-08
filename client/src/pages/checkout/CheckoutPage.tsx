@@ -1,277 +1,432 @@
 import { useState, useEffect } from "react";
-import { useLocation, Link } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation, useRoute, Link, useParams } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
-import { Loader2, ShoppingCart } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/use-auth";
+import { Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 
-import CheckoutForm, { OrderData, ShippingFormValues } from "@/components/checkout/CheckoutForm";
-import PaymentMethodSelector, { PaymentMethod } from "@/components/checkout/PaymentMethodSelector";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+
+import CheckoutForm from "@/components/checkout/CheckoutForm";
+import PaymentMethodSelector from "@/components/checkout/PaymentMethodSelector";
 import StripeCheckout from "@/components/checkout/StripeCheckout";
 import PayPalCheckout from "@/components/checkout/PayPalCheckout";
-import CashOnDeliveryCheckout from "@/components/checkout/CashOnDeliveryCheckout";
+import { useAuth } from "@/contexts/AuthContext";
+
+// Types
+type CheckoutStep = "cart" | "details" | "payment" | "confirmation";
+type PaymentProcessor = "stripe" | "paypal" | "manual";
+
+// Helper function to format currency
+const formatCurrency = (amount: string | number, currency = "USD") => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+  }).format(typeof amount === "string" ? parseFloat(amount) : amount);
+};
 
 const CheckoutPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const [, params] = useRoute("/vendors/:vendorId/checkout");
+  const vendorId = params?.vendorId ? parseInt(params.vendorId) : null;
   
-  // Checkout state
-  const [currentStep, setCurrentStep] = useState<"shipping" | "payment" | "confirmation">("shipping");
-  const [shippingInfo, setShippingInfo] = useState<ShippingFormValues | null>(null);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>("stripe");
-  const [orderId, setOrderId] = useState<number | null>(null);
-  const [processingPayment, setProcessingPayment] = useState(false);
+  // State
+  const [step, setStep] = useState<CheckoutStep>("cart");
+  const [paymentMethod, setPaymentMethod] = useState<string>("");
+  const [paymentProcessor, setPaymentProcessor] = useState<PaymentProcessor | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
   
-  // Generate a more readable orderNumber for display purposes
-  const generateOrderNumber = () => {
-    return `ORD-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`;
-  };
-  
-  // Get the current vendor from the URL (in a real app, this would come from the route)
-  // For this example, we'll use a dummy vendorId
-  const vendorId = 1;  
-  
-  // Fetch the cart data
+  // Fetch cart data
   const { 
-    data: cartData, 
+    data: cart, 
     isLoading: cartLoading, 
     error: cartError 
-  } = useQuery({ 
+  } = useQuery({
     queryKey: ["/api/cart"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/cart");
-      return await response.json();
-    },
+    enabled: !!vendorId,
   });
   
-  // Handle shipping information submission
-  const handleShippingComplete = (data: ShippingFormValues) => {
-    setShippingInfo(data);
-    setCurrentStep("payment");
-  };
+  // Fetch vendor data
+  const { 
+    data: vendor, 
+    isLoading: vendorLoading, 
+    error: vendorError 
+  } = useQuery({
+    queryKey: ["/api/vendors", vendorId],
+    enabled: !!vendorId,
+  });
   
-  // Handle payment method selection
-  const handlePaymentMethodSelect = (method: PaymentMethod) => {
-    setSelectedPaymentMethod(method);
-  };
+  // Determine payment processor when payment method changes
+  useEffect(() => {
+    if (paymentMethod) {
+      // In a real app, you would fetch the payment method details to determine the processor
+      if (paymentMethod === "1") {
+        setPaymentProcessor("stripe");
+      } else if (paymentMethod === "2") {
+        setPaymentProcessor("paypal");
+      } else {
+        setPaymentProcessor("manual");
+      }
+    }
+  }, [paymentMethod]);
   
   // Create order mutation
   const createOrderMutation = useMutation({
-    mutationFn: async () => {
-      if (!cartData || !shippingInfo) return null;
+    mutationFn: async (orderData: any) => {
+      const response = await fetch(`/api/vendors/${vendorId}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
       
-      // Prepare order data
-      const orderData = {
-        vendorId,
-        items: cartData.items.map((item: any) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price
-        })),
-        shippingAddress: shippingInfo,
-        orderNumber: generateOrderNumber(),
-        subtotal: cartData.subtotal,
-        total: cartData.total,
-        status: "pending"
-      };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create order");
+      }
       
-      const response = await apiRequest("POST", `/api/vendors/${vendorId}/orders`, orderData);
       return await response.json();
     },
     onSuccess: (data) => {
-      if (data && data.id) {
-        setOrderId(data.id);
-      }
-    },
-    onError: (error: any) => {
+      setOrderId(data.id);
+      setStep("payment");
+      
       toast({
-        title: "Failed to create order",
-        description: error.message || "There was an error creating your order. Please try again.",
-        variant: "destructive"
+        title: "Order created",
+        description: "Your order has been created. Please complete the payment.",
       });
-    }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error creating order",
+        description: error.message || "There was a problem creating your order.",
+        variant: "destructive",
+      });
+    },
   });
   
-  // Function to handle payment completion
-  const handlePaymentComplete = (paymentId: string) => {
-    // Update order status to paid
-    setProcessingPayment(false);
-    setCurrentStep("confirmation");
-    
-    // In a real application, invalidate the cart query to refresh it
-    queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+  const handleCreateOrder = (formData: any) => {
+    createOrderMutation.mutate({
+      ...formData,
+      items: cart?.items,
+      subtotal: cart?.subtotal,
+      total: cart?.total,
+      vendorId,
+      paymentMethodId: paymentMethod,
+    });
   };
   
-  // Function to handle payment cancellation
+  const handlePaymentSuccess = (paymentId: string) => {
+    // In a real app, update the order with payment details
+    toast({
+      title: "Payment completed",
+      description: "Your payment has been processed successfully.",
+    });
+    setStep("confirmation");
+  };
+  
   const handlePaymentCancel = () => {
-    setProcessingPayment(false);
+    setStep("details");
   };
   
-  // If we're at the payment step and we don't have an orderId yet, create one
-  useEffect(() => {
-    if (currentStep === "payment" && !orderId && !createOrderMutation.isPending) {
-      createOrderMutation.mutate();
-    }
-  }, [currentStep, orderId, createOrderMutation]);
-  
-  // Redirect to cart if cart is empty
-  useEffect(() => {
-    if (cartData && (!cartData.items || cartData.items.length === 0) && !cartLoading) {
-      toast({
-        title: "Empty Cart",
-        description: "Your cart is empty. Add some items before checkout.",
-      });
-      setLocation("/cart");
-    }
-  }, [cartData, cartLoading, toast, setLocation]);
-  
-  // Handle loading and error states
-  if (cartLoading) {
+  // Loading state
+  if (cartLoading || vendorLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-lg">Loading your cart...</p>
-        </div>
+      <div className="container mx-auto p-8 flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading checkout...</span>
       </div>
     );
   }
   
-  if (cartError) {
+  // Error state
+  if (cartError || vendorError) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center max-w-md">
-          <div className="bg-red-100 text-red-800 p-4 rounded-lg mb-4">
-            <p className="font-semibold">Error loading cart</p>
-            <p className="text-sm mt-2">There was an error loading your cart information. Please try again.</p>
-          </div>
-          <Button onClick={() => window.location.reload()} className="mr-2">
-            Try Again
-          </Button>
-          <Button variant="outline" asChild>
-            <Link to="/cart">
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              Return to Cart
-            </Link>
+      <div className="container mx-auto p-8">
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            There was a problem loading the checkout information. Please try again.
+          </AlertDescription>
+        </Alert>
+        <div className="mt-4">
+          <Button asChild>
+            <Link to={`/vendors/${vendorId}`}>Return to Store</Link>
           </Button>
         </div>
       </div>
     );
   }
   
-  // Placeholder for order data - in a real app, this would come from an API call
-  const orderData: OrderData = {
-    id: orderId || 0,
-    vendorId,
-    customerId: user?.id || 0,
-    items: cartData?.items || [],
-    subtotal: cartData?.subtotal || "0.00",
-    total: cartData?.total || "0.00",
-    status: "pending",
-    orderNumber: generateOrderNumber(),
-    shippingAddress: shippingInfo || {
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      addressLine1: "",
-      city: "",
-      state: "",
-      postalCode: "",
-      country: ""
-    }
-  };
-  
-  // Available payment methods - in a real app, this would come from vendor settings
-  const availablePaymentMethods: PaymentMethod[] = ["stripe", "paypal", "manual"];
-  
-  // Render the appropriate payment method component based on selection
-  const renderPaymentMethod = () => {
-    if (processingPayment) {
-      return (
-        <div className="flex justify-center items-center min-h-[300px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
-    }
-    
-    switch (selectedPaymentMethod) {
-      case "stripe":
-        return (
-          <StripeCheckout
-            vendorId={vendorId}
-            orderId={orderId || 0}
-            amount={orderData.total}
-            onSuccess={handlePaymentComplete}
-            onCancel={handlePaymentCancel}
-          />
-        );
-      case "paypal":
-        return (
-          <PayPalCheckout
-            vendorId={vendorId}
-            orderId={orderId || 0}
-            amount={orderData.total}
-            onSuccess={handlePaymentComplete}
-            onCancel={handlePaymentCancel}
-          />
-        );
-      case "manual":
-        return (
-          <CashOnDeliveryCheckout
-            orderId={orderId || 0}
-            total={orderData.total}
-            onSuccess={handlePaymentComplete}
-            onCancel={handlePaymentCancel}
-          />
-        );
-      default:
-        return (
-          <div className="text-center p-8">
-            <p>Please select a payment method</p>
-          </div>
-        );
-    }
-  };
+  // Check if cart is empty
+  if (!cart?.items?.length) {
+    return (
+      <div className="container mx-auto p-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Cart is Empty</CardTitle>
+            <CardDescription>
+              You don't have any items in your cart.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link to={`/vendors/${vendorId}`}>Continue Shopping</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   
   return (
-    <div className="container max-w-6xl mx-auto px-4 py-6 md:py-12">
-      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+    <div className="container mx-auto p-4 md:p-8">
+      <div className="mb-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4"
+          asChild
+        >
+          <Link to={`/vendors/${vendorId}`}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Store
+          </Link>
+        </Button>
+        <h1 className="text-3xl font-bold">{vendor?.name || "Checkout"}</h1>
+        <p className="text-muted-foreground">
+          Complete your purchase by following the steps below
+        </p>
+      </div>
       
-      <CheckoutForm
-        vendorId={vendorId}
-        orderData={orderData}
-        onShippingComplete={handleShippingComplete}
-        onPaymentMethodSelect={handlePaymentMethodSelect}
-        onPaymentComplete={handlePaymentComplete}
-        onPaymentCancel={handlePaymentCancel}
-        availablePaymentMethods={availablePaymentMethods}
-        selectedPaymentMethod={selectedPaymentMethod}
-        currentStep={currentStep}
-        processingPayment={processingPayment}
-      />
-      
-      {/* Render payment method selector and payment component */}
-      {currentStep === "payment" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <div className="md:col-span-2 space-y-6">
-            <PaymentMethodSelector
-              vendorId={vendorId}
-              availableMethods={availablePaymentMethods}
-              selectedMethod={selectedPaymentMethod}
-              onSelectMethod={handlePaymentMethodSelect}
-            />
-            
-            <div className="mt-6">
-              {renderPaymentMethod()}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2">
+          {step === "cart" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Shopping Cart</CardTitle>
+                  <CardDescription>
+                    Review your items before proceeding to checkout
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {cart?.items?.map((item: any, index: number) => (
+                      <div key={index} className="flex justify-between items-center py-2 border-b">
+                        <div className="flex items-center">
+                          {item.imageUrl && (
+                            <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden mr-4">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-medium">{item.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Quantity: {item.quantity}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium">
+                            {formatCurrency(item.price)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.quantity > 1 ? `${formatCurrency(parseFloat(item.price) * item.quantity)} total` : ""}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-end">
+                <Button onClick={() => setStep("details")}>Proceed to Checkout</Button>
+              </div>
             </div>
+          )}
+          
+          {step === "details" && (
+            <CheckoutForm 
+              vendorId={vendorId || 0}
+              cart={cart}
+              onSuccess={handleCreateOrder}
+            />
+          )}
+          
+          {step === "payment" && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Payment</CardTitle>
+                <CardDescription>
+                  Complete your payment to finalize your order
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Select Payment Method</h3>
+                    <PaymentMethodSelector
+                      vendorId={vendorId || 0}
+                      value={paymentMethod}
+                      onChange={setPaymentMethod}
+                    />
+                  </div>
+                  
+                  <Separator />
+                  
+                  {paymentProcessor === "stripe" && orderId && (
+                    <StripeCheckout
+                      vendorId={vendorId || 0}
+                      amount={parseFloat(cart?.total || "0") * 100} // Convert to cents
+                      currency="USD"
+                      orderId={orderId}
+                      onSuccess={handlePaymentSuccess}
+                      onCancel={handlePaymentCancel}
+                    />
+                  )}
+                  
+                  {paymentProcessor === "paypal" && orderId && (
+                    <PayPalCheckout
+                      vendorId={vendorId || 0}
+                      amount={cart?.total || "0"}
+                      currency="USD"
+                      orderId={orderId}
+                      onSuccess={handlePaymentSuccess}
+                      onCancel={handlePaymentCancel}
+                    />
+                  )}
+                  
+                  {paymentProcessor === "manual" && (
+                    <div className="space-y-4">
+                      <Alert>
+                        <AlertTitle>Manual Payment</AlertTitle>
+                        <AlertDescription>
+                          This order requires manual payment processing. Please contact the store for payment instructions.
+                        </AlertDescription>
+                      </Alert>
+                      <Button onClick={() => handlePaymentSuccess("manual")}>
+                        Mark as Paid (Demo)
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {step === "confirmation" && (
+            <Card>
+              <CardHeader className="text-center">
+                <div className="mx-auto bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle className="h-8 w-8 text-green-600" />
+                </div>
+                <CardTitle>Order Confirmed!</CardTitle>
+                <CardDescription>
+                  Thank you for your purchase. Your order has been received and is being processed.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-center">
+                    We have sent a confirmation email to your inbox with the order details.
+                  </p>
+                  
+                  <div className="border rounded-md p-4">
+                    <h3 className="font-medium mb-2">Order Summary</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Order Number:</span>
+                        <span className="font-medium">{orderId || "ORD12345"}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Date:</span>
+                        <span>{new Date().toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Total:</span>
+                        <span className="font-medium">{formatCurrency(cart?.total || "0")}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-center space-x-4">
+                    <Button asChild variant="outline">
+                      <Link to={`/vendors/${vendorId}`}>
+                        Continue Shopping
+                      </Link>
+                    </Button>
+                    {user && (
+                      <Button asChild>
+                        <Link to="/account/orders">
+                          View Orders
+                        </Link>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+        
+        <div>
+          <div className="sticky top-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    {cart?.items?.map((item: any, index: number) => (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span>{item.quantity} x {item.name}</span>
+                        <span>{formatCurrency(parseFloat(item.price) * item.quantity)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotal</span>
+                      <span>{formatCurrency(cart?.subtotal || "0")}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Shipping</span>
+                      <span>Free</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span>Tax</span>
+                      <span>{formatCurrency(parseFloat(cart?.subtotal || "0") * 0.0825)}</span>
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="flex justify-between font-medium">
+                    <span>Total</span>
+                    <span>{formatCurrency(cart?.total || "0")}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

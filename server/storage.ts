@@ -17,11 +17,9 @@ import {
   transactions, type Transaction, type InsertTransaction,
   payouts, type Payout, type InsertPayout,
   customerPaymentMethods, type CustomerPaymentMethod, type InsertCustomerPaymentMethod,
-  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings,
-  commissionSettings, type CommissionSettings, type InsertCommissionSettings
+  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings
 } from "@shared/schema";
 import session from "express-session";
-import { createSessionStore } from "./sessionStore";
 import createMemoryStore from "memorystore";
 
 export interface IStorage {
@@ -31,7 +29,6 @@ export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
-  getAllUsers(): Promise<User[]>;
   createUser(user: Partial<InsertUser>): Promise<User>;
   updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined>;
   
@@ -156,7 +153,6 @@ export interface IStorage {
   getTransactionsByVendorId(vendorId: number): Promise<Transaction[]>;
   getTransactionsByOrderId(orderId: number): Promise<Transaction[]>;
   getTransactionsByInvoiceId(invoiceId: number): Promise<Transaction[]>;
-  getAllTransactions(): Promise<Transaction[]>;
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: number, data: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   processRefund(transactionId: number, amount: string, reason: string): Promise<Transaction | undefined>;
@@ -164,7 +160,6 @@ export interface IStorage {
   // Payout operations
   getPayout(id: number): Promise<Payout | undefined>;
   getPayoutsByVendorId(vendorId: number): Promise<Payout[]>;
-  getAllPayouts(): Promise<Payout[]>;
   createPayout(payout: InsertPayout): Promise<Payout>;
   updatePayout(id: number, data: Partial<InsertPayout>): Promise<Payout | undefined>;
   completePayout(id: number): Promise<Payout | undefined>;
@@ -183,10 +178,6 @@ export interface IStorage {
   createPaymentProviderSettings(settings: InsertPaymentProviderSettings): Promise<PaymentProviderSettings>;
   updatePaymentProviderSettings(id: number, data: Partial<InsertPaymentProviderSettings>): Promise<PaymentProviderSettings | undefined>;
   togglePaymentProviderActive(id: number, isActive: boolean): Promise<PaymentProviderSettings | undefined>;
-  
-  // Commission settings operations
-  getCommissionSettings(): Promise<CommissionSettings | undefined>;
-  updateCommissionSettings(data: Partial<InsertCommissionSettings>): Promise<CommissionSettings>;
 }
 
 export class MemStorage implements IStorage {
@@ -211,7 +202,6 @@ export class MemStorage implements IStorage {
   private customerPaymentMethods: Map<number, CustomerPaymentMethod>;
   private paymentProviderSettings: Map<number, PaymentProviderSettings>;
   private carts: Map<number, any>; // User ID -> Cart
-  private commissionSettings: CommissionSettings | undefined;
 
   private userId: number = 1;
   private otpId: number = 1;
@@ -234,7 +224,7 @@ export class MemStorage implements IStorage {
   private paymentProviderSettingsId: number = 1;
 
   constructor() {
-    // Initialize memory-based session store by default
+    // Initialize in-memory session store
     const MemoryStore = createMemoryStore(session);
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // prune expired entries every 24h
@@ -263,31 +253,9 @@ export class MemStorage implements IStorage {
 
     // Initialize with default subscription plans
     this.initializeDefaultData();
-    
-    // Add a listener for process exit to save session data
-    process.on('SIGINT', () => {
-      console.log('Saving session data before shutdown...');
-      // Additional cleanup if needed
-    });
   }
 
   private initializeDefaultData() {
-    // Initialize default commission settings
-    this.commissionSettings = {
-      id: 1,
-      baseFeePercentage: "5.0",
-      transactionFeeFlat: "0.30",
-      thresholds: [
-        { threshold: "1000", percentage: "4.5" },
-        { threshold: "5000", percentage: "4.0" },
-        { threshold: "10000", percentage: "3.5" },
-        { threshold: "25000", percentage: "3.0" },
-        { threshold: "50000", percentage: "2.5" }
-      ],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
     // Create default subscription plans
     const freePlan: InsertSubscriptionPlan = {
       name: "Free",
@@ -342,27 +310,17 @@ export class MemStorage implements IStorage {
     this.createSubscriptionPlan(proPlan);
     this.createSubscriptionPlan(enterprisePlan);
     
-    // Create super admin users
-    const primaryAdmin: Partial<InsertUser> = {
-      email: "kaushlendra.k12@fms.edu",
-      firstName: "Kaushlendra",
-      lastName: "Kumar",
+    // Create super admin user
+    const adminUser: Partial<InsertUser> = {
+      email: "admin@multivend.com",
+      firstName: "Super",
+      lastName: "Admin",
       role: "super_admin",
       isProfileComplete: true,
-      avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2369&q=80"
+      avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
     };
     
-    const secondaryAdmin: Partial<InsertUser> = {
-      email: "admin@lelekart.com",
-      firstName: "Admin",
-      lastName: "User",
-      role: "super_admin",
-      isProfileComplete: true,
-      avatarUrl: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2680&q=80"
-    };
-    
-    this.createUser(primaryAdmin);
-    this.createUser(secondaryAdmin);
+    this.createUser(adminUser);
   }
 
   // User operations
@@ -372,10 +330,6 @@ export class MemStorage implements IStorage {
 
   async getUserByEmail(email: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(user => user.email === email);
-  }
-  
-  async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
   }
 
   async createUser(userData: InsertUser): Promise<User> {
@@ -394,50 +348,6 @@ export class MemStorage implements IStorage {
     return updatedUser;
   }
 
-  // Cart operations
-  async getCartByUserId(userId: number): Promise<any> {
-    return this.carts.get(userId) || { items: [] };
-  }
-
-  async addToCart(userId: number, item: any): Promise<any> {
-    const cart = await this.getCartByUserId(userId);
-    const existingItemIndex = cart.items.findIndex((i: any) => i.productId === item.productId);
-    
-    if (existingItemIndex >= 0) {
-      cart.items[existingItemIndex].quantity += item.quantity;
-    } else {
-      cart.items.push(item);
-    }
-    
-    this.carts.set(userId, cart);
-    return cart;
-  }
-
-  async updateCartItemQuantity(userId: number, itemId: number, quantity: number): Promise<any> {
-    const cart = await this.getCartByUserId(userId);
-    const item = cart.items.find((i: any) => i.id === itemId);
-    
-    if (item) {
-      item.quantity = quantity;
-    }
-    
-    this.carts.set(userId, cart);
-    return cart;
-  }
-
-  async removeFromCart(userId: number, itemId: number): Promise<any> {
-    const cart = await this.getCartByUserId(userId);
-    cart.items = cart.items.filter((i: any) => i.id !== itemId);
-    
-    this.carts.set(userId, cart);
-    return cart;
-  }
-
-  async clearCart(userId: number): Promise<boolean> {
-    this.carts.set(userId, { items: [] });
-    return true;
-  }
-
   // OTP operations
   async createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode> {
     const id = this.otpId++;
@@ -454,11 +364,15 @@ export class MemStorage implements IStorage {
   }
 
   async getLatestOtp(email: string): Promise<OtpCode | undefined> {
-    const now = new Date();
+    const userOtps = Array.from(this.otpCodes.values())
+      .filter(otp => otp.email === email && !otp.isUsed && otp.expiresAt > new Date());
     
-    return Array.from(this.otpCodes.values())
-      .filter(otp => otp.email === email && !otp.isUsed && otp.expiresAt > now)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    if (userOtps.length === 0) return undefined;
+    
+    // Find the most recent OTP
+    return userOtps.reduce((latest, current) => 
+      latest.createdAt > current.createdAt ? latest : current
+    );
   }
 
   async markOtpAsUsed(id: number): Promise<OtpCode | undefined> {
@@ -470,8 +384,6 @@ export class MemStorage implements IStorage {
     return updatedOtp;
   }
 
-  // Implement other methods as needed...
-
   // Subscription plan operations
   async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
     return this.subscriptionPlans.get(id);
@@ -481,11 +393,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.subscriptionPlans.values());
   }
 
-  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+  async createSubscriptionPlan(planData: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
     const id = this.subscriptionPlanId++;
-    const newPlan: SubscriptionPlan = { ...plan, id, createdAt: new Date() };
-    this.subscriptionPlans.set(id, newPlan);
-    return newPlan;
+    const plan: SubscriptionPlan = { ...planData, id, createdAt: new Date() };
+    this.subscriptionPlans.set(id, plan);
+    return plan;
   }
 
   async updateSubscriptionPlan(id: number, data: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
@@ -497,39 +409,1641 @@ export class MemStorage implements IStorage {
     return updatedPlan;
   }
 
-  // Commission settings operations
-  async getCommissionSettings(): Promise<CommissionSettings | undefined> {
-    return this.commissionSettings;
+  // Vendor operations
+  async getVendor(id: number): Promise<Vendor | undefined> {
+    return this.vendors.get(id);
   }
 
-  async updateCommissionSettings(data: Partial<InsertCommissionSettings>): Promise<CommissionSettings> {
-    if (!this.commissionSettings) {
-      throw new Error("Commission settings not initialized");
+  async getVendors(): Promise<Vendor[]> {
+    return Array.from(this.vendors.values());
+  }
+
+  async getVendorByUserId(userId: number): Promise<Vendor | undefined> {
+    return Array.from(this.vendors.values()).find(vendor => vendor.userId === userId);
+  }
+
+  async createVendor(vendorData: InsertVendor): Promise<Vendor> {
+    const id = this.vendorId++;
+    const vendor: Vendor = { 
+      ...vendorData, 
+      id, 
+      createdAt: new Date(),
+      trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days trial
+      nextBillingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    };
+    this.vendors.set(id, vendor);
+    return vendor;
+  }
+
+  async updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined> {
+    const vendor = await this.getVendor(id);
+    if (!vendor) return undefined;
+    
+    const updatedVendor = { ...vendor, ...data };
+    this.vendors.set(id, updatedVendor);
+    return updatedVendor;
+  }
+
+  // Domain operations
+  async getDomain(id: number): Promise<Domain | undefined> {
+    return this.domains.get(id);
+  }
+
+  async getDomains(): Promise<Domain[]> {
+    return Array.from(this.domains.values());
+  }
+
+  async getDomainsByVendorId(vendorId: number): Promise<Domain[]> {
+    return Array.from(this.domains.values()).filter(domain => domain.vendorId === vendorId);
+  }
+
+  async getDomainByName(name: string): Promise<Domain | undefined> {
+    return Array.from(this.domains.values()).find(domain => domain.name === name);
+  }
+
+  async createDomain(domainData: InsertDomain): Promise<Domain> {
+    const id = this.domainId++;
+    
+    // Generate a verification token if it's a custom domain
+    let verificationToken = null;
+    let dnsRecords = [];
+    
+    if (domainData.type === "custom") {
+      // Generate a random verification token for domain ownership verification
+      verificationToken = `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Create DNS record instructions based on domain name
+      const domainName = domainData.name;
+      dnsRecords = [
+        { type: "TXT", name: `_multivend-verification.${domainName}`, value: verificationToken },
+        { type: "CNAME", name: domainName, value: "stores.multivend.com" },
+        { type: "CNAME", name: `www.${domainName}`, value: "stores.multivend.com" }
+      ];
     }
     
-    this.commissionSettings = { 
-      ...this.commissionSettings, 
-      ...data, 
-      updatedAt: new Date() 
+    const domain: Domain = { 
+      ...domainData, 
+      id, 
+      verificationToken,
+      dnsRecords: dnsRecords.length > 0 ? dnsRecords : undefined,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year expiration
     };
     
-    return this.commissionSettings;
+    this.domains.set(id, domain);
+    return domain;
+  }
+
+  async updateDomain(id: number, data: Partial<InsertDomain>): Promise<Domain | undefined> {
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    const updatedDomain = { ...domain, ...data };
+    
+    // If changing from subdomain to custom domain, generate verification token and DNS records
+    if (domain.type !== "custom" && data.type === "custom" && !domain.verificationToken) {
+      const verificationToken = `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+      const domainName = data.name || domain.name;
+      
+      const dnsRecords = [
+        { type: "TXT", name: `_multivend-verification.${domainName}`, value: verificationToken },
+        { type: "CNAME", name: domainName, value: "stores.multivend.com" },
+        { type: "CNAME", name: `www.${domainName}`, value: "stores.multivend.com" }
+      ];
+      
+      updatedDomain.verificationToken = verificationToken;
+      updatedDomain.dnsRecords = dnsRecords;
+      updatedDomain.verificationStatus = "pending";
+    }
+    
+    this.domains.set(id, updatedDomain);
+    return updatedDomain;
+  }
+
+  async verifyDomain(id: number): Promise<Domain | undefined> {
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    // In a real implementation, this would check DNS records
+    // For this prototype, we'll just simulate verification
+    
+    domain.verificationStatus = "verified";
+    domain.status = "active";
+    domain.lastCheckedAt = new Date();
+    
+    this.domains.set(id, domain);
+    return domain;
+  }
+  
+  async generateVerificationToken(id: number): Promise<Domain | undefined> {
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    // Generate a random verification token
+    const token = `multivend-verify-${Math.random().toString(36).substring(2, 15)}`;
+    
+    domain.verificationToken = token;
+    domain.verificationStatus = "pending";
+    domain.lastCheckedAt = new Date();
+    
+    this.domains.set(id, domain);
+    return domain;
+  }
+  
+  async checkDomainsSSL(): Promise<void> {
+    // In a real implementation, this would check SSL certificates
+    // For this prototype, we'll simulate SSL status updates for active domains
+    
+    const domains = await this.getDomains();
+    
+    for (const domain of domains) {
+      if (domain.status === "active" && domain.verificationStatus === "verified") {
+        domain.sslStatus = "valid";
+        domain.lastCheckedAt = new Date();
+        this.domains.set(domain.id, domain);
+      }
+    }
+  }
+
+  async deleteDomain(id: number): Promise<boolean> {
+    return this.domains.delete(id);
+  }
+
+  // Product category operations
+  async getProductCategory(id: number): Promise<ProductCategory | undefined> {
+    return this.productCategories.get(id);
+  }
+
+  async getProductCategories(vendorId: number): Promise<ProductCategory[]> {
+    return Array.from(this.productCategories.values()).filter(category => category.vendorId === vendorId);
+  }
+
+  async createProductCategory(categoryData: InsertProductCategory): Promise<ProductCategory> {
+    const id = this.productCategoryId++;
+    const category: ProductCategory = { ...categoryData, id, createdAt: new Date() };
+    this.productCategories.set(id, category);
+    return category;
+  }
+
+  async updateProductCategory(id: number, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const category = await this.getProductCategory(id);
+    if (!category) return undefined;
+    
+    const updatedCategory = { ...category, ...data };
+    this.productCategories.set(id, updatedCategory);
+    return updatedCategory;
+  }
+
+  async deleteProductCategory(id: number): Promise<boolean> {
+    return this.productCategories.delete(id);
+  }
+
+  // Product operations
+  async getProduct(id: number): Promise<Product | undefined> {
+    return this.products.get(id);
+  }
+
+  async getProducts(vendorId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(product => product.vendorId === vendorId);
+  }
+
+  async getProductsByCategory(categoryId: number): Promise<Product[]> {
+    return Array.from(this.products.values()).filter(product => product.categoryId === categoryId);
+  }
+
+  async createProduct(productData: InsertProduct): Promise<Product> {
+    const id = this.productId++;
+    const product: Product = { 
+      ...productData, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.products.set(id, product);
+    return product;
+  }
+
+  async updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined> {
+    const product = await this.getProduct(id);
+    if (!product) return undefined;
+    
+    const updatedProduct = { ...product, ...data, updatedAt: new Date() };
+    this.products.set(id, updatedProduct);
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: number): Promise<boolean> {
+    return this.products.delete(id);
+  }
+
+  // Cart operations
+  async getCartByUserId(userId: number): Promise<any> {
+    return this.carts.get(userId) || {
+      id: 1,
+      items: [],
+      subtotal: "0.00",
+      total: "0.00",
+      vendorId: 1
+    };
+  }
+
+  async addToCart(userId: number, item: any): Promise<any> {
+    const cart = await this.getCartByUserId(userId);
+    const existingItemIndex = cart.items.findIndex((i: any) => i.productId === item.productId);
+
+    if (existingItemIndex >= 0) {
+      // Update quantity if item exists
+      cart.items[existingItemIndex].quantity += item.quantity;
+    } else {
+      // Add new item with generated ID if it doesn't exist
+      const itemId = Math.floor(Math.random() * 10000);
+      cart.items.push({ ...item, id: itemId });
+    }
+
+    // Recalculate cart totals
+    let subtotal = cart.items.reduce(
+      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
+      0
+    );
+
+    cart.subtotal = subtotal.toFixed(2);
+    cart.total = subtotal.toFixed(2); // Add tax calculation as needed
+
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async updateCartItemQuantity(userId: number, itemId: number, quantity: number): Promise<any> {
+    const cart = await this.getCartByUserId(userId);
+    const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
+
+    if (itemIndex === -1) {
+      throw new Error("Cart item not found");
+    }
+
+    // Update item quantity
+    cart.items[itemIndex].quantity = quantity;
+
+    // Recalculate cart totals
+    let subtotal = cart.items.reduce(
+      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
+      0
+    );
+
+    cart.subtotal = subtotal.toFixed(2);
+    cart.total = subtotal.toFixed(2);
+
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async removeFromCart(userId: number, itemId: number): Promise<any> {
+    const cart = await this.getCartByUserId(userId);
+    const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
+
+    if (itemIndex === -1) {
+      throw new Error("Cart item not found");
+    }
+
+    // Remove item
+    cart.items.splice(itemIndex, 1);
+
+    // Recalculate cart totals
+    let subtotal = cart.items.reduce(
+      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
+      0
+    );
+
+    cart.subtotal = subtotal.toFixed(2);
+    cart.total = subtotal.toFixed(2);
+
+    this.carts.set(userId, cart);
+    return cart;
+  }
+
+  async clearCart(userId: number): Promise<boolean> {
+    const emptyCart = {
+      id: 1,
+      items: [],
+      subtotal: "0.00",
+      total: "0.00",
+      vendorId: 1
+    };
+    
+    this.carts.set(userId, emptyCart);
+    return true;
+  }
+
+  // Customer operations
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+
+  async getCustomers(vendorId: number): Promise<Customer[]> {
+    return Array.from(this.customers.values()).filter(customer => customer.vendorId === vendorId);
+  }
+
+  async getCustomerByEmail(email: string, vendorId: number): Promise<Customer | undefined> {
+    return Array.from(this.customers.values())
+      .find(customer => customer.vendorId === vendorId && customer.email === email);
+  }
+  
+  async getCustomerByUserId(userId: number, vendorId: number): Promise<Customer | undefined> {
+    // Find user by ID
+    const user = this.users.get(userId);
+    if (!user || !user.email) return undefined;
+    
+    // Find customer by email and vendor ID
+    return Array.from(this.customers.values())
+      .find(customer => customer.vendorId === vendorId && customer.email === user.email);
+  }
+
+  async createCustomer(customerData: InsertCustomer): Promise<Customer> {
+    const id = this.customerId++;
+    const customer: Customer = { ...customerData, id, createdAt: new Date() };
+    this.customers.set(id, customer);
+    return customer;
+  }
+
+  async updateCustomer(id: number, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const customer = await this.getCustomer(id);
+    if (!customer) return undefined;
+    
+    const updatedCustomer = { ...customer, ...data };
+    this.customers.set(id, updatedCustomer);
+    return updatedCustomer;
+  }
+
+  // Customer address operations
+  async getCustomerAddress(id: number): Promise<CustomerAddress | undefined> {
+    return this.customerAddresses.get(id);
+  }
+
+  async getCustomerAddresses(customerId: number): Promise<CustomerAddress[]> {
+    return Array.from(this.customerAddresses.values())
+      .filter(address => address.customerId === customerId);
+  }
+
+  async createCustomerAddress(addressData: InsertCustomerAddress): Promise<CustomerAddress> {
+    const id = this.customerAddressId++;
+    const address: CustomerAddress = { ...addressData, id, createdAt: new Date() };
+    this.customerAddresses.set(id, address);
+    return address;
+  }
+
+  async updateCustomerAddress(id: number, data: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined> {
+    const address = await this.getCustomerAddress(id);
+    if (!address) return undefined;
+    
+    const updatedAddress = { ...address, ...data };
+    this.customerAddresses.set(id, updatedAddress);
+    return updatedAddress;
+  }
+
+  async deleteCustomerAddress(id: number): Promise<boolean> {
+    return this.customerAddresses.delete(id);
+  }
+
+  // Order operations
+  async getOrder(id: number): Promise<Order | undefined> {
+    return this.orders.get(id);
+  }
+
+  async getOrders(vendorId: number): Promise<Order[]> {
+    return Array.from(this.orders.values()).filter(order => order.vendorId === vendorId);
+  }
+
+  async getOrderByNumber(orderNumber: string): Promise<Order | undefined> {
+    return Array.from(this.orders.values()).find(order => order.orderNumber === orderNumber);
+  }
+
+  async createOrder(orderData: InsertOrder): Promise<Order> {
+    const id = this.orderId++;
+    const order: Order = { 
+      ...orderData, 
+      id, 
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.orders.set(id, order);
+    return order;
+  }
+
+  async updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined> {
+    const order = await this.getOrder(id);
+    if (!order) return undefined;
+    
+    const updatedOrder = { ...order, ...data, updatedAt: new Date() };
+    this.orders.set(id, updatedOrder);
+    return updatedOrder;
+  }
+
+  // Order item operations
+  async getOrderItem(id: number): Promise<OrderItem | undefined> {
+    return this.orderItems.get(id);
+  }
+
+  async getOrderItems(orderId: number): Promise<OrderItem[]> {
+    return Array.from(this.orderItems.values()).filter(item => item.orderId === orderId);
+  }
+
+  async createOrderItem(itemData: InsertOrderItem): Promise<OrderItem> {
+    const id = this.orderItemId++;
+    const item: OrderItem = { ...itemData, id, createdAt: new Date() };
+    this.orderItems.set(id, item);
+    return item;
+  }
+
+  async updateOrderItem(id: number, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined> {
+    const item = await this.getOrderItem(id);
+    if (!item) return undefined;
+    
+    const updatedItem = { ...item, ...data };
+    this.orderItems.set(id, updatedItem);
+    return updatedItem;
+  }
+
+  async deleteOrderItem(id: number): Promise<boolean> {
+    return this.orderItems.delete(id);
+  }
+
+  // Analytics operations
+  async getVendorAnalytics(vendorId: number): Promise<Analytics[]> {
+    return Array.from(this.analytics.values())
+      .filter(analytics => analytics.vendorId === vendorId);
+  }
+
+  async createAnalyticsEntry(data: InsertAnalytics): Promise<Analytics> {
+    const id = this.analyticsId++;
+    const entry: Analytics = { ...data, id, createdAt: new Date() };
+    this.analytics.set(id, entry);
+    return entry;
+  }
+
+  // Payment methods operations
+  async getPaymentMethod(id: number): Promise<PaymentMethod | undefined> {
+    const [method] = await db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.id, id));
+    return method;
+  }
+
+  async getPaymentMethodsByVendorId(vendorId: number): Promise<PaymentMethod[]> {
+    return db
+      .select()
+      .from(paymentMethods)
+      .where(eq(paymentMethods.vendorId, vendorId));
+  }
+
+  async createPaymentMethod(method: InsertPaymentMethod): Promise<PaymentMethod> {
+    // If this is marked as default, unmark any other default methods for this vendor
+    if (method.isDefault) {
+      await db
+        .update(paymentMethods)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(paymentMethods.vendorId, method.vendorId),
+            eq(paymentMethods.isDefault, true)
+          )
+        );
+    }
+
+    const [createdMethod] = await db
+      .insert(paymentMethods)
+      .values({
+        ...method,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdMethod;
+  }
+
+  async updatePaymentMethod(id: number, data: Partial<InsertPaymentMethod>): Promise<PaymentMethod | undefined> {
+    // If this is being set as default, unmark any other default methods for this vendor
+    if (data.isDefault) {
+      const [currentMethod] = await db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.id, id));
+
+      if (currentMethod && !currentMethod.isDefault) {
+        await db
+          .update(paymentMethods)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(
+            and(
+              eq(paymentMethods.vendorId, currentMethod.vendorId),
+              eq(paymentMethods.isDefault, true),
+              ne(paymentMethods.id, id)
+            )
+          );
+      }
+    }
+
+    const [updatedMethod] = await db
+      .update(paymentMethods)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(paymentMethods.id, id))
+      .returning();
+    return updatedMethod;
+  }
+
+  async deletePaymentMethod(id: number): Promise<boolean> {
+    const result = await db
+      .delete(paymentMethods)
+      .where(eq(paymentMethods.id, id));
+    return result.count > 0;
+  }
+
+  async setDefaultPaymentMethod(id: number, vendorId: number): Promise<PaymentMethod | undefined> {
+    // Unmark any other default methods for this vendor
+    await db
+      .update(paymentMethods)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(paymentMethods.vendorId, vendorId),
+          eq(paymentMethods.isDefault, true),
+          ne(paymentMethods.id, id)
+        )
+      );
+
+    // Mark this method as default
+    const [updatedMethod] = await db
+      .update(paymentMethods)
+      .set({
+        isDefault: true,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(paymentMethods.id, id),
+          eq(paymentMethods.vendorId, vendorId)
+        )
+      )
+      .returning();
+    return updatedMethod;
+  }
+
+  // Platform subscription operations
+  async getPlatformSubscription(id: number): Promise<PlatformSubscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(platformSubscriptions)
+      .where(eq(platformSubscriptions.id, id));
+    return subscription;
+  }
+
+  async getPlatformSubscriptionByVendorId(vendorId: number): Promise<PlatformSubscription | undefined> {
+    const [subscription] = await db
+      .select()
+      .from(platformSubscriptions)
+      .where(
+        and(
+          eq(platformSubscriptions.vendorId, vendorId),
+          eq(platformSubscriptions.status, "active")
+        )
+      );
+    return subscription;
+  }
+
+  async createPlatformSubscription(subscription: InsertPlatformSubscription): Promise<PlatformSubscription> {
+    const [createdSubscription] = await db
+      .insert(platformSubscriptions)
+      .values({
+        ...subscription,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdSubscription;
+  }
+
+  async updatePlatformSubscription(id: number, data: Partial<InsertPlatformSubscription>): Promise<PlatformSubscription | undefined> {
+    const [updatedSubscription] = await db
+      .update(platformSubscriptions)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(platformSubscriptions.id, id))
+      .returning();
+    return updatedSubscription;
+  }
+
+  async cancelPlatformSubscription(id: number, reason: string): Promise<PlatformSubscription | undefined> {
+    const [canceledSubscription] = await db
+      .update(platformSubscriptions)
+      .set({
+        status: "canceled",
+        cancelReason: reason,
+        canceledAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(platformSubscriptions.id, id))
+      .returning();
+    return canceledSubscription;
+  }
+
+  // Invoice operations
+  async getInvoice(id: number): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.id, id));
+    return invoice;
+  }
+
+  async getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined> {
+    const [invoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.invoiceNumber, invoiceNumber));
+    return invoice;
+  }
+
+  async getInvoicesByVendorId(vendorId: number): Promise<Invoice[]> {
+    return db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.vendorId, vendorId))
+      .orderBy(desc(invoices.createdAt));
+  }
+
+  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+    const [createdInvoice] = await db
+      .insert(invoices)
+      .values({
+        ...invoice,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdInvoice;
+  }
+
+  async updateInvoice(id: number, data: Partial<InsertInvoice>): Promise<Invoice | undefined> {
+    const [updatedInvoice] = await db
+      .update(invoices)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return updatedInvoice;
+  }
+
+  async markInvoiceAsPaid(id: number): Promise<Invoice | undefined> {
+    const [paidInvoice] = await db
+      .update(invoices)
+      .set({
+        status: "paid",
+        paidAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(invoices.id, id))
+      .returning();
+    return paidInvoice;
+  }
+
+  // Transaction operations
+  async getTransaction(id: number): Promise<Transaction | undefined> {
+    const [transaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, id));
+    return transaction;
+  }
+
+  async getTransactionsByVendorId(vendorId: number): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.vendorId, vendorId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByOrderId(orderId: number): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.orderId, orderId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async getTransactionsByInvoiceId(invoiceId: number): Promise<Transaction[]> {
+    return db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.invoiceId, invoiceId))
+      .orderBy(desc(transactions.createdAt));
+  }
+
+  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
+    const [createdTransaction] = await db
+      .insert(transactions)
+      .values({
+        ...transaction,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdTransaction;
+  }
+
+  async updateTransaction(id: number, data: Partial<InsertTransaction>): Promise<Transaction | undefined> {
+    const [updatedTransaction] = await db
+      .update(transactions)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(transactions.id, id))
+      .returning();
+    return updatedTransaction;
+  }
+
+  async processRefund(transactionId: number, amount: string, reason: string): Promise<Transaction | undefined> {
+    // Get the original transaction
+    const [originalTransaction] = await db
+      .select()
+      .from(transactions)
+      .where(eq(transactions.id, transactionId));
+
+    if (!originalTransaction) return undefined;
+
+    // Update the original transaction to mark refund amount
+    const refundedAmount = new Decimal(originalTransaction.refundedAmount || "0").plus(amount);
+    
+    const [updatedTransaction] = await db
+      .update(transactions)
+      .set({
+        refundedAmount: refundedAmount.toString(),
+        status: refundedAmount.equals(originalTransaction.amount) ? "refunded" : "partial_refund",
+        refundReason: reason || originalTransaction.refundReason,
+        updatedAt: new Date()
+      })
+      .where(eq(transactions.id, transactionId))
+      .returning();
+
+    // Create a new refund transaction
+    await db
+      .insert(transactions)
+      .values({
+        type: "refund",
+        status: "completed",
+        amount: amount.toString(),
+        currency: originalTransaction.currency || "USD",
+        fee: "0",
+        net: amount.toString(),
+        vendorId: originalTransaction.vendorId,
+        orderId: originalTransaction.orderId,
+        invoiceId: originalTransaction.invoiceId,
+        paymentMethodId: originalTransaction.paymentMethodId,
+        metadata: { 
+          originalTransactionId: originalTransaction.id,
+          refundReason: reason
+        },
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    
+    return updatedTransaction;
+  }
+
+  // Payout operations
+  async getPayout(id: number): Promise<Payout | undefined> {
+    const [payout] = await db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.id, id));
+    return payout;
+  }
+
+  async getPayoutsByVendorId(vendorId: number): Promise<Payout[]> {
+    return db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.vendorId, vendorId))
+      .orderBy(desc(payouts.createdAt));
+  }
+
+  async createPayout(payout: InsertPayout): Promise<Payout> {
+    const [createdPayout] = await db
+      .insert(payouts)
+      .values({
+        ...payout,
+        createdAt: new Date()
+      })
+      .returning();
+    return createdPayout;
+  }
+
+  async updatePayout(id: number, data: Partial<InsertPayout>): Promise<Payout | undefined> {
+    const [updatedPayout] = await db
+      .update(payouts)
+      .set(data)
+      .where(eq(payouts.id, id))
+      .returning();
+    return updatedPayout;
+  }
+
+  async completePayout(id: number): Promise<Payout | undefined> {
+    const [completedPayout] = await db
+      .update(payouts)
+      .set({
+        status: "completed",
+        completedAt: new Date()
+      })
+      .where(eq(payouts.id, id))
+      .returning();
+    return completedPayout;
+  }
+
+  // Customer payment methods operations
+  async getCustomerPaymentMethod(id: number): Promise<CustomerPaymentMethod | undefined> {
+    const [method] = await db
+      .select()
+      .from(customerPaymentMethods)
+      .where(eq(customerPaymentMethods.id, id));
+    return method;
+  }
+
+  async getCustomerPaymentMethodsByCustomerId(customerId: number): Promise<CustomerPaymentMethod[]> {
+    return db
+      .select()
+      .from(customerPaymentMethods)
+      .where(eq(customerPaymentMethods.customerId, customerId));
+  }
+
+  async createCustomerPaymentMethod(method: InsertCustomerPaymentMethod): Promise<CustomerPaymentMethod> {
+    // If this is marked as default, unmark any other default methods for this customer
+    if (method.isDefault) {
+      await db
+        .update(customerPaymentMethods)
+        .set({ isDefault: false, updatedAt: new Date() })
+        .where(
+          and(
+            eq(customerPaymentMethods.customerId, method.customerId),
+            eq(customerPaymentMethods.isDefault, true)
+          )
+        );
+    }
+
+    const [createdMethod] = await db
+      .insert(customerPaymentMethods)
+      .values({
+        ...method,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdMethod;
+  }
+
+  async updateCustomerPaymentMethod(id: number, data: Partial<InsertCustomerPaymentMethod>): Promise<CustomerPaymentMethod | undefined> {
+    // If this is being set as default, unmark any other default methods for this customer
+    if (data.isDefault) {
+      const [currentMethod] = await db
+        .select()
+        .from(customerPaymentMethods)
+        .where(eq(customerPaymentMethods.id, id));
+
+      if (currentMethod && !currentMethod.isDefault) {
+        await db
+          .update(customerPaymentMethods)
+          .set({ isDefault: false, updatedAt: new Date() })
+          .where(
+            and(
+              eq(customerPaymentMethods.customerId, currentMethod.customerId),
+              eq(customerPaymentMethods.isDefault, true),
+              ne(customerPaymentMethods.id, id)
+            )
+          );
+      }
+    }
+
+    const [updatedMethod] = await db
+      .update(customerPaymentMethods)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(customerPaymentMethods.id, id))
+      .returning();
+    return updatedMethod;
+  }
+
+  async deleteCustomerPaymentMethod(id: number): Promise<boolean> {
+    const result = await db
+      .delete(customerPaymentMethods)
+      .where(eq(customerPaymentMethods.id, id));
+    return result.count > 0;
+  }
+
+  async setDefaultCustomerPaymentMethod(id: number, customerId: number): Promise<CustomerPaymentMethod | undefined> {
+    // Unmark any other default methods for this customer
+    await db
+      .update(customerPaymentMethods)
+      .set({ isDefault: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(customerPaymentMethods.customerId, customerId),
+          eq(customerPaymentMethods.isDefault, true),
+          ne(customerPaymentMethods.id, id)
+        )
+      );
+
+    // Mark this method as default
+    const [updatedMethod] = await db
+      .update(customerPaymentMethods)
+      .set({
+        isDefault: true,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(customerPaymentMethods.id, id),
+          eq(customerPaymentMethods.customerId, customerId)
+        )
+      )
+      .returning();
+    return updatedMethod;
+  }
+
+  // Payment provider settings operations
+  async getPaymentProviderSettings(id: number): Promise<PaymentProviderSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(paymentProviderSettings)
+      .where(eq(paymentProviderSettings.id, id));
+    return settings;
+  }
+
+  async getPaymentProviderSettingsByVendorId(vendorId: number, provider: string): Promise<PaymentProviderSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(paymentProviderSettings)
+      .where(
+        and(
+          eq(paymentProviderSettings.vendorId, vendorId),
+          eq(paymentProviderSettings.provider, provider)
+        )
+      );
+    return settings;
+  }
+
+  async createPaymentProviderSettings(settings: InsertPaymentProviderSettings): Promise<PaymentProviderSettings> {
+    const [createdSettings] = await db
+      .insert(paymentProviderSettings)
+      .values({
+        ...settings,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    return createdSettings;
+  }
+
+  async updatePaymentProviderSettings(id: number, data: Partial<InsertPaymentProviderSettings>): Promise<PaymentProviderSettings | undefined> {
+    const [updatedSettings] = await db
+      .update(paymentProviderSettings)
+      .set({
+        ...data,
+        updatedAt: new Date()
+      })
+      .where(eq(paymentProviderSettings.id, id))
+      .returning();
+    return updatedSettings;
+  }
+
+  async togglePaymentProviderActive(id: number, isActive: boolean): Promise<PaymentProviderSettings | undefined> {
+    const [updatedSettings] = await db
+      .update(paymentProviderSettings)
+      .set({
+        isActive,
+        updatedAt: new Date()
+      })
+      .where(eq(paymentProviderSettings.id, id))
+      .returning();
+    return updatedSettings;
+  }
+
+  // Platform statistics
+  async getPlatformStats(): Promise<{
+    totalVendors: number;
+    activeDomains: number;
+    totalRevenue: number;
+    pendingIssues: number;
+  }> {
+    const vendors = await this.getVendors();
+    const domains = await this.getDomains();
+    const activeDomains = domains.filter(domain => domain.status === "active").length;
+    
+    let totalRevenue = 0;
+    // Sum up revenue from all vendors
+    for (const vendor of vendors) {
+      const vendorOrders = await this.getOrders(vendor.id);
+      for (const order of vendorOrders) {
+        if (order.paymentStatus === "paid") {
+          totalRevenue += Number(order.total);
+        }
+      }
+    }
+    
+    // Count pending issues (like domains with issues, suspended vendors, etc.)
+    const domainsWithIssues = domains.filter(domain => 
+      domain.status === "error" || domain.sslStatus === "invalid").length;
+    const suspendedVendors = vendors.filter(vendor => vendor.status === "suspended").length;
+    const overdueVendors = vendors.filter(vendor => vendor.subscriptionStatus === "overdue").length;
+    
+    const pendingIssues = domainsWithIssues + suspendedVendors + overdueVendors;
+    
+    return {
+      totalVendors: vendors.length,
+      activeDomains,
+      totalRevenue,
+      pendingIssues
+    };
   }
 }
 
-// Create a DatabaseStorage class that extends MemStorage
-// This will use the in-memory storage for application data
-// But use PostgreSQL for session persistence
-export class DatabaseStorage extends MemStorage {
+import { db } from './db';
+import { eq, sql, and, gt, desc } from 'drizzle-orm';
+import connectPg from 'connect-pg-simple';
+import { pool } from './db';
+
+const PostgresSessionStore = connectPg(session);
+
+export class DatabaseStorage implements IStorage {
+  public sessionStore: session.Store;
+
   constructor() {
-    super(); // Initialize the memory storage
+    // Initialize a Postgres-backed session store
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true 
+    });
+  }
+
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUser(id: number, data: Partial<InsertUser>): Promise<User | undefined> {
+    // Get the current user to check if it's a super_admin
+    const [currentUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
     
-    // Replace the session store with our PostgreSQL-backed one
-    this.sessionStore = createSessionStore();
+    // If the user is a super_admin, prevent changing the role to protect their privileges
+    if (currentUser && currentUser.role === 'super_admin' && 'role' in data && data.role !== 'super_admin') {
+      console.warn(`Attempt to change super_admin role for user ${id} was prevented`);
+      delete data.role; // Remove the role field to prevent the change
+    }
     
-    console.log('DatabaseStorage initialized with PostgreSQL session store');
+    const [updatedUser] = await db
+      .update(users)
+      .set(data)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser;
+  }
+
+  // OTP operations
+  async createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode> {
+    const [otpCode] = await db
+      .insert(otpCodes)
+      .values({ email, code, expiresAt, isUsed: false })
+      .returning();
+    return otpCode;
+  }
+
+  async getLatestOtp(email: string): Promise<OtpCode | undefined> {
+    const now = new Date();
+    const [latestOtp] = await db
+      .select()
+      .from(otpCodes)
+      .where(
+        and(
+          eq(otpCodes.email, email),
+          eq(otpCodes.isUsed, false),
+          gt(otpCodes.expiresAt, now)
+        )
+      )
+      .orderBy(desc(otpCodes.createdAt))
+      .limit(1);
+    return latestOtp;
+  }
+
+  async markOtpAsUsed(id: number): Promise<OtpCode | undefined> {
+    const [updatedOtp] = await db
+      .update(otpCodes)
+      .set({ isUsed: true })
+      .where(eq(otpCodes.id, id))
+      .returning();
+    return updatedOtp;
+  }
+
+  // Subscription plan operations
+  async getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined> {
+    const [plan] = await db
+      .select()
+      .from(subscriptionPlans)
+      .where(eq(subscriptionPlans.id, id));
+    return plan;
+  }
+
+  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+    return db.select().from(subscriptionPlans);
+  }
+
+  async createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan> {
+    const [newPlan] = await db
+      .insert(subscriptionPlans)
+      .values(plan)
+      .returning();
+    return newPlan;
+  }
+
+  async updateSubscriptionPlan(id: number, data: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined> {
+    const [updatedPlan] = await db
+      .update(subscriptionPlans)
+      .set(data)
+      .where(eq(subscriptionPlans.id, id))
+      .returning();
+    return updatedPlan;
+  }
+
+  // Vendor operations
+  async getVendor(id: number): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, id));
+    return vendor;
+  }
+
+  async getVendors(): Promise<Vendor[]> {
+    return db.select().from(vendors);
+  }
+
+  async getVendorByUserId(userId: number): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.userId, userId));
+    return vendor;
+  }
+
+  async createVendor(vendor: InsertVendor): Promise<Vendor> {
+    const [newVendor] = await db
+      .insert(vendors)
+      .values(vendor)
+      .returning();
+    return newVendor;
+  }
+
+  async updateVendor(id: number, data: Partial<InsertVendor>): Promise<Vendor | undefined> {
+    const [updatedVendor] = await db
+      .update(vendors)
+      .set(data)
+      .where(eq(vendors.id, id))
+      .returning();
+    return updatedVendor;
+  }
+
+  // Domain operations
+  async getDomain(id: number): Promise<Domain | undefined> {
+    const [domain] = await db
+      .select()
+      .from(domains)
+      .where(eq(domains.id, id));
+    return domain;
+  }
+
+  async getDomains(): Promise<Domain[]> {
+    return db.select().from(domains);
+  }
+
+  async getDomainsByVendorId(vendorId: number): Promise<Domain[]> {
+    return db
+      .select()
+      .from(domains)
+      .where(eq(domains.vendorId, vendorId));
+  }
+
+  async getDomainByName(name: string): Promise<Domain | undefined> {
+    const [domain] = await db
+      .select()
+      .from(domains)
+      .where(eq(domains.name, name));
+    return domain;
+  }
+
+  async createDomain(domain: InsertDomain): Promise<Domain> {
+    const [newDomain] = await db
+      .insert(domains)
+      .values(domain)
+      .returning();
+    return newDomain;
+  }
+
+  async updateDomain(id: number, data: Partial<InsertDomain>): Promise<Domain | undefined> {
+    const [updatedDomain] = await db
+      .update(domains)
+      .set(data)
+      .where(eq(domains.id, id))
+      .returning();
+    return updatedDomain;
+  }
+
+  async deleteDomain(id: number): Promise<boolean> {
+    const result = await db
+      .delete(domains)
+      .where(eq(domains.id, id));
+    return result.count > 0;
+  }
+  
+  async verifyDomain(id: number): Promise<Domain | undefined> {
+    // Get the domain
+    const domain = await this.getDomain(id);
+    if (!domain) return undefined;
+    
+    // In a real implementation, this would check DNS records for the verification token
+    // For now, we'll simulate a successful verification by setting the status to verified
+    
+    const data = {
+      verificationStatus: 'verified',
+      status: 'active',
+      lastCheckedAt: new Date()
+    };
+    
+    const [updatedDomain] = await db
+      .update(domains)
+      .set(data)
+      .where(eq(domains.id, id))
+      .returning();
+      
+    return updatedDomain;
+  }
+  
+  async generateVerificationToken(id: number): Promise<Domain | undefined> {
+    // Generate a random verification token for the domain
+    const token = `lelekart-verify-${Math.random().toString(36).substring(2, 15)}`;
+    
+    const data = {
+      verificationToken: token,
+      verificationStatus: 'pending',
+      lastCheckedAt: new Date()
+    };
+    
+    const [updatedDomain] = await db
+      .update(domains)
+      .set(data)
+      .where(eq(domains.id, id))
+      .returning();
+      
+    return updatedDomain;
+  }
+  
+  async checkDomainsSSL(): Promise<void> {
+    // In a real implementation, this would check SSL certificates
+    // For this prototype, we'll simulate SSL status updates for active domains
+    
+    const allDomains = await this.getDomains();
+    
+    for (const domain of allDomains) {
+      if (domain.status === 'active' && domain.verificationStatus === 'verified') {
+        await db
+          .update(domains)
+          .set({ 
+            sslStatus: 'active',
+            lastCheckedAt: new Date()
+          })
+          .where(eq(domains.id, domain.id));
+      }
+    }
+  }
+
+  // Product category operations
+  async getProductCategory(id: number): Promise<ProductCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.id, id));
+    return category;
+  }
+
+  async getProductCategories(vendorId: number): Promise<ProductCategory[]> {
+    return db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.vendorId, vendorId));
+  }
+
+  async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
+    const [newCategory] = await db
+      .insert(productCategories)
+      .values(category)
+      .returning();
+    return newCategory;
+  }
+
+  async updateProductCategory(id: number, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined> {
+    const [updatedCategory] = await db
+      .update(productCategories)
+      .set(data)
+      .where(eq(productCategories.id, id))
+      .returning();
+    return updatedCategory;
+  }
+
+  async deleteProductCategory(id: number): Promise<boolean> {
+    const result = await db
+      .delete(productCategories)
+      .where(eq(productCategories.id, id));
+    return result.count > 0;
+  }
+
+  // Product operations
+  async getProduct(id: number): Promise<Product | undefined> {
+    const [product] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, id));
+    return product;
+  }
+
+  async getProducts(vendorId: number): Promise<Product[]> {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.vendorId, vendorId));
+  }
+
+  async getProductsByCategory(categoryId: number): Promise<Product[]> {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.categoryId, categoryId));
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [newProduct] = await db
+      .insert(products)
+      .values(product)
+      .returning();
+    return newProduct;
+  }
+
+  async updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined> {
+    const [updatedProduct] = await db
+      .update(products)
+      .set(data)
+      .where(eq(products.id, id))
+      .returning();
+    return updatedProduct;
+  }
+
+  async deleteProduct(id: number): Promise<boolean> {
+    const result = await db
+      .delete(products)
+      .where(eq(products.id, id));
+    return result.count > 0;
+  }
+
+  // Customer operations
+  async getCustomer(id: number): Promise<Customer | undefined> {
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, id));
+    return customer;
+  }
+
+  async getCustomers(vendorId: number): Promise<Customer[]> {
+    return db
+      .select()
+      .from(customers)
+      .where(eq(customers.vendorId, vendorId));
+  }
+
+  async getCustomerByEmail(vendorId: number, email: string): Promise<Customer | undefined> {
+    const [customer] = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.vendorId, vendorId))
+      .where(eq(customers.email, email));
+    return customer;
+  }
+
+  async createCustomer(customer: InsertCustomer): Promise<Customer> {
+    const [newCustomer] = await db
+      .insert(customers)
+      .values(customer)
+      .returning();
+    return newCustomer;
+  }
+
+  async updateCustomer(id: number, data: Partial<InsertCustomer>): Promise<Customer | undefined> {
+    const [updatedCustomer] = await db
+      .update(customers)
+      .set(data)
+      .where(eq(customers.id, id))
+      .returning();
+    return updatedCustomer;
+  }
+
+  // Customer address operations
+  async getCustomerAddress(id: number): Promise<CustomerAddress | undefined> {
+    const [address] = await db
+      .select()
+      .from(customerAddresses)
+      .where(eq(customerAddresses.id, id));
+    return address;
+  }
+
+  async getCustomerAddresses(customerId: number): Promise<CustomerAddress[]> {
+    return db
+      .select()
+      .from(customerAddresses)
+      .where(eq(customerAddresses.customerId, customerId));
+  }
+
+  async createCustomerAddress(address: InsertCustomerAddress): Promise<CustomerAddress> {
+    const [newAddress] = await db
+      .insert(customerAddresses)
+      .values(address)
+      .returning();
+    return newAddress;
+  }
+
+  async updateCustomerAddress(id: number, data: Partial<InsertCustomerAddress>): Promise<CustomerAddress | undefined> {
+    const [updatedAddress] = await db
+      .update(customerAddresses)
+      .set(data)
+      .where(eq(customerAddresses.id, id))
+      .returning();
+    return updatedAddress;
+  }
+
+  async deleteCustomerAddress(id: number): Promise<boolean> {
+    const result = await db
+      .delete(customerAddresses)
+      .where(eq(customerAddresses.id, id));
+    return result.count > 0;
+  }
+
+  // Order operations
+  async getOrder(id: number): Promise<Order | undefined> {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, id));
+    return order;
+  }
+
+  async getOrders(vendorId: number): Promise<Order[]> {
+    return db
+      .select()
+      .from(orders)
+      .where(eq(orders.vendorId, vendorId));
+  }
+
+  async getOrderByNumber(orderNumber: string): Promise<Order | undefined> {
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.orderNumber, orderNumber));
+    return order;
+  }
+
+  async createOrder(order: InsertOrder): Promise<Order> {
+    const [newOrder] = await db
+      .insert(orders)
+      .values(order)
+      .returning();
+    return newOrder;
+  }
+
+  async updateOrder(id: number, data: Partial<InsertOrder>): Promise<Order | undefined> {
+    const [updatedOrder] = await db
+      .update(orders)
+      .set(data)
+      .where(eq(orders.id, id))
+      .returning();
+    return updatedOrder;
+  }
+
+  // Order item operations
+  async getOrderItem(id: number): Promise<OrderItem | undefined> {
+    const [item] = await db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.id, id));
+    return item;
+  }
+
+  async getOrderItems(orderId: number): Promise<OrderItem[]> {
+    return db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+  }
+
+  async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
+    const [newItem] = await db
+      .insert(orderItems)
+      .values(item)
+      .returning();
+    return newItem;
+  }
+
+  async updateOrderItem(id: number, data: Partial<InsertOrderItem>): Promise<OrderItem | undefined> {
+    const [updatedItem] = await db
+      .update(orderItems)
+      .set(data)
+      .where(eq(orderItems.id, id))
+      .returning();
+    return updatedItem;
+  }
+
+  async deleteOrderItem(id: number): Promise<boolean> {
+    const result = await db
+      .delete(orderItems)
+      .where(eq(orderItems.id, id));
+    return result.count > 0;
+  }
+
+  // Analytics operations
+  async getVendorAnalytics(vendorId: number): Promise<Analytics[]> {
+    return db
+      .select()
+      .from(analytics)
+      .where(eq(analytics.vendorId, vendorId));
+  }
+
+  async createAnalyticsEntry(data: InsertAnalytics): Promise<Analytics> {
+    const [newEntry] = await db
+      .insert(analytics)
+      .values(data)
+      .returning();
+    return newEntry;
+  }
+
+  // Platform statistics - we'll use SQL aggregation for better performance
+  async getPlatformStats(): Promise<{ totalVendors: number; activeDomains: number; totalRevenue: number; pendingIssues: number; }> {
+    // Get total vendors
+    const [vendorCount] = await db
+      .select({ count: sql`count(*)` })
+      .from(vendors);
+    
+    // Get active domains
+    const [domainsCount] = await db
+      .select({ count: sql`count(*)` })
+      .from(domains)
+      .where(eq(domains.status, 'active'));
+    
+    // Get total revenue (sum of all orders)
+    const [revenue] = await db
+      .select({ sum: sql`sum(cast(total as decimal))` })
+      .from(orders);
+    
+    // Get count of pending issues (domains with verification issues)
+    const [issuesCount] = await db
+      .select({ count: sql`count(*)` })
+      .from(domains)
+      .where(eq(domains.verificationStatus, 'pending'));
+    
+    return {
+      totalVendors: Number(vendorCount?.count || 0),
+      activeDomains: Number(domainsCount?.count || 0),
+      totalRevenue: Number(revenue?.sum || 0),
+      pendingIssues: Number(issuesCount?.count || 0)
+    };
   }
 }
 
-// Export an instance of the storage
+// Use the database storage implementation
 export const storage = new DatabaseStorage();

@@ -270,7 +270,7 @@ const OrderTable = () => {
                       </td>
                       <td className="p-4 align-middle text-right">
                         <Button variant="ghost" size="icon" asChild>
-                          <Link to={`/orders/${order.id}`}>
+                          <Link href={`/orders/${order.id}`}>
                             <Eye className="h-4 w-4" />
                             <span className="sr-only">View</span>
                           </Link>

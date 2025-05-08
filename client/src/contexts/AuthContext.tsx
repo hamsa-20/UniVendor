@@ -10,18 +10,15 @@ import { User } from '@shared/schema';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { toast } from '@/hooks/use-toast';
 
-export interface AuthContextType {
+interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   error: Error | null;
-  isImpersonating: boolean;
   requestOtpMutation: UseMutationResult<{ message: string; previewUrl?: string }, Error, { email: string }>;
   verifyOtpMutation: UseMutationResult<User, Error, { email: string; otp: string }>;
   logoutMutation: UseMutationResult<{ message: string }, Error, void>;
   completeProfileMutation: UseMutationResult<User, Error, Partial<User>>;
-  impersonateUserMutation: UseMutationResult<User, Error, { userId: number }>;
-  stopImpersonatingMutation: UseMutationResult<User, Error, void>;
 }
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -32,49 +29,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     isLoading,
     error,
-    refetch: refetchSession
   } = useQuery<User | null, Error>({
     queryKey: ['/api/auth/session'],
     queryFn: async () => {
       try {
-        console.log("Fetching session data...");
-        const res = await fetch('/api/auth/session', {
-          method: 'GET',
-          credentials: 'include', // Essential for cookies to be sent
-          headers: {
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
-          }
-        });
-        
-        console.log("Session response status:", res.status);
-        
+        const res = await apiRequest('GET', '/api/auth/session');
         if (!res.ok) {
           if (res.status === 401) {
             // Not authenticated is an expected state
-            console.log("Not authenticated (401)");
             return null;
           }
-          const errorText = await res.text();
-          console.error("Session fetch error:", errorText);
-          throw new Error(`Failed to fetch session: ${res.status} ${errorText}`);
+          throw new Error('Failed to fetch session');
         }
-        
-        const userData = await res.json();
-        console.log("Session data retrieved:", userData ? "User authenticated" : "No user data");
-        return userData;
+        return await res.json();
       } catch (error) {
         console.error('Error fetching session:', error);
         return null;
       }
     },
-    retry: 2, // Retry twice in case of network issues
-    retryDelay: 1000, // Wait 1 second between retries
+    retry: 1, // Retry once in case of network issues
     refetchOnMount: true, // Refetch when component mounts
     refetchOnReconnect: true, // Refetch when browser reconnects
     refetchOnWindowFocus: true, // Refetch when window gains focus
-    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
+    staleTime: 1000 * 60 * 30, // Consider data fresh for 30 minutes
     gcTime: 1000 * 60 * 60 * 24, // Cache data for 24 hours (formerly cacheTime)
   });
 
@@ -194,71 +171,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Impersonate user mutation (admin only)
-  const impersonateUserMutation = useMutation<User, Error, { userId: number }>({
-    mutationFn: async ({ userId }) => {
-      const res = await apiRequest('POST', `/api/impersonate/${userId}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to impersonate vendor');
-      }
-      return await res.json().then(data => data.user);
-    },
-    onSuccess: (impersonatedUser) => {
-      // Update the current user in the cache with the impersonated user
-      queryClient.setQueryData(['/api/auth/session'], impersonatedUser);
-      
-      // Invalidate queries that might be affected by the user change
-      queryClient.invalidateQueries();
-      
-      toast({
-        title: 'Impersonating User',
-        description: `You are now viewing the application as ${impersonatedUser.firstName || impersonatedUser.email}`,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Impersonation Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Stop impersonating and return to original user
-  const stopImpersonatingMutation = useMutation<User, Error, void>({
-    mutationFn: async () => {
-      const res = await apiRequest('POST', '/api/end-impersonation');
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to stop impersonation');
-      }
-      return await res.json().then(data => data.user);
-    },
-    onSuccess: (originalUser) => {
-      // Update the current user in the cache with the original user
-      queryClient.setQueryData(['/api/auth/session'], originalUser);
-      
-      // Invalidate queries that might be affected by the user change
-      queryClient.invalidateQueries();
-      
-      toast({
-        title: 'Returned to Admin',
-        description: 'You are no longer impersonating a user.',
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Check if the current user is being impersonated
-  const isImpersonating = !!user && !!user.impersonatedBy;
-
   return (
     <AuthContext.Provider
       value={{
@@ -266,13 +178,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         error,
-        isImpersonating,
         requestOtpMutation,
         verifyOtpMutation,
         logoutMutation,
         completeProfileMutation,
-        impersonateUserMutation,
-        stopImpersonatingMutation
       }}
     >
       {children}

@@ -1,293 +1,160 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Link, useLocation } from 'wouter';
+import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
-import { Order } from '@shared/schema';
-import OrderStatus from '@/components/orders/OrderStatus';
-import PaymentStatus from '@/components/orders/PaymentStatus';
-import { Eye, Search, ArrowUpDown, Filter } from 'lucide-react';
+import { ShoppingCart, Search, Calendar, ArrowUpDown } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 const OrdersPage = () => {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
-
-  // If user is not a vendor, we can't load orders yet
-  const vendorId = user?.vendorId;
-
-  // Fetch orders
-  const { data: orders, isLoading, error } = useQuery({
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  
+  const vendorId = user?.role === 'vendor' ? user.id : undefined;
+  
+  // Fetch vendor's orders
+  const { data: orders, isLoading } = useQuery({
     queryKey: [`/api/vendors/${vendorId}/orders`],
-    queryFn: async () => {
-      if (!vendorId) return [];
-      return fetch(`/api/vendors/${vendorId}/orders`).then(res => res.json());
-    },
     enabled: !!vendorId,
   });
-
-  // Filter orders based on search and filters
-  const filteredOrders = orders?.filter((order: Order) => {
-    // Search term filter
-    const searchMatch = searchTerm === '' || 
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (order.customerEmail && order.customerEmail.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    // Status filter
-    const statusMatch = statusFilter === '' || order.status === statusFilter;
-    
-    // Payment status filter
-    const paymentStatusMatch = paymentStatusFilter === '' || order.paymentStatus === paymentStatusFilter;
-    
-    return searchMatch && statusMatch && paymentStatusMatch;
-  }) || [];
-
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredOrders.length / pageSize);
-  const paginatedOrders = filteredOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  // Handle navigation to order detail
-  const handleViewOrder = (orderId: number) => {
-    setLocation(`/orders/${orderId}`);
+  
+  // Filter and sort orders
+  const filteredOrders = orders
+    ? orders
+        .filter(order => 
+          (statusFilter === 'all' || order.status === statusFilter) &&
+          (searchQuery === '' || 
+           order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           order.customer?.email.toLowerCase().includes(searchQuery.toLowerCase()))
+        )
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt).getTime();
+          const dateB = new Date(b.createdAt).getTime();
+          return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+        })
+    : [];
+  
+  // Get badge variant based on order status
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'processing': return 'warning';
+      case 'shipped': return 'secondary';
+      case 'canceled': return 'destructive';
+      default: return 'outline';
+    }
   };
-
-  // Reset filters
-  const resetFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('');
-    setPaymentStatusFilter('');
-    setCurrentPage(1);
-  };
-
+  
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage and track all your customer orders
-          </p>
-        </div>
-        <div className="mt-4 md:mt-0">
-          <Button 
-            onClick={resetFilters}
-            variant="outline" 
-            size="sm"
-            className="mr-2"
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            Clear Filters
-          </Button>
-        </div>
-      </div>
-
-      <Card className="mb-8">
-        <CardHeader className="pb-3">
-          <CardTitle>Search & Filter</CardTitle>
-          <CardDescription>
-            Find orders by order number, customer name, or filter by status
-          </CardDescription>
+    <DashboardLayout title="Orders" subtitle="Manage customer orders">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <CardTitle>All Orders</CardTitle>
+              <CardDescription>View and manage all customer orders</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+              >
+                <Calendar className="mr-2 h-4 w-4" />
+                Date
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="shipped">Shipped</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by order number or customer email..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
-              <Input
-                placeholder="Search orders..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1); // Reset to first page on new search
-                }}
-              />
+          {isLoading ? (
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-md animate-pulse">
+                  <div className="flex items-center space-x-4">
+                    <div className="h-12 w-12 rounded-full bg-muted"></div>
+                    <div className="space-y-2">
+                      <div className="h-4 w-24 bg-muted rounded"></div>
+                      <div className="h-3 w-32 bg-muted rounded"></div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="h-6 w-16 bg-muted rounded-full"></div>
+                    <div className="h-4 w-20 bg-muted rounded"></div>
+                  </div>
+                </div>
+              ))}
             </div>
-            
-            <Select
-              value={statusFilter}
-              onValueChange={(value) => {
-                setStatusFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="shipped">Shipped</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="canceled">Canceled</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            <Select
-              value={paymentStatusFilter}
-              onValueChange={(value) => {
-                setPaymentStatusFilter(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by payment status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All Payment Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="paid">Paid</SelectItem>
-                <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="refunded">Refunded</SelectItem>
-                <SelectItem value="partially_refunded">Partially Refunded</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-0">
-          <div className="rounded-md border overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Order #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-center w-[100px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  Array(5).fill(0).map((_, index) => (
-                    <TableRow key={index}>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-16 ml-auto" /></TableCell>
-                      <TableCell className="text-center">
-                        <Skeleton className="h-8 w-8 mx-auto rounded-full" />
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : error ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      Failed to load orders. Please try again.
-                    </TableCell>
-                  </TableRow>
-                ) : paginatedOrders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      {filteredOrders.length === 0 && orders?.length > 0 
-                        ? 'No orders match your search criteria. Try adjusting your filters.'
-                        : 'No orders found. Orders will appear here when customers place them.'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedOrders.map((order: Order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                      <TableCell>{formatDate(order.createdAt || new Date())}</TableCell>
-                      <TableCell>
-                        {order.customerName || 'Guest'}
-                        {order.customerEmail && <div className="text-xs text-gray-500">{order.customerEmail}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <OrderStatus status={order.status} size="sm" />
-                      </TableCell>
-                      <TableCell>
-                        <PaymentStatus status={order.paymentStatus || 'pending'} size="sm" />
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(parseFloat(order.total))}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleViewOrder(order.id)}
-                          title="View order details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {totalPages > 1 && (
-            <div className="py-4">
-              <Pagination>
-                <PaginationContent>
-                  <PaginationItem>
-                    <PaginationPrevious 
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      aria-disabled={currentPage === 1}
-                      className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                  
-                  {[...Array(totalPages)].map((_, i) => (
-                    <PaginationItem key={i}>
-                      <PaginationLink 
-                        onClick={() => setCurrentPage(i + 1)}
-                        isActive={currentPage === i + 1}
-                      >
-                        {i + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  ))}
-                  
-                  <PaginationItem>
-                    <PaginationNext 
-                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                      aria-disabled={currentPage === totalPages}
-                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
-                    />
-                  </PaginationItem>
-                </PaginationContent>
-              </Pagination>
+          ) : filteredOrders.length > 0 ? (
+            <div className="space-y-4">
+              {filteredOrders.map((order) => (
+                <div key={order.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-md hover:bg-muted/30 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="bg-muted w-10 h-10 rounded-full flex items-center justify-center">
+                      <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium">Order #{order.orderNumber}</h4>
+                      <p className="text-xs text-muted-foreground">
+                        {formatDate(order.createdAt)} • {order.customer?.email || 'Guest customer'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4 mt-2 sm:mt-0">
+                    <Badge variant={getStatusBadgeVariant(order.status)}>
+                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                    </Badge>
+                    <span className="text-sm font-medium">{formatCurrency(order.total)}</span>
+                    <Button variant="ghost" size="sm">View</Button>
+                  </div>
+                </div>
+              ))}
+              <div className="py-4 text-center text-sm text-muted-foreground">
+                Showing {filteredOrders.length} of {orders.length} orders
+              </div>
+            </div>
+          ) : (
+            <div className="py-12 text-center">
+              <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground/30" />
+              <h3 className="mt-4 text-lg font-semibold">No orders found</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {searchQuery || statusFilter !== 'all' 
+                  ? 'Try adjusting your search or filter to find what you\'re looking for.'
+                  : 'When customers place orders, they will appear here.'}
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
-    </div>
+    </DashboardLayout>
   );
 };
 

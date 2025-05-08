@@ -196,7 +196,7 @@ const ProductCategoriesPage = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Link to="/products">
+          <Link href="/products">
             <Button variant="outline" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Back to Products

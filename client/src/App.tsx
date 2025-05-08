@@ -1,4 +1,4 @@
-import { Switch, Route, Link, Router as WouterRouter } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -22,11 +22,8 @@ import ProductsPage from "./pages/products/ProductsPage";
 import ProductDetails from "./pages/products/ProductDetails";
 import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
-import OrderDetailPage from "./pages/orders/OrderDetailPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
-import CheckoutPage from "./pages/checkout/CheckoutPage";
-import AdminDashboard from "./pages/admin/AdminDashboard";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
@@ -72,7 +69,7 @@ function Router() {
 
                 <div className="flex items-center space-x-4">
                   {/* Account */}
-                  <Link to="/login" className="flex items-center text-gray-700 hover:text-indigo-600">
+                  <Link href="/login" className="flex items-center text-gray-700 hover:text-indigo-600">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
@@ -453,17 +450,6 @@ function Router() {
         <PrivateRoute roles={["super_admin"]}>
           <SuperAdminDashboard />
         </PrivateRoute>
-
-        <Route path="/admin/dashboard">
-          <PrivateRoute roles={["super_admin"]}>
-            <AdminDashboard />
-          </PrivateRoute>
-        </Route>
-      </Route>
-      <Route path="/admin/vendors">
-        <PrivateRoute roles={["super_admin"]}>
-          <VendorsPage />
-        </PrivateRoute>
       </Route>
       <Route path="/vendors">
         <PrivateRoute roles={["super_admin"]}>
@@ -534,34 +520,10 @@ function Router() {
           <OrdersPage />
         </PrivateRoute>
       </Route>
-      
-      <Route path="/orders/:id">
-        <PrivateRoute roles={["vendor"]}>
-          <OrderDetailPage />
-        </PrivateRoute>
-      </Route>
       <Route path="/store-design">
         <PrivateRoute roles={["vendor"]}>
           <StoreDesignPage />
         </PrivateRoute>
-      </Route>
-
-      {/* Checkout Routes */}
-      <Route path="/checkout">
-        <CheckoutPage />
-      </Route>
-      
-      {/* Cart Route - will be added when implementing the cart */}
-      <Route path="/cart">
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center p-8 max-w-md mx-auto">
-            <h1 className="text-2xl font-bold mb-4">Your Cart</h1>
-            <p className="mb-6">This is a placeholder for the cart page.</p>
-            <Link to="/checkout" className="bg-primary text-white px-4 py-2 rounded-md">
-              Proceed to Checkout
-            </Link>
-          </div>
-        </div>
       </Route>
       <Route path="/vendor-analytics">
         <PrivateRoute roles={["vendor"]}>
@@ -590,9 +552,7 @@ function App() {
             <Toaster />
             {/* Force light theme as per user requirement */}
             <div className="light">
-              <WouterRouter>
-                <Router />
-              </WouterRouter>
+              <Router />
             </div>
           </TooltipProvider>
         </ThemeProvider>

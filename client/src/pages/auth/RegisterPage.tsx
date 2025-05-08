@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Link, useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   Form,
@@ -461,7 +461,7 @@ const RegisterPage = () => {
               <CardFooter className="flex flex-col space-y-2">
                 <div className="text-sm text-center text-gray-500 dark:text-gray-400">
                   Already have an account?{" "}
-                  <Link to="/login" className="text-primary hover:text-primary/80 font-medium">
+                  <Link href="/login" className="text-primary hover:text-primary/80 font-medium">
                     Sign in
                   </Link>
                 </div>

@@ -28,7 +28,7 @@ const shippingFormSchema = z.object({
   country: z.string().min(1, "Country is required"),
 });
 
-export type ShippingFormValues = z.infer<typeof shippingFormSchema>;
+type ShippingFormValues = z.infer<typeof shippingFormSchema>;
 
 interface OrderSummaryProps {
   subtotal: string;
@@ -236,7 +236,7 @@ const ShippingForm = ({
 
         <div className="flex justify-between">
           <Button type="button" variant="outline" asChild>
-            <Link to="/cart">
+            <Link href="/cart">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Cart
             </Link>

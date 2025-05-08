@@ -199,17 +199,6 @@ export const orders = pgTable("orders", {
   billingAddress: text("billing_address"),
   paymentStatus: text("payment_status").default("pending"), // "pending", "paid", "failed", "refunded"
   paymentMethod: text("payment_method"),
-  paymentDate: timestamp("payment_date"),
-  processingDate: timestamp("processing_date"),
-  shippedDate: timestamp("shipped_date"),
-  deliveredDate: timestamp("delivered_date"),
-  canceledDate: timestamp("canceled_date"),
-  cancellationReason: text("cancellation_reason"),
-  customerName: text("customer_name"),
-  customerEmail: text("customer_email"),
-  customerPhone: text("customer_phone"),
-  trackingNumber: text("tracking_number"),
-  trackingUrl: text("tracking_url"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -257,10 +246,7 @@ export const insertAnalyticsSchema = createInsertSchema(analytics).omit({
 });
 
 // Export types
-export type User = typeof users.$inferSelect & {
-  impersonatedBy?: number; // ID of the admin who is impersonating this user
-  isImpersonating?: boolean; // Flag indicating this user is being impersonated
-};
+export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type OtpCode = typeof otpCodes.$inferSelect;
@@ -471,25 +457,6 @@ export type InsertAnalytics = z.infer<typeof insertAnalyticsSchema>;
 
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
 export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
-
-// Commission settings for the platform
-export const commissionSettings = pgTable("commission_settings", {
-  id: serial("id").primaryKey(),
-  baseFeePercentage: numeric("base_fee_percentage").notNull().default("5"),
-  transactionFeeFlat: numeric("transaction_fee_flat").notNull().default("0.30"),
-  thresholds: jsonb("thresholds").notNull().default('[]'), // Array of {threshold: "1000", percentage: "4.5"}
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-export const insertCommissionSettingsSchema = createInsertSchema(commissionSettings).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true
-});
-
-export type CommissionSettings = typeof commissionSettings.$inferSelect;
-export type InsertCommissionSettings = z.infer<typeof insertCommissionSettingsSchema>;
 
 export type PlatformSubscription = typeof platformSubscriptions.$inferSelect;
 export type InsertPlatformSubscription = z.infer<typeof insertPlatformSubscriptionSchema>;

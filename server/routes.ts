@@ -13,7 +13,6 @@ import {
   insertOrderItemSchema 
 } from "@shared/schema";
 import { registerPaymentRoutes } from "./paymentRoutes";
-import { registerEarningsRoutes } from "./earningsRoutes";
 import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./paypal";
 import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
@@ -225,22 +224,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all users with vendor role for impersonation
-  app.get("/api/vendors", hasRole(["super_admin"]), async (_req, res) => {
-    try {
-      // Get all users with role 'vendor'
-      const users = await storage.getAllUsers();
-      const vendorUsers = users.filter(user => user.role === 'vendor');
-      
-      return res.status(200).json(vendorUsers);
-    } catch (err) {
-      console.error("Error fetching vendors:", err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // Vendor detailed endpoints
-  app.get("/api/vendor-details", async (_req, res) => {
+  // Vendor endpoints
+  app.get("/api/vendors", async (_req, res) => {
     try {
       const vendors = await storage.getVendors();
       
@@ -1076,47 +1061,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get all vendors (for admin)
-  app.get("/api/vendors", isAuthenticated, async (req, res) => {
-    try {
-      // Check if the user is a super admin
-      if (req.user.role !== 'super_admin') {
-        return res.status(403).json({ message: "Access denied" });
-      }
-      
-      const vendors = await storage.getVendors();
-      
-      // Enrich vendors with user data
-      const enrichedVendors = await Promise.all(vendors.map(async (vendor) => {
-        const user = await storage.getUser(vendor.userId);
-        return {
-          ...vendor,
-          email: user?.email,
-          firstName: user?.firstName,
-          lastName: user?.lastName,
-          avatarUrl: user?.avatarUrl,
-          storeName: vendor.companyName
-        };
-      }));
-      
-      return res.status(200).json(enrichedVendors);
-    } catch (err) {
-      console.error("Error fetching vendors:", err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-  
   // Platform statistics endpoint (for super admin)
   app.get("/api/platform-stats", async (_req, res) => {
     try {
-      // Simple mock data for platform stats until we implement proper fetching
-      const stats = {
-        totalVendors: 0,
-        activeDomains: 0,
-        totalRevenue: 0,
-        pendingIssues: 0
-      };
-      
+      const stats = await storage.getPlatformStats();
       return res.status(200).json(stats);
     } catch (err) {
       console.error(err);
@@ -1126,9 +1074,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register payment-related routes
   registerPaymentRoutes(app);
-  
-  // Register earnings and dashboard routes
-  registerEarningsRoutes(app);
   
   // Register PayPal routes
   app.get("/paypal/setup", async (req, res) => {
@@ -1142,85 +1087,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/paypal/order/:orderID/capture", async (req, res) => {
     await capturePaypalOrder(req, res);
-  });
-
-  // Vendor impersonation endpoint (for super admin only)
-  app.post("/api/impersonate/:vendorId", hasRole(["super_admin"]), async (req, res) => {
-    try {
-      const vendorId = parseInt(req.params.vendorId);
-      
-      // Get the vendor details including the user ID
-      const vendor = await storage.getVendor(vendorId);
-      if (!vendor) {
-        return res.status(404).json({ message: "Vendor not found" });
-      }
-      
-      // Get the vendor user account
-      const vendorUser = await storage.getUser(vendor.userId);
-      if (!vendorUser) {
-        return res.status(404).json({ message: "Vendor user account not found" });
-      }
-      
-      // Store the original admin user ID so we can switch back later if needed
-      const originalAdminId = req.user.id;
-      
-      // Create a modified user object with impersonation flag
-      const impersonatedUser = {
-        ...vendorUser,
-        impersonatedBy: originalAdminId,
-        isImpersonating: true
-      };
-      
-      // Log the user in as the vendor
-      req.login(impersonatedUser, (err) => {
-        if (err) {
-          console.error("Impersonation login failed:", err);
-          return res.status(500).json({ message: "Failed to impersonate vendor" });
-        }
-        
-        return res.status(200).json({ 
-          message: "Successfully impersonating vendor",
-          user: impersonatedUser
-        });
-      });
-    } catch (err) {
-      console.error("Impersonation error:", err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  });
-
-  // End impersonation and return to original admin user
-  app.post("/api/end-impersonation", isAuthenticated, async (req, res) => {
-    try {
-      // Check if this is an impersonated session
-      if (!req.user.impersonatedBy) {
-        return res.status(400).json({ message: "Not currently impersonating any user" });
-      }
-      
-      // Get the original admin user
-      const adminUserId = req.user.impersonatedBy;
-      const adminUser = await storage.getUser(adminUserId);
-      
-      if (!adminUser) {
-        return res.status(404).json({ message: "Original admin user not found" });
-      }
-      
-      // Log the user back in as the admin
-      req.login(adminUser, (err) => {
-        if (err) {
-          console.error("End impersonation login failed:", err);
-          return res.status(500).json({ message: "Failed to end impersonation" });
-        }
-        
-        return res.status(200).json({ 
-          message: "Successfully ended impersonation",
-          user: adminUser
-        });
-      });
-    } catch (err) {
-      console.error("End impersonation error:", err);
-      return res.status(500).json({ message: "Internal server error" });
-    }
   });
 
   const httpServer = createServer(app);
