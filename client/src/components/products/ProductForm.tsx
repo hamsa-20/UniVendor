@@ -389,9 +389,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
 
                 {/* Pricing & Inventory Tab */}
                 <TabsContent value="pricing" className="space-y-6">
-                  {/* Hide price fields if product has variants since pricing is per-variant */}
-                  {!form.watch('hasVariants') && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
                         name="purchasePrice"
@@ -501,99 +499,58 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         )}
                       />
                     </div>
-                  )}
 
                   <Separator />
-                  
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="sku"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SKU (Stock Keeping Unit)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter SKU" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="barcode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Barcode (ISBN, UPC, GTIN, etc.)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter barcode" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
                   <FormField
                     control={form.control}
-                    name="hasVariants"
+                    name="inventoryQuantity"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                        <div className="space-y-0.5">
-                          <FormLabel>Product Variants</FormLabel>
-                          <FormDescription>
-                            Enable if this product comes in multiple variants like different sizes or colors
-                          </FormDescription>
-                        </div>
+                      <FormItem>
+                        <FormLabel>Inventory Quantity</FormLabel>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            step="1" 
+                            placeholder="0"
+                            {...field} 
                           />
                         </FormControl>
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  {form.watch('hasVariants') && (
-                    <div className="mt-4 border rounded-md p-4 bg-background/50">
-                      <h3 className="text-lg font-medium mb-4">Manage Product Variants</h3>
-                      <ProductVariantsManager 
-                        productId={productId}
-                        // We would fetch these from API in a real implementation
-                        initialOptions={[]}
-                        initialVariants={[]}
-                      />
-                    </div>
-                  )}
-                  
-                  <Separator />
-
-                  {/* Hide basic inventory fields if product has variants */}
-                  {!form.watch('hasVariants') && (
-                    <>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                          control={form.control}
-                          name="sku"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>SKU (Stock Keeping Unit)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter SKU" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="barcode"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Barcode (ISBN, UPC, GTIN, etc.)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Enter barcode" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <FormField
-                        control={form.control}
-                        name="inventoryQuantity"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Inventory Quantity</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                min="0" 
-                                step="1" 
-                                placeholder="0"
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
 
                   <div className="flex justify-between space-x-2">
                     <Button type="button" variant="outline" onClick={() => setActiveTab('basic')}>
