@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -293,18 +293,24 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                           <SelectContent>
                             <SelectItem value="0">None</SelectItem>
                             
-                            {/* Main categories (level 1) */}
-                            {categories?.filter(cat => !cat.parentId)?.map((category) => (
-                              <SelectItem key={category.id} value={category.id.toString()}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                            
-                            {/* Display subcategories with indentation for level 2 */}
-                            {categories?.filter(cat => cat.parentId)?.map((category) => (
-                              <SelectItem key={category.id} value={category.id.toString()}>
-                                {'\u00A0\u00A0\u00A0\u00A0'}{category.name}
-                              </SelectItem>
+                            {/* Create an organized category hierarchy */}
+                            {categories?.filter(cat => !cat.parentId || cat.level === 1)?.map((category) => (
+                              <React.Fragment key={category.id}>
+                                {/* Main category */}
+                                <SelectItem value={category.id.toString()}>
+                                  {category.name}
+                                </SelectItem>
+                                
+                                {/* Subcategories under this parent */}
+                                {categories
+                                  ?.filter(subcat => subcat.parentId === category.id)
+                                  ?.map((subcategory) => (
+                                    <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
+                                      {'\u00A0\u00A0\u00A0\u00A0'}{subcategory.name}
+                                    </SelectItem>
+                                  ))
+                                }
+                              </React.Fragment>
                             ))}
                           </SelectContent>
                         </Select>
