@@ -633,19 +633,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/vendors/:vendorId/products", async (req, res) => {
     try {
       const vendorId = parseInt(req.params.vendorId);
-      const vendor = await storage.getVendor(vendorId);
       
-      if (!vendor) {
-        return res.status(404).json({ message: "Vendor not found" });
-      }
-      
+      // Get products directly without requiring vendor validation
+      // This ensures products are available even during impersonation
       const products = await storage.getProducts(vendorId);
       
       // Optionally filter by category
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : null;
-      const filteredProducts = categoryId 
+      const filteredProducts = categoryId && products 
         ? products.filter(p => p.categoryId === categoryId)
-        : products;
+        : products || [];
       
       return res.status(200).json(filteredProducts);
     } catch (err) {
@@ -780,16 +777,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/vendors/:vendorId/product-categories", async (req, res) => {
     try {
       const vendorId = parseInt(req.params.vendorId);
-      const vendor = await storage.getVendor(vendorId);
       
-      if (!vendor) {
-        return res.status(404).json({ message: "Vendor not found" });
-      }
-      
+      // Get categories directly without requiring vendor validation
+      // This ensures categories are available even during impersonation or when
+      // the vendor record has issues
       const categories = await storage.getProductCategories(vendorId);
-      return res.status(200).json(categories);
+      
+      // Return categories even if empty
+      return res.status(200).json(categories || []);
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching product categories:", err);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
