@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { useLocation } from 'wouter';
+import { useLocation, useRouter } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
