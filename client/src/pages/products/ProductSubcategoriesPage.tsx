@@ -320,7 +320,7 @@ const ProductSubcategoriesPage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mainCategories.map((category: any) => (
+                        {mainCategories.map((category: Category) => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
                           </SelectItem>
@@ -404,7 +404,7 @@ const ProductSubcategoriesPage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {mainCategories.map((category: any) => (
+                        {mainCategories.map((category: Category) => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
                           </SelectItem>
