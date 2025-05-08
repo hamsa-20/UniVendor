@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { VendorStoreProvider, useVendorStore } from "@/contexts/VendorStoreContext";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import SuperAdminDashboard from "@/pages/dashboard/SuperAdminDashboard";
@@ -23,10 +24,28 @@ import ProductDetails from "./pages/products/ProductDetails";
 import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
+import StorefrontPage from "./pages/store/StorefrontPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
+  const { isVendorStore } = useVendorStore();
+
+  // If this is a vendor's custom domain, show the StorefrontPage
+  if (isVendorStore) {
+    return (
+      <Switch>
+        <Route path="/">
+          <StorefrontPage />
+        </Route>
+        <Route>
+          <StorefrontPage />
+        </Route>
+      </Switch>
+    );
+  }
+
+  // Otherwise show the platform's routes
   return (
     <Switch>
       {/* Welcome Route */}
@@ -547,15 +566,17 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider>
-          <TooltipProvider>
-            <Toaster />
-            {/* Force light theme as per user requirement */}
-            <div className="light">
-              <Router />
-            </div>
-          </TooltipProvider>
-        </ThemeProvider>
+        <VendorStoreProvider>
+          <ThemeProvider>
+            <TooltipProvider>
+              <Toaster />
+              {/* Force light theme as per user requirement */}
+              <div className="light">
+                <Router />
+              </div>
+            </TooltipProvider>
+          </ThemeProvider>
+        </VendorStoreProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
