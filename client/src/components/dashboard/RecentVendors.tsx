@@ -59,7 +59,7 @@ const RecentVendors = () => {
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Recent Vendors</CardTitle>
         <Button variant="outline" size="sm" asChild>
-          <Link href="/vendors">View all</Link>
+          <Link to="/vendors">View all</Link>
         </Button>
       </CardHeader>
       <CardContent>
@@ -101,7 +101,7 @@ const RecentVendors = () => {
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Button variant="ghost" size="icon" asChild>
-                      <Link href={`/vendors/${vendor.id}`}><Eye className="h-4 w-4" /></Link>
+                      <Link to={`/vendors/${vendor.id}`}><Eye className="h-4 w-4" /></Link>
                     </Button>
                     <Button variant="ghost" size="icon">
                       <Edit className="h-4 w-4" />

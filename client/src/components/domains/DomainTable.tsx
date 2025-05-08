@@ -303,7 +303,7 @@ const DomainTable = ({ vendorId, onAddDomain, onEditDomain, onDeleteDomain }: Do
                         </td>
                         <td className="p-4 align-middle text-right">
                           <div className="flex justify-end space-x-2">
-                            <Link href={`/domains/${domain.id}`}>
+                            <Link to={`/domains/${domain.id}`}>
                               <Button 
                                 variant="ghost" 
                                 size="icon"

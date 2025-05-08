@@ -211,7 +211,7 @@ const ProductCard = ({ product, onEdit, onDelete, isVendorView = true }: Product
               size="sm"
               asChild
             >
-              <Link href={`/products/${product.id}`}>View Details</Link>
+              <Link to={`/products/${product.id}`}>View Details</Link>
             </Button>
             <Button
               variant="default"
