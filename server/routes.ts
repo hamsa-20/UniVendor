@@ -1107,6 +1107,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     await capturePaypalOrder(req, res);
   });
 
+  // Vendor impersonation endpoint (for super admin only)
+  app.post("/api/impersonate/:vendorId", hasRole(["super_admin"]), async (req, res) => {
+    try {
+      const vendorId = parseInt(req.params.vendorId);
+      
+      // Get the vendor details including the user ID
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
+      // Get the vendor user account
+      const vendorUser = await storage.getUser(vendor.userId);
+      if (!vendorUser) {
+        return res.status(404).json({ message: "Vendor user account not found" });
+      }
+      
+      // Store the original admin user ID so we can switch back later if needed
+      const originalAdminId = req.user.id;
+      
+      // Create a modified user object with impersonation flag
+      const impersonatedUser = {
+        ...vendorUser,
+        impersonatedBy: originalAdminId,
+        isImpersonating: true
+      };
+      
+      // Log the user in as the vendor
+      req.login(impersonatedUser, (err) => {
+        if (err) {
+          console.error("Impersonation login failed:", err);
+          return res.status(500).json({ message: "Failed to impersonate vendor" });
+        }
+        
+        return res.status(200).json({ 
+          message: "Successfully impersonating vendor",
+          user: impersonatedUser
+        });
+      });
+    } catch (err) {
+      console.error("Impersonation error:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // End impersonation and return to original admin user
+  app.post("/api/end-impersonation", isAuthenticated, async (req, res) => {
+    try {
+      // Check if this is an impersonated session
+      if (!req.user.impersonatedBy) {
+        return res.status(400).json({ message: "Not currently impersonating any user" });
+      }
+      
+      // Get the original admin user
+      const adminUserId = req.user.impersonatedBy;
+      const adminUser = await storage.getUser(adminUserId);
+      
+      if (!adminUser) {
+        return res.status(404).json({ message: "Original admin user not found" });
+      }
+      
+      // Log the user back in as the admin
+      req.login(adminUser, (err) => {
+        if (err) {
+          console.error("End impersonation login failed:", err);
+          return res.status(500).json({ message: "Failed to end impersonation" });
+        }
+        
+        return res.status(200).json({ 
+          message: "Successfully ended impersonation",
+          user: adminUser
+        });
+      });
+    } catch (err) {
+      console.error("End impersonation error:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

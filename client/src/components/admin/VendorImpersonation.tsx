@@ -1,173 +1,125 @@
 import React, { useState } from 'react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Loader2, Search, UserCheck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { AlertCircle, AlertTriangle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Loader2, LogIn, Search } from 'lucide-react';
 
 export function VendorImpersonation() {
-  const { user, isImpersonating, impersonateUserMutation, stopImpersonatingMutation } = useAuth();
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // Only super_admins can impersonate
-  if (user?.role !== 'super_admin') {
-    return null;
-  }
-  
-  // Fetch all vendors (users with role 'vendor')
-  const { data: vendors, isLoading } = useQuery<any[]>({
+  const { user, impersonateUserMutation } = useAuth();
+  const [_, setLocation] = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Fetch all vendors
+  const { data: vendors = [], isLoading } = useQuery({
     queryKey: ['/api/vendors'],
     queryFn: async () => {
-      const res = await fetch('/api/vendors');
-      if (!res.ok) {
-        throw new Error('Failed to fetch vendors');
+      try {
+        const res = await fetch('/api/vendors');
+        if (!res.ok) throw new Error('Failed to fetch vendors');
+        return await res.json();
+      } catch (error) {
+        console.error('Error fetching vendors:', error);
+        throw error;
       }
-      return res.json();
     },
-    // Don't refetch too often
-    staleTime: 1000 * 60 * 5,
+    enabled: !!user && user.role === 'super_admin'
   });
-  
-  // Filter vendors by search term
-  const filteredVendors = vendors ? vendors.filter(vendor => 
-    vendor.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (vendor.firstName && vendor.firstName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (vendor.lastName && vendor.lastName.toLowerCase().includes(searchTerm.toLowerCase())) 
-  ) : [];
-  
-  // Handle impersonation action
-  const handleImpersonate = (vendorId: number) => {
-    impersonateUserMutation.mutate({ userId: vendorId });
-  };
-  
-  // Handle stop impersonation action
-  const handleStopImpersonation = () => {
-    stopImpersonatingMutation.mutate();
-  };
-  
-  if (isImpersonating) {
+
+  // Filter vendors based on search query
+  const filteredVendors = vendors.filter((vendor: any) => {
+    const searchLower = searchQuery.toLowerCase();
     return (
-      <Alert className="mb-4 bg-amber-50 border-amber-200">
-        <AlertTriangle className="h-4 w-4 text-amber-600" />
-        <AlertTitle className="text-amber-800">Impersonation Mode Active</AlertTitle>
-        <AlertDescription className="text-amber-700">
-          You are currently impersonating a vendor account. 
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="ml-2 bg-white border-amber-300" 
-            onClick={handleStopImpersonation}
-            disabled={stopImpersonatingMutation.isPending}
-          >
-            {stopImpersonatingMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Return to Admin Account
-          </Button>
-        </AlertDescription>
-      </Alert>
+      vendor.email?.toLowerCase().includes(searchLower) ||
+      vendor.firstName?.toLowerCase().includes(searchLower) ||
+      vendor.lastName?.toLowerCase().includes(searchLower) ||
+      vendor.storeName?.toLowerCase().includes(searchLower)
     );
+  });
+
+  const handleImpersonate = (userId: number) => {
+    impersonateUserMutation.mutate({ userId }, {
+      onSuccess: () => {
+        setLocation('/dashboard');
+      }
+    });
+  };
+
+  if (!user || user.role !== 'super_admin') {
+    return null;
   }
-  
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Vendor Impersonation</CardTitle>
-        <CardDescription>
-          Impersonate a vendor account to troubleshoot issues or assist them with their store.
-        </CardDescription>
+        <CardDescription>Log in as a vendor to troubleshoot or assist with their store</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="flex mb-4">
+        <div className="flex items-center space-x-2 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
             <Input
-              type="text"
-              placeholder="Search vendors..."
-              className="pl-8"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search vendors by name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
             />
           </div>
         </div>
-        
+
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary/80" />
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : vendors && vendors.length > 0 ? (
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredVendors.map((vendor) => (
-                  <TableRow key={vendor.id}>
-                    <TableCell className="font-medium">
-                      {vendor.firstName && vendor.lastName 
-                        ? `${vendor.firstName} ${vendor.lastName}`
-                        : 'Unnamed Vendor'}
-                    </TableCell>
-                    <TableCell>{vendor.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={vendor.isProfileComplete ? "success" : "secondary"}>
-                        {vendor.isProfileComplete ? 'Active' : 'Incomplete'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleImpersonate(vendor.id)}
-                        disabled={impersonateUserMutation.isPending}
-                      >
-                        {impersonateUserMutation.isPending && impersonateUserMutation.variables?.userId === vendor.id && (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        )}
-                        <UserCheck className="h-4 w-4 mr-2" />
-                        Impersonate
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        ) : filteredVendors.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No vendors found with that search criteria
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-2">No vendors found</p>
+          <div className="space-y-4">
+            {filteredVendors.map((vendor: any) => (
+              <div
+                key={vendor.id}
+                className="flex items-center justify-between p-4 rounded-md border bg-card text-card-foreground shadow-sm"
+              >
+                <div className="flex items-center space-x-4">
+                  <Avatar className="h-10 w-10 border">
+                    <AvatarImage src={vendor.avatarUrl || ''} alt={vendor.firstName} />
+                    <AvatarFallback>
+                      {vendor.firstName?.charAt(0) || ''}
+                      {vendor.lastName?.charAt(0) || ''}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">
+                      {vendor.firstName} {vendor.lastName}
+                      {vendor.storeName && <span className="text-primary"> • {vendor.storeName}</span>}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{vendor.email}</p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleImpersonate(vendor.id)}
+                  disabled={impersonateUserMutation.isPending}
+                >
+                  {impersonateUserMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogIn className="mr-2 h-4 w-4" />
+                  )}
+                  Impersonate
+                </Button>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
-      <CardFooter className="bg-gray-50 border-t px-6 py-3">
-        <p className="text-xs text-gray-500">
-          Warning: Impersonation gives you full access to the vendor's account. All actions will appear as if performed by the vendor.
-        </p>
-      </CardFooter>
     </Card>
   );
 }

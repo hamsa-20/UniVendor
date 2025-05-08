@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
+import { ImpersonationBanner } from "../admin/ImpersonationBanner";
 
 type DashboardLayoutProps = {
   children: React.ReactNode;
@@ -33,6 +34,9 @@ const DashboardLayout = ({ children, title, subtitle }: DashboardLayoutProps) =>
       
       {/* Main content area */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}`}>
+        {/* Impersonation Banner */}
+        <ImpersonationBanner />
+        
         <Header 
           onToggleSidebar={toggleSidebar} 
           title={title}
