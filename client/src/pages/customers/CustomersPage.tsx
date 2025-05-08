@@ -1,6 +1,6 @@
 import React from "react";
 import { Helmet } from "react-helmet";
-import MainLayout from "@/components/layout/MainLayout";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useVendorStore } from "@/contexts/VendorStoreContext";
 import { useAuth } from "@/hooks/use-auth";
@@ -76,7 +76,7 @@ const CustomersPage: React.FC = () => {
   };
 
   return (
-    <MainLayout>
+    <DashboardLayout title="Customers" subtitle="Manage your customer information">
       <Helmet>
         <title>Customers | {activeVendor?.companyName || "MultiVend"}</title>
       </Helmet>
@@ -182,7 +182,7 @@ const CustomersPage: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
-    </MainLayout>
+    </DashboardLayout>
   );
 };
 

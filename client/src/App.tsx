@@ -575,6 +575,11 @@ function Router() {
           <OrdersPage />
         </PrivateRoute>
       </Route>
+      <Route path="/customers">
+        <PrivateRoute roles={["vendor"]}>
+          <CustomersPage />
+        </PrivateRoute>
+      </Route>
       <Route path="/store-design">
         <PrivateRoute roles={["vendor"]}>
           <StoreDesignPage />
