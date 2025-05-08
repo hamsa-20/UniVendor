@@ -292,8 +292,28 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
     const currentValues = form.getValues();
     // Ensure status is set to draft
     currentValues.status = 'draft';
-    // Save the product
-    mutation.mutate(currentValues);
+    
+    // Create a custom mutation function for draft saving
+    // to handle the toast message specifically
+    const saveDraftMutation = async () => {
+      try {
+        const result = await mutation.mutateAsync(currentValues);
+        
+        // Show a specific toast for draft saving
+        toast({
+          title: "Product saved as draft",
+          description: "The product has been saved as draft successfully.",
+        });
+        
+        return result;
+      } catch (error) {
+        // Re-throw the error to let the mutation's onError handle it
+        throw error;
+      }
+    };
+    
+    // Execute the custom draft save mutation
+    saveDraftMutation();
   };
 
   if (isLoadingProduct && productId) {

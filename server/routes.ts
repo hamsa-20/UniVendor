@@ -1387,10 +1387,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Vendor not found" });
       }
       
+      // Check if this is a storefront request (not from admin panel)
+      const isStorefront = req.query.storefront === 'true';
+      
       // Get the vendor's products
       const products = await storage.getProducts(vendorId);
       
-      return res.status(200).json(products);
+      // For storefront requests, only return active products
+      const filteredProducts = isStorefront 
+        ? products.filter(product => product.status === 'active')
+        : products;
+      
+      return res.status(200).json(filteredProducts);
     } catch (err) {
       console.error('Error fetching vendor products:', err);
       return res.status(500).json({ message: "Internal server error" });
