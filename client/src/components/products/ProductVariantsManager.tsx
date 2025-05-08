@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -89,6 +89,41 @@ interface ProductOption {
   values: { id?: number; value: string }[];
 }
 
+// For color-based variant creation
+interface SizeVariant {
+  id?: number;
+  sizeOptionId: string; // Option ID for the size option
+  sizeValueId: string;  // Value ID for a specific size 
+  purchasePrice: string;
+  sellingPrice: string;
+  mrp: string;
+  gst: string;
+  sku?: string;
+  inventoryQuantity: string;
+  imageUrl?: string;
+}
+
+interface ColorVariant {
+  id?: number;
+  colorOptionId: string;  // Option ID for the color option
+  colorValueId: string;   // Value ID for a specific color
+  colorName?: string;     // Display name for the color
+  sizes: SizeVariant[];   // Sizes for this color
+}
+
+// Validation schema for size variant
+const sizeVariantSchema = z.object({
+  sizeOptionId: z.string().min(1, 'Size option is required'),
+  sizeValueId: z.string().min(1, 'Size value is required'),
+  purchasePrice: z.string().min(1, 'Purchase Price is required'),
+  sellingPrice: z.string().min(1, 'Selling Price is required'),
+  mrp: z.string().min(1, 'MRP is required'),
+  gst: z.string().min(1, 'GST percentage is required'),
+  sku: z.string().optional(),
+  inventoryQuantity: z.string().transform(val => val === '' ? '0' : val),
+  imageUrl: z.string().optional(),
+});
+
 interface ProductVariant {
   id?: number;
   optionValues: { optionId: string; optionValueId: string }[];
@@ -121,6 +156,25 @@ const ProductVariantsManager = ({
   const [isEditOptionDialogOpen, setIsEditOptionDialogOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState<ProductOption | null>(null);
   
+  // New states for hierarchical variant creation
+  const [isAddHierarchicalVariantOpen, setIsAddHierarchicalVariantOpen] = useState(false);
+  const [colorVariants, setColorVariants] = useState<ColorVariant[]>([]);
+  const [selectedColorOption, setSelectedColorOption] = useState<string>('');
+  const [selectedColorValue, setSelectedColorValue] = useState<string>('');
+  const [selectedSizeOption, setSelectedSizeOption] = useState<string>('');
+  const [currentColorVariant, setCurrentColorVariant] = useState<ColorVariant | null>(null);
+  
+  // Get color and size options
+  const colorOption = useMemo(() => 
+    options.find(o => o.name.toLowerCase().includes('color')), 
+    [options]
+  );
+  
+  const sizeOption = useMemo(() => 
+    options.find(o => o.name.toLowerCase().includes('size')), 
+    [options]
+  );
+  
   // Option form
   const optionForm = useForm<ProductOption>({
     resolver: zodResolver(optionSchema),
@@ -152,6 +206,22 @@ const ProductVariantsManager = ({
     },
   });
   
+  // Size variant form
+  const sizeVariantForm = useForm<SizeVariant>({
+    resolver: zodResolver(sizeVariantSchema),
+    defaultValues: {
+      sizeOptionId: '',
+      sizeValueId: '',
+      purchasePrice: '',
+      sellingPrice: '',
+      mrp: '',
+      gst: '',
+      sku: '',
+      inventoryQuantity: '0',
+      imageUrl: '',
+    },
+  });
+  
   // Update parent component when options or variants change
   useEffect(() => {
     if (onOptionsChange) {
@@ -164,6 +234,54 @@ const ProductVariantsManager = ({
       onVariantsChange(variants);
     }
   }, [variants, onVariantsChange]);
+  
+  // Convert color variants to regular variants for saving
+  useEffect(() => {
+    if (colorVariants.length > 0) {
+      // Convert hierarchical variants to flat variants
+      const newVariants: ProductVariant[] = [];
+      let isFirstVariant = variants.length === 0;
+      
+      colorVariants.forEach(colorVariant => {
+        const colorOption = options.find(o => o.id?.toString() === colorVariant.colorOptionId);
+        const colorValue = colorOption?.values.find(v => v.id?.toString() === colorVariant.colorValueId);
+        
+        colorVariant.sizes.forEach(sizeVariant => {
+          const sizeOption = options.find(o => o.id?.toString() === sizeVariant.sizeOptionId);
+          const sizeValue = sizeOption?.values.find(v => v.id?.toString() === sizeVariant.sizeValueId);
+          
+          if (colorOption && colorValue && sizeOption && sizeValue) {
+            const optionValues = [
+              { optionId: colorVariant.colorOptionId, optionValueId: colorVariant.colorValueId },
+              { optionId: sizeVariant.sizeOptionId, optionValueId: sizeVariant.sizeValueId }
+            ];
+            
+            // Create a regular variant from the color-size combination
+            const newVariant: ProductVariant = {
+              id: Date.now() + newVariants.length,
+              optionValues,
+              purchasePrice: sizeVariant.purchasePrice,
+              sellingPrice: sizeVariant.sellingPrice,
+              mrp: sizeVariant.mrp,
+              gst: sizeVariant.gst,
+              sku: sizeVariant.sku || '',
+              inventoryQuantity: sizeVariant.inventoryQuantity,
+              isDefault: isFirstVariant, // First variant is default
+              imageUrl: sizeVariant.imageUrl || '',
+            };
+            
+            newVariants.push(newVariant);
+            isFirstVariant = false;
+          }
+        });
+      });
+      
+      if (newVariants.length > 0) {
+        setVariants(prevVariants => [...prevVariants, ...newVariants]);
+        setColorVariants([]);
+      }
+    }
+  }, [colorVariants, options, variants.length]);
   
   // Initialize variant form with option values - enforcing Color→Size hierarchy
   useEffect(() => {
