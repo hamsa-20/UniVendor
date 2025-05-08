@@ -294,7 +294,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                             <SelectItem value="0">None</SelectItem>
                             
                             {/* Create an organized category hierarchy */}
-                            {categories?.filter(cat => !cat.parentId || cat.level === 1)?.map((category) => (
+                            {categories?.filter(cat => !cat.parentId)?.map((category) => (
                               <React.Fragment key={category.id}>
                                 {/* Main category */}
                                 <SelectItem value={category.id.toString()}>
@@ -306,7 +306,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                                   ?.filter(subcat => subcat.parentId === category.id)
                                   ?.map((subcategory) => (
                                     <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                                      {'\u00A0\u00A0\u00A0\u00A0'}{subcategory.name}
+                                      <div className="flex items-center">
+                                        <div className="w-4 border-l-2 border-b-2 h-4 border-muted-foreground/30 mr-2"></div>
+                                        {subcategory.name}
+                                      </div>
                                     </SelectItem>
                                   ))
                                 }

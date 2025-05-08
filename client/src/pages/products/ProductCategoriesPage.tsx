@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useLocation, Link } from 'wouter';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,8 +60,8 @@ const ProductCategoriesPage = () => {
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
 
   // Fetch categories
-  const { data: categories, isLoading } = useQuery<Category[]>({
-    queryKey: vendorId ? [`/api/vendors/${vendorId}/product-categories`] : null,
+  const { data: categories = [], isLoading } = useQuery<Category[]>({
+    queryKey: [`/api/vendors/${vendorId}/product-categories`],
     enabled: !!vendorId,
   });
 
@@ -364,41 +364,90 @@ const ProductCategoriesPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCategories.map((category: Category) => (
-                  <TableRow key={category.id}>
-                    <TableCell className="font-medium">{category.name}</TableCell>
-                    <TableCell>{category.description || '—'}</TableCell>
-                    <TableCell>
-                      <Button 
-                        variant="link" 
-                        className="p-0 h-auto" 
-                        onClick={() => handleViewProducts(category.id)}
-                      >
-                        {category.productCount || 0} products
-                      </Button>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditCategory(category)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                          <span className="sr-only">Edit</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCategory(category)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          <span className="sr-only">Delete</span>
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {/* First render top-level categories */}
+                {filteredCategories
+                  ?.filter((category: Category) => !category.parentId)
+                  .map((category: Category) => (
+                    <React.Fragment key={category.id}>
+                      <TableRow>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell>{category.description || '—'}</TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="link" 
+                            className="p-0 h-auto" 
+                            onClick={() => handleViewProducts(category.id)}
+                          >
+                            {category.productCount || 0} products
+                          </Button>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditCategory(category)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteCategory(category)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Render subcategories right after their parent */}
+                      {filteredCategories
+                        ?.filter((subcat: Category) => subcat.parentId === category.id)
+                        .map((subcategory: Category) => (
+                          <TableRow key={subcategory.id} className="bg-muted/30">
+                            <TableCell className="font-medium pl-8">
+                              <div className="flex items-center">
+                                <div className="w-4 border-l-2 border-b-2 h-4 border-muted-foreground/30 mr-2"></div>
+                                {subcategory.name}
+                              </div>
+                            </TableCell>
+                            <TableCell>{subcategory.description || '—'}</TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="link" 
+                                className="p-0 h-auto" 
+                                onClick={() => handleViewProducts(subcategory.id)}
+                              >
+                                {subcategory.productCount || 0} products
+                              </Button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleEditCategory(subcategory)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteCategory(subcategory)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete</span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </React.Fragment>
+                  ))}
               </TableBody>
             </Table>
           </CardContent>
