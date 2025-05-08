@@ -177,7 +177,7 @@ export function UsersList() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {user.isActive ? (
+                    {user.isProfileComplete ? (
                       <Badge variant="success" className="bg-green-100 text-green-800 hover:bg-green-200">Active</Badge>
                     ) : (
                       <Badge variant="secondary">Inactive</Badge>

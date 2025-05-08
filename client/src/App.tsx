@@ -28,6 +28,7 @@ import OrdersPage from "./pages/orders/OrdersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import StorefrontPage from "./pages/store/StorefrontPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
+import UsersManagementPage from "./pages/admin/UsersManagementPage";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
@@ -525,6 +526,12 @@ function Router() {
       <Route path="/analytics">
         <PrivateRoute roles={["super_admin"]}>
           <AnalyticsPage />
+        </PrivateRoute>
+      </Route>
+      
+      <Route path="/users">
+        <PrivateRoute roles={["super_admin"]}>
+          <UsersManagementPage />
         </PrivateRoute>
       </Route>
       <Route path="/settings">

@@ -34,6 +34,7 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
         { label: "Dashboard", path: "/admin", icon: <LayoutDashboard className="h-5 w-5" /> },
         { label: "Vendors", path: "/vendors", icon: <Store className="h-5 w-5" /> },
         { label: "Domains", path: "/domains", icon: <Globe className="h-5 w-5" /> },
+        { label: "Users", path: "/users", icon: <Users className="h-5 w-5" /> },
         { label: "Subscriptions", path: "/subscriptions", icon: <CreditCard className="h-5 w-5" /> },
         { label: "Analytics", path: "/analytics", icon: <LineChart className="h-5 w-5" /> },
         { label: "Settings", path: "/settings", icon: <Settings className="h-5 w-5" /> },
