@@ -5,6 +5,7 @@ import { UsersList } from "@/components/admin/UsersList";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function UsersManagementPage() {
   const { user } = useAuth();
@@ -22,38 +23,36 @@ export default function UsersManagementPage() {
   }
 
   return (
-    <div className="container py-6 max-w-7xl">
-      <PageHeader 
-        heading="User Management" 
-        subheading="Manage all users across the platform" 
-      />
-      
-      <Separator className="my-6" />
-      
-      <Tabs defaultValue="all-users" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="all-users">All Users</TabsTrigger>
-          <TabsTrigger value="super-admins">Super Admins</TabsTrigger>
-          <TabsTrigger value="vendors">Vendors</TabsTrigger>
-          <TabsTrigger value="customers">Customers</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="all-users">
-          <UsersList filter="all" />
-        </TabsContent>
-        
-        <TabsContent value="super-admins">
-          <UsersList filter="super_admin" />
-        </TabsContent>
-        
-        <TabsContent value="vendors">
-          <UsersList filter="vendor" />
-        </TabsContent>
-        
-        <TabsContent value="customers">
-          <UsersList filter="customer" />
-        </TabsContent>
-      </Tabs>
-    </div>
+    <DashboardLayout 
+      title="User Management" 
+      subtitle="Manage all users across the platform"
+    >
+      <div className="container py-6 max-w-7xl mx-auto">
+        <Tabs defaultValue="all-users" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="all-users">All Users</TabsTrigger>
+            <TabsTrigger value="super-admins">Super Admins</TabsTrigger>
+            <TabsTrigger value="vendors">Vendors</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all-users">
+            <UsersList filter="all" />
+          </TabsContent>
+          
+          <TabsContent value="super-admins">
+            <UsersList filter="super_admin" />
+          </TabsContent>
+          
+          <TabsContent value="vendors">
+            <UsersList filter="vendor" />
+          </TabsContent>
+          
+          <TabsContent value="customers">
+            <UsersList filter="customer" />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </DashboardLayout>
   );
 }
