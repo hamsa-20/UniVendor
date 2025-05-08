@@ -13,7 +13,9 @@ import {
   CreditCard,
   Brush,
   LogOut,
-  FolderTree
+  FolderTree,
+  BarChart2,
+  Megaphone
 } from "lucide-react";
 
 type SidebarProps = {
@@ -50,6 +52,8 @@ const Sidebar = ({ collapsed = false, onCollapse }: SidebarProps) => {
         { label: "Sub Categories", path: "/product-subcategories", icon: <FolderTree className="h-5 w-5 ml-4 -mt-0.5" /> },
         { label: "Orders", path: "/orders", icon: <ShoppingCart className="h-5 w-5" /> },
         { label: "Customers", path: "/customers", icon: <Users className="h-5 w-5" /> },
+        { label: "Marketing", path: "/marketing", icon: <Megaphone className="h-5 w-5" /> },
+        { label: "Reports", path: "/reports", icon: <BarChart2 className="h-5 w-5" /> },
         { label: "Analytics", path: "/vendor-analytics", icon: <LineChart className="h-5 w-5" /> },
         { label: "Store Design", path: "/store-design", icon: <Brush className="h-5 w-5" /> },
         { label: "Settings", path: "/settings", icon: <Settings className="h-5 w-5" /> },

@@ -31,6 +31,8 @@ import StoreDesignPage from "./pages/store/StoreDesignPage";
 import StorefrontPage from "./pages/store/StorefrontPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
 import UsersManagementPage from "./pages/admin/UsersManagementPage";
+import MarketingPage from "./pages/marketing/MarketingPage";
+import ReportsPage from "./pages/reports/ReportsPage";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
@@ -594,6 +596,18 @@ function Router() {
       <Route path="/payment-settings">
         <PrivateRoute roles={["vendor"]}>
           <PaymentSettingsPage />
+        </PrivateRoute>
+      </Route>
+
+      <Route path="/marketing">
+        <PrivateRoute roles={["vendor"]}>
+          <MarketingPage />
+        </PrivateRoute>
+      </Route>
+      
+      <Route path="/reports">
+        <PrivateRoute roles={["vendor"]}>
+          <ReportsPage />
         </PrivateRoute>
       </Route>
       
