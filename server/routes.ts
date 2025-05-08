@@ -10,6 +10,7 @@ import {
   insertDomainSchema, 
   insertProductCategorySchema, 
   insertProductSchema, 
+  insertProductVariantSchema,
   insertCustomerSchema, 
   insertOrderSchema, 
   insertOrderItemSchema 
