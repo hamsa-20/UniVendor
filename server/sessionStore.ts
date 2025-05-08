@@ -18,10 +18,16 @@ const createPgStore = () => {
     const pool = getPool();
     const PostgresStore = connectPgSimple(session);
     
+    // Set error handler for the connection pool
+    pool.on('error', (err) => {
+      console.error('Unexpected error on PostgreSQL pool', err);
+    });
+    
     return new PostgresStore({
       pool,
       tableName: 'sessions', // Use a custom table name
-      createTableIfMissing: true // Automatically create the sessions table
+      createTableIfMissing: false, // The table should already exist, don't try to recreate it
+      errorLog: (err) => console.error('PostgreSQL session store error:', err)
     });
   } catch (error) {
     console.error('Failed to create PostgreSQL session store, falling back to memory store:', error);
