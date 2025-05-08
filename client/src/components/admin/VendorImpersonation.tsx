@@ -40,8 +40,8 @@ export function VendorImpersonation() {
     );
   });
 
-  const handleImpersonate = (userId: number) => {
-    impersonateUserMutation.mutate({ userId }, {
+  const handleImpersonate = (vendorId: number) => {
+    impersonateUserMutation.mutate({ userId: vendorId }, {
       onSuccess: () => {
         setLocation('/dashboard');
       }

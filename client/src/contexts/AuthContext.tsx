@@ -200,9 +200,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await apiRequest('POST', `/api/impersonate/${userId}`);
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to impersonate user');
+        throw new Error(errorData.message || 'Failed to impersonate vendor');
       }
-      return await res.json();
+      return await res.json().then(data => data.user);
     },
     onSuccess: (impersonatedUser) => {
       // Update the current user in the cache with the impersonated user
@@ -233,7 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Failed to stop impersonation');
       }
-      return await res.json();
+      return await res.json().then(data => data.user);
     },
     onSuccess: (originalUser) => {
       // Update the current user in the cache with the original user
