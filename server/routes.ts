@@ -1079,12 +1079,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Platform statistics endpoint (for super admin)
   app.get("/api/platform-stats", async (_req, res) => {
     try {
-      // Temporary mock data for platform stats until we implement proper fetching
+      // Simple mock data for platform stats until we implement proper fetching
       const stats = {
-        totalVendors: await storage.countVendors() || 0,
-        activeDomains: await storage.countActiveDomains() || 0,
-        totalRevenue: 0, // We'll implement this with real data later
-        pendingIssues: 0 // We'll implement this with real data later
+        totalVendors: 0,
+        activeDomains: 0,
+        totalRevenue: 0,
+        pendingIssues: 0
       };
       
       return res.status(200).json(stats);
