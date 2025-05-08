@@ -149,7 +149,7 @@ const ProductCategoriesPage = () => {
   });
 
   // Filter categories based on search query
-  const filteredCategories = categories?.filter(category =>
+  const filteredCategories = categories?.filter((category: Category) =>
     category.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     category.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -271,12 +271,12 @@ const ProductCategoriesPage = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="">No parent (top-level category)</SelectItem>
-                    {filteredCategories?.filter(cat => 
+                    {filteredCategories?.filter((cat: Category) => 
                       // Only show top-level categories (level 1 or undefined)
                       (cat.level === 1 || cat.level === undefined) && 
                       // Don't show the category itself as a potential parent when editing
                       (!selectedCategory || cat.id !== selectedCategory.id)
-                    ).map(category => (
+                    ).map((category: Category) => (
                       <SelectItem key={category.id} value={category.id.toString()}>
                         {category.name}
                       </SelectItem>
@@ -364,7 +364,7 @@ const ProductCategoriesPage = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCategories.map((category) => (
+                {filteredCategories.map((category: Category) => (
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.name}</TableCell>
                     <TableCell>{category.description || '—'}</TableCell>
