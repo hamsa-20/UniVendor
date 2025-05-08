@@ -62,8 +62,11 @@ const variantSchema = z.object({
     optionId: z.string(),
     optionValueId: z.string(),
   })),
-  price: z.string().min(1, 'Price is required'),
-  compareAtPrice: z.string().optional(),
+  // Updated pricing fields
+  purchasePrice: z.string().min(1, 'Purchase Price is required'),
+  sellingPrice: z.string().min(1, 'Selling Price is required'),
+  mrp: z.string().min(1, 'MRP is required'),
+  gst: z.string().min(1, 'GST percentage is required'),
   sku: z.string().optional(),
   inventoryQuantity: z.string().transform(val => val === '' ? '0' : val),
   isDefault: z.boolean().default(false),
@@ -89,8 +92,11 @@ interface ProductOption {
 interface ProductVariant {
   id?: number;
   optionValues: { optionId: string; optionValueId: string }[];
-  price: string;
-  compareAtPrice?: string;
+  // New pricing fields to match our database schema
+  purchasePrice: string;
+  sellingPrice: string;
+  mrp: string;
+  gst: string;
   sku?: string;
   inventoryQuantity: string;
   isDefault: boolean;
@@ -135,8 +141,10 @@ const ProductVariantsManager = ({
     resolver: zodResolver(variantSchema),
     defaultValues: {
       optionValues: [],
-      price: '',
-      compareAtPrice: '',
+      purchasePrice: '',
+      sellingPrice: '',
+      mrp: '',
+      gst: '',
       sku: '',
       inventoryQuantity: '0',
       isDefault: false,
@@ -232,8 +240,10 @@ const ProductVariantsManager = ({
     
     variantForm.reset({
       optionValues: [],
-      price: '',
-      compareAtPrice: '',
+      purchasePrice: '',
+      sellingPrice: '',
+      mrp: '',
+      gst: '',
       sku: '',
       inventoryQuantity: '0',
       isDefault: false,
@@ -395,8 +405,11 @@ const ProductVariantsManager = ({
         newVariants.push({
           id: Date.now() + newVariants.length, // Ensure unique IDs
           optionValues: combination,
-          price: variants.length > 0 ? variants[0].price : '', // Use first variant price as default
-          compareAtPrice: variants.length > 0 ? variants[0].compareAtPrice : '',
+          // Use first variant pricing as default or empty strings
+          purchasePrice: variants.length > 0 ? variants[0].purchasePrice : '',
+          sellingPrice: variants.length > 0 ? variants[0].sellingPrice : '',
+          mrp: variants.length > 0 ? variants[0].mrp : '',
+          gst: variants.length > 0 ? variants[0].gst : '',
           sku: '',
           inventoryQuantity: '0',
           isDefault: variants.length === 0 && newVariants.length === 0, // First variant is default
@@ -555,7 +568,10 @@ const ProductVariantsManager = ({
               <TableHeader>
                 <TableRow>
                   <TableHead>Variant</TableHead>
-                  <TableHead>Price</TableHead>
+                  <TableHead>Purchase Price</TableHead>
+                  <TableHead>Selling Price</TableHead>
+                  <TableHead>MRP</TableHead>
+                  <TableHead>GST</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Default</TableHead>
@@ -573,14 +589,10 @@ const ProductVariantsManager = ({
                         </div>
                       ))}
                     </TableCell>
-                    <TableCell>
-                      ${variant.price}
-                      {variant.compareAtPrice && (
-                        <div className="text-sm text-muted-foreground line-through">
-                          ${variant.compareAtPrice}
-                        </div>
-                      )}
-                    </TableCell>
+                    <TableCell>₹{variant.purchasePrice || '-'}</TableCell>
+                    <TableCell>₹{variant.sellingPrice || '-'}</TableCell>
+                    <TableCell>₹{variant.mrp || '-'}</TableCell>
+                    <TableCell>{variant.gst ? `${variant.gst}%` : '-'}</TableCell>
                     <TableCell>{variant.sku || '-'}</TableCell>
                     <TableCell>{variant.inventoryQuantity}</TableCell>
                     <TableCell>
@@ -831,13 +843,14 @@ const ProductVariantsManager = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={variantForm.control}
-                  name="price"
+                  name="purchasePrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price *</FormLabel>
+                      <FormLabel>Purchase Price *</FormLabel>
+                      <FormDescription>Your cost to purchase this item</FormDescription>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
                           <Input 
                             type="number" 
                             min="0" 
@@ -855,13 +868,39 @@ const ProductVariantsManager = ({
                 
                 <FormField
                   control={variantForm.control}
-                  name="compareAtPrice"
+                  name="sellingPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Compare-at Price</FormLabel>
+                      <FormLabel>Selling Price *</FormLabel>
+                      <FormDescription>Your selling price to customers</FormDescription>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            step="0.01" 
+                            placeholder="0.00" 
+                            className="pl-7"
+                            {...field}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={variantForm.control}
+                  name="mrp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>MRP *</FormLabel>
+                      <FormDescription>Maximum Retail Price</FormDescription>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
                           <Input 
                             type="number" 
                             min="0" 
@@ -872,9 +911,31 @@ const ProductVariantsManager = ({
                           />
                         </div>
                       </FormControl>
-                      <FormDescription>
-                        Original price for showing a discount
-                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={variantForm.control}
+                  name="gst"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>GST *</FormLabel>
+                      <FormDescription>Tax percentage</FormDescription>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            type="number" 
+                            min="0" 
+                            max="100"
+                            step="0.01" 
+                            placeholder="0" 
+                            {...field} 
+                          />
+                          <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-500">%</span>
+                        </div>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
