@@ -146,10 +146,22 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertProductSchema = createInsertSchema(products).omit({
+// Create a base schema from Drizzle's schema generator
+const baseProductSchema = createInsertSchema(products).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+});
+
+// Create a custom insert schema that properly handles numeric fields as numbers
+export const insertProductSchema = baseProductSchema.extend({
+  // Allow numeric fields to be numbers instead of only strings 
+  purchasePrice: z.number().nullable().optional(),
+  sellingPrice: z.number().min(0, "Selling price cannot be negative"),
+  mrp: z.number().nullable().optional(),
+  gst: z.number().nullable().optional(),
+  weight: z.number().nullable().optional(),
+  inventoryQuantity: z.number().int().default(0),
 });
 
 // Customers
@@ -512,10 +524,22 @@ export const productVariants = pgTable("product_variants", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const insertProductVariantSchema = createInsertSchema(productVariants).omit({
+// Create a base schema from Drizzle's schema generator
+const baseProductVariantSchema = createInsertSchema(productVariants).omit({
   id: true,
   createdAt: true,
   updatedAt: true
+});
+
+// Create a custom insert schema that properly handles numeric fields as numbers
+export const insertProductVariantSchema = baseProductVariantSchema.extend({
+  // Allow numeric fields to be numbers instead of only strings
+  purchasePrice: z.number().nullable().optional(),
+  sellingPrice: z.number().min(0, "Selling price cannot be negative"),
+  mrp: z.number().nullable().optional(),
+  gst: z.number().nullable().optional(),
+  weight: z.number().nullable().optional(),
+  inventoryQuantity: z.number().int().default(0),
 });
 
 
