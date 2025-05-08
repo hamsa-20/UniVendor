@@ -685,8 +685,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const productData = insertProductSchema.parse(req.body);
       
-      // Ensure the vendor exists
-      const vendor = await storage.getVendor(productData.vendorId);
+      // Check for impersonation
+      let vendor; 
+      if (req.isAuthenticated() && req.user && req.user.isImpersonated) {
+        // If this is an impersonated session, get the vendor by the user ID
+        // This handles the case where an admin is impersonating a vendor user
+        vendor = await storage.getVendorByUserId(req.user.id);
+        
+        // If vendor is found, override the provided vendorId with the correct one
+        if (vendor) {
+          productData.vendorId = vendor.id;
+        }
+      }
+      
+      // If vendor wasn't found through impersonation or not impersonated, use the regular method
+      if (!vendor) {
+        vendor = await storage.getVendor(productData.vendorId);
+      }
+      
       if (!vendor) {
         return res.status(404).json({ message: "Vendor not found" });
       }
@@ -820,7 +836,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products/:productId/variants", async (req, res) => {
     try {
       const productId = parseInt(req.params.productId);
-      const { variants } = req.body;
+      const variants = req.body;
       
       if (!Array.isArray(variants)) {
         return res.status(400).json({ message: "Variants must be an array" });
@@ -830,6 +846,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const product = await storage.getProduct(productId);
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
+      }
+      
+      // If this is an impersonated session, verify the product belongs to the impersonated vendor
+      if (req.isAuthenticated() && req.user && req.user.isImpersonated) {
+        // Find the vendor for this user
+        const vendor = await storage.getVendorByUserId(req.user.id);
+        if (vendor && product.vendorId !== vendor.id) {
+          return res.status(403).json({ message: "You don't have permission to update variants for this product" });
+        }
       }
       
       // Process each variant

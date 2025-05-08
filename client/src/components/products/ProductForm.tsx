@@ -67,15 +67,8 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   
-  // Debug - log user and impersonation status to console
-  useEffect(() => {
-    console.log('User:', user);
-    console.log('Impersonation Status:', impersonationStatus);
-  }, [user, impersonationStatus]);
-  
-  // Get vendor ID from user context
-  // When impersonating, we need to check if the current user is a vendor
-  // If the user has vendorId property, use that directly
+  // Get vendor ID from user context - this is used for fetching data
+  // This works with both regular vendors and impersonated vendor users
   const vendorId = user?.vendorId || 
     (user?.role === 'vendor' ? user.id : undefined);
 
