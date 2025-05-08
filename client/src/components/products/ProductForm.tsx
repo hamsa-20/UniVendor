@@ -641,12 +641,29 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                     name="featuredImageUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Featured Image URL</FormLabel>
+                        <FormLabel>Featured Image</FormLabel>
                         <FormControl>
                           <div className="grid grid-cols-1 gap-4">
-                            <Input placeholder="Enter image URL" {...field} />
+                            <div className="flex flex-col gap-4">
+                              <Input 
+                                placeholder="Enter image URL" 
+                                {...field} 
+                                className="mb-2"
+                              />
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <div className="h-px flex-grow bg-border"></div>
+                                <span>OR</span>
+                                <div className="h-px flex-grow bg-border"></div>
+                              </div>
+                              <FileUpload
+                                label="Upload Product Image"
+                                accept="image/*"
+                                maxSize={5}
+                                onUploadComplete={(url) => field.onChange(url)}
+                              />
+                            </div>
                             {field.value && (
-                              <div className="relative w-full h-64 bg-neutral-100 rounded-md overflow-hidden">
+                              <div className="relative w-full h-64 bg-neutral-100 rounded-md overflow-hidden border">
                                 <img 
                                   src={field.value} 
                                   alt="Featured product" 
@@ -666,7 +683,7 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                           </div>
                         </FormControl>
                         <FormDescription>
-                          Enter the URL for the main product image
+                          Enter a URL or upload an image file for the main product image
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -688,10 +705,40 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
+                      name="sku"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>SKU</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter SKU" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="barcode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Barcode</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter Barcode" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
                       name="weight"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Weight (in kg)</FormLabel>
+                          <FormLabel>Weight (kg)</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -705,21 +752,97 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         </FormItem>
                       )}
                     />
-
+                  </div>
+                  
+                  {/* New separate dimension fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <FormField
                       control={form.control}
-                      name="dimensions"
+                      name="length"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Dimensions (LxWxH)</FormLabel>
+                          <FormLabel>Length (cm)</FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g. 10x5x2 cm" {...field} />
+                            <Input 
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder="0.0" 
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="width"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Width (cm)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder="0.0" 
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="height"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Height (cm)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              step="0.1"
+                              min="0"
+                              placeholder="0.0" 
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => field.onChange(e.target.value)}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tags</FormLabel>
+                        <FormControl>
+                          <TagInput
+                            placeholder="Add tag and press Enter"
+                            tags={field.value || []}
+                            setTags={(newTags) => field.onChange(newTags)}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Add tags to help customers find your product
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div className="flex justify-between space-x-2">
                     <Button type="button" variant="outline" onClick={() => setActiveTab('images')}>
