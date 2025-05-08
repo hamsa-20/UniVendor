@@ -225,8 +225,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Vendor endpoints
-  app.get("/api/vendors", async (_req, res) => {
+  // Get all users with vendor role for impersonation
+  app.get("/api/vendors", hasRole(["super_admin"]), async (_req, res) => {
+    try {
+      // Get all users with role 'vendor'
+      const users = await storage.getAllUsers();
+      const vendorUsers = users.filter(user => user.role === 'vendor');
+      
+      return res.status(200).json(vendorUsers);
+    } catch (err) {
+      console.error("Error fetching vendors:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Vendor detailed endpoints
+  app.get("/api/vendor-details", async (_req, res) => {
     try {
       const vendors = await storage.getVendors();
       
