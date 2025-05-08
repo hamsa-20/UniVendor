@@ -27,6 +27,8 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import ProductVariantManager from './ProductVariantManager';
 import { ProductVariant } from '@shared/schema';
+import { FileUpload } from '@/components/ui/file-upload';
+import TagInput from '@/components/ui/tag-input';
 
 // Validation schema for product form
 const productFormSchema = z.object({
@@ -39,7 +41,9 @@ const productFormSchema = z.object({
   sku: z.string().optional(),
   barcode: z.string().optional(),
   weight: z.string().optional(),
-  dimensions: z.string().optional(),
+  length: z.string().optional(),
+  width: z.string().optional(),
+  height: z.string().optional(),
   inventoryQuantity: z.string().transform(val => val === '' ? '0' : val),
   status: z.string().default('draft'),
   mainCategoryId: z.string().default("0"),
@@ -109,7 +113,9 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       sku: '',
       barcode: '',
       weight: '',
-      dimensions: '',
+      length: '',
+      width: '',
+      height: '',
       inventoryQuantity: '0',
       status: 'draft',
       categoryId: '',
@@ -147,7 +153,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         sku: product.sku || '',
         barcode: product.barcode || '',
         weight: product.weight?.toString() || '',
-        dimensions: product.dimensions || '',
+        // Parse dimensions if it exists as a string in "LxWxH" format
+        length: product.length?.toString() || (product.dimensions ? product.dimensions.split('x')[0] || '' : ''),
+        width: product.width?.toString() || (product.dimensions ? product.dimensions.split('x')[1] || '' : ''),
+        height: product.height?.toString() || (product.dimensions ? product.dimensions.split('x')[2] || '' : ''),
         inventoryQuantity: product.inventoryQuantity?.toString() || '0',
         status: product.status,
         mainCategoryId: mainCategoryId,
@@ -175,6 +184,9 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         mrp: data.mrp || null,
         gst: data.gst || null,
         weight: data.weight || null,
+        length: data.length || null,
+        width: data.width || null,
+        height: data.height || null,
         inventoryQuantity: parseInt(data.inventoryQuantity || '0'),
       };
 

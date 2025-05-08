@@ -2,6 +2,11 @@ import multer from 'multer';
 import path from 'path';
 import { Express, Request, Response } from 'express';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+// Get current directory (ESM equivalent of __dirname)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -73,7 +78,8 @@ export function registerUploadRoutes(app: Express) {
     
     // Check if file exists
     if (fs.existsSync(filePath)) {
-      res.sendFile(filePath);
+      // Use absolute path for sendFile
+      res.sendFile(path.resolve(filePath));
     } else {
       next();
     }

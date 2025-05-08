@@ -20,6 +20,7 @@ import { createPaypalOrder, capturePaypalOrder, loadPaypalDefault } from "./payp
 import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
 import { DomainRequest } from "./middleware/domainMiddleware";
+import { registerUploadRoutes } from "./uploadService";
 
 // Helper function to handle validation errors
 function handleValidationError(err: unknown, res: Response) {
@@ -36,6 +37,9 @@ function handleValidationError(err: unknown, res: Response) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication with OTP
   setupAuth(app);
+  
+  // Register file upload routes
+  registerUploadRoutes(app);
 
   // User endpoints
   app.get("/api/users", hasRole(["super_admin"]), async (req, res) => {
