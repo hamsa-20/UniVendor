@@ -115,7 +115,6 @@ async function createTestVendorAndDomain() {
         sku: 'WH-001',
         categoryId: category.id,
         status: 'active',
-        inStock: true,
         inventoryQuantity: 50,
         imageUrl: 'https://images.unsplash.com/photo-1578319439584-104c94d37305?q=80&w=870&auto=format&fit=crop&ixlib=rb-4.0.3',
         tags: ['electronics', 'audio', 'headphones']
@@ -130,7 +129,6 @@ async function createTestVendorAndDomain() {
         sku: 'SP-002',
         categoryId: category.id,
         status: 'active',
-        inStock: true,
         inventoryQuantity: 25,
         imageUrl: 'https://images.unsplash.com/photo-1580910051074-3eb694886505?q=80&w=930&auto=format&fit=crop&ixlib=rb-4.0.3',
         tags: ['electronics', 'phone', 'smartphone']
@@ -152,14 +150,11 @@ async function createTestVendorAndDomain() {
   }
 }
 
-// Run the function if this file is executed directly
-if (require.main === module) {
-  createTestVendorAndDomain().then(() => {
-    process.exit(0);
-  }).catch(err => {
-    console.error('Failed to create test data:', err);
-    process.exit(1);
-  });
-}
+// Run the function in ESM
+createTestVendorAndDomain().then(() => {
+  console.log('Seed data completed successfully');
+}).catch(err => {
+  console.error('Failed to create test data:', err);
+});
 
 export { createTestVendorAndDomain };
