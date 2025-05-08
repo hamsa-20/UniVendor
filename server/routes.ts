@@ -773,6 +773,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Product Variants endpoints
+  
+  // Get all variants for a product
+  app.get("/api/products/:productId/variants", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      
+      // Verify product exists
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      const variants = await storage.getProductVariantsByProductId(productId);
+      return res.status(200).json(variants);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get single variant
+  app.get("/api/product-variants/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const variant = await storage.getProductVariant(id);
+      
+      if (!variant) {
+        return res.status(404).json({ message: "Product variant not found" });
+      }
+      
+      return res.status(200).json(variant);
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Create or update multiple variants for a product
+  app.post("/api/products/:productId/variants", async (req, res) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      const { variants } = req.body;
+      
+      if (!Array.isArray(variants)) {
+        return res.status(400).json({ message: "Variants must be an array" });
+      }
+      
+      // Verify product exists
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      // Process each variant
+      const processedVariants = [];
+      
+      for (const variant of variants) {
+        try {
+          // For existing variants, update them
+          if (variant.id) {
+            const variantData = {
+              ...variant,
+              productId
+            };
+            
+            // Validate the variant data with the schema
+            insertProductVariantSchema.parse(variantData);
+            
+            const updatedVariant = await storage.updateProductVariant(variant.id, variantData);
+            if (updatedVariant) {
+              processedVariants.push(updatedVariant);
+            }
+          } 
+          // For new variants, create them
+          else {
+            const variantData = {
+              ...variant,
+              productId
+            };
+            
+            // Validate the variant data with the schema
+            insertProductVariantSchema.parse(variantData);
+            
+            const newVariant = await storage.createProductVariant(variantData);
+            processedVariants.push(newVariant);
+          }
+        } catch (variantErr) {
+          console.error("Error processing variant:", variantErr);
+          // Continue processing other variants
+        }
+      }
+      
+      return res.status(200).json(processedVariants);
+    } catch (err) {
+      return handleValidationError(err, res);
+    }
+  });
+  
+  // Update a single variant
+  app.patch("/api/product-variants/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Get current variant to verify it exists
+      const variant = await storage.getProductVariant(id);
+      if (!variant) {
+        return res.status(404).json({ message: "Product variant not found" });
+      }
+      
+      // Partial validation
+      const variantData = Object.keys(req.body).reduce((acc, key) => {
+        if (key in insertProductVariantSchema.shape) {
+          acc[key] = req.body[key];
+        }
+        return acc;
+      }, {} as Partial<typeof insertProductVariantSchema._type>);
+      
+      const updatedVariant = await storage.updateProductVariant(id, variantData);
+      
+      if (!updatedVariant) {
+        return res.status(404).json({ message: "Product variant not found" });
+      }
+      
+      return res.status(200).json(updatedVariant);
+    } catch (err) {
+      return handleValidationError(err, res);
+    }
+  });
+  
+  // Delete a single variant
+  app.delete("/api/product-variants/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Verify variant exists
+      const variant = await storage.getProductVariant(id);
+      if (!variant) {
+        return res.status(404).json({ message: "Product variant not found" });
+      }
+      
+      const success = await storage.deleteProductVariant(id);
+      if (success) {
+        return res.status(204).send();
+      } else {
+        return res.status(500).json({ message: "Failed to delete product variant" });
+      }
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Product category endpoints
   app.get("/api/vendors/:vendorId/product-categories", async (req, res) => {

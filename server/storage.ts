@@ -6,6 +6,7 @@ import {
   domains, type Domain, type InsertDomain,
   productCategories, type ProductCategory, type InsertProductCategory,
   products, type Product, type InsertProduct,
+  productVariants, type ProductVariant, type InsertProductVariant,
   customers, type Customer, type InsertCustomer,
   customerAddresses, type CustomerAddress, type InsertCustomerAddress,
   orders, type Order, type InsertOrder,
@@ -84,6 +85,13 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined>;
   deleteProduct(id: number): Promise<boolean>;
+  
+  // Product variant operations
+  getProductVariant(id: number): Promise<ProductVariant | undefined>;
+  getProductVariantsByProductId(productId: number): Promise<ProductVariant[]>;
+  createProductVariant(variant: InsertProductVariant): Promise<ProductVariant>;
+  updateProductVariant(id: number, data: Partial<InsertProductVariant>): Promise<ProductVariant | undefined>;
+  deleteProductVariant(id: number): Promise<boolean>;
 
   // Customer operations
   getCustomer(id: number): Promise<Customer | undefined>;
@@ -193,6 +201,7 @@ export class MemStorage implements IStorage {
   private domains: Map<number, Domain>;
   private productCategories: Map<number, ProductCategory>;
   private products: Map<number, Product>;
+  private productVariants: Map<number, ProductVariant>;
   private customers: Map<number, Customer>;
   private customerAddresses: Map<number, CustomerAddress>;
   private orders: Map<number, Order>;
@@ -214,6 +223,7 @@ export class MemStorage implements IStorage {
   private domainId: number = 1;
   private productCategoryId: number = 1;
   private productId: number = 1;
+  private productVariantId: number = 1;
   private customerId: number = 1;
   private customerAddressId: number = 1;
   private orderId: number = 1;
@@ -241,6 +251,7 @@ export class MemStorage implements IStorage {
     this.domains = new Map();
     this.productCategories = new Map();
     this.products = new Map();
+    this.productVariants = new Map();
     this.customers = new Map();
     this.customerAddresses = new Map();
     this.orders = new Map();
@@ -642,6 +653,36 @@ export class MemStorage implements IStorage {
 
   async deleteProduct(id: number): Promise<boolean> {
     return this.products.delete(id);
+  }
+
+  // Product variant operations
+  async getProductVariant(id: number): Promise<ProductVariant | undefined> {
+    return this.productVariants.get(id);
+  }
+
+  async getProductVariantsByProductId(productId: number): Promise<ProductVariant[]> {
+    return Array.from(this.productVariants.values())
+      .filter(variant => variant.productId === productId);
+  }
+
+  async createProductVariant(variantData: InsertProductVariant): Promise<ProductVariant> {
+    const id = this.productVariantId++;
+    const variant: ProductVariant = { ...variantData, id, createdAt: new Date() };
+    this.productVariants.set(id, variant);
+    return variant;
+  }
+
+  async updateProductVariant(id: number, data: Partial<InsertProductVariant>): Promise<ProductVariant | undefined> {
+    const variant = await this.getProductVariant(id);
+    if (!variant) return undefined;
+    
+    const updatedVariant = { ...variant, ...data };
+    this.productVariants.set(id, updatedVariant);
+    return updatedVariant;
+  }
+
+  async deleteProductVariant(id: number): Promise<boolean> {
+    return this.productVariants.delete(id);
   }
 
   // Cart operations
