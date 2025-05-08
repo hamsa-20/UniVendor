@@ -110,6 +110,8 @@ export const productCategories = pgTable("product_categories", {
   description: text("description"),
   slug: text("slug").notNull(),
   imageUrl: text("image_url"),
+  parentId: integer("parent_id").references(() => productCategories.id), // Self-reference for subcategories
+  level: integer("level").default(1), // 1 = main category, 2 = subcategory, etc.
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });

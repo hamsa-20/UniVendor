@@ -1,4 +1,4 @@
-// Script to add new columns to vendors table
+// Script to add new columns to vendors and product_categories tables
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import ws from 'ws';
 
@@ -25,14 +25,28 @@ async function runMigration() {
       ALTER TABLE vendors 
       ADD COLUMN IF NOT EXISTS color_palette text DEFAULT 'default'
     `);
-    console.log('Added color_palette column');
+    console.log('Added color_palette column to vendors');
     
     // Add font_settings column if not exists
     await client.query(`
       ALTER TABLE vendors 
       ADD COLUMN IF NOT EXISTS font_settings jsonb
     `);
-    console.log('Added font_settings column');
+    console.log('Added font_settings column to vendors');
+    
+    // Add parent_id column to product_categories if not exists
+    await client.query(`
+      ALTER TABLE product_categories 
+      ADD COLUMN IF NOT EXISTS parent_id integer REFERENCES product_categories(id) ON DELETE SET NULL
+    `);
+    console.log('Added parent_id column to product_categories');
+    
+    // Add level column to product_categories if not exists
+    await client.query(`
+      ALTER TABLE product_categories 
+      ADD COLUMN IF NOT EXISTS level integer DEFAULT 1
+    `);
+    console.log('Added level column to product_categories');
     
     // Commit transaction
     await client.query('COMMIT');
@@ -52,5 +66,5 @@ async function runMigration() {
 }
 
 // Run migration
-console.log('Running migration to add new columns to vendors table...');
+console.log('Running migration to add new columns to vendors and product_categories tables...');
 runMigration();
