@@ -65,7 +65,9 @@ export default function StorefrontPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Store Header */}
-      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-6">
+      <header className="store-header text-white py-6" style={{ 
+        background: `var(--color-primary, ${vendor?.storeTheme === 'default' ? 'linear-gradient(to right, #4f46e5, #3b82f6)' : 'var(--color-primary)'})`
+      }}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -129,7 +131,7 @@ export default function StorefrontPage() {
                       )}
                       {product.compareAtPrice && (
                         <div className="absolute top-2 left-2">
-                          <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">SALE</span>
+                          <span className="bg-accent text-accent-foreground text-xs font-bold px-2 py-1 rounded">SALE</span>
                         </div>
                       )}
                     </div>
@@ -137,7 +139,7 @@ export default function StorefrontPage() {
                       <h3 className="font-medium text-gray-900 mb-2 truncate">{product.name}</h3>
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-primary font-bold">${product.price}</span>
+                          <span style={{ color: 'var(--color-primary)' }} className="font-bold">${product.price}</span>
                           {product.compareAtPrice && (
                             <span className="text-sm text-gray-500 line-through ml-2">${product.compareAtPrice}</span>
                           )}
@@ -167,30 +169,39 @@ export default function StorefrontPage() {
               <h3 className="font-bold text-lg mb-4">{vendor?.companyName}</h3>
               <p className="text-gray-600">Custom domain: {domain?.name}</p>
               <p className="text-gray-600">Theme: {vendor?.storeTheme || 'Default'}</p>
+              <p className="text-gray-600">Color palette: {vendor?.colorPalette || 'Default'}</p>
             </div>
             <div>
               <h3 className="font-bold text-lg mb-4">Quick Links</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="text-gray-600 hover:text-primary">Products</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-primary">Categories</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-primary">About Us</a></li>
-                <li><a href="#" className="text-gray-600 hover:text-primary">Contact</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-primary" style={{ 
+                  ['&:hover' as any]: { color: 'var(--color-primary)' } 
+                }}>Products</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-primary" style={{ 
+                  ['&:hover' as any]: { color: 'var(--color-primary)' } 
+                }}>Categories</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-primary" style={{ 
+                  ['&:hover' as any]: { color: 'var(--color-primary)' } 
+                }}>About Us</a></li>
+                <li><a href="#" className="text-gray-600 hover:text-primary" style={{ 
+                  ['&:hover' as any]: { color: 'var(--color-primary)' } 
+                }}>Contact</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-bold text-lg mb-4">Connect With Us</h3>
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-600 hover:text-primary">
+                <a href="#" className="text-gray-600 hover:text-primary" style={{ '&:hover': { color: 'var(--color-primary)' } }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </a>
-                <a href="#" className="text-gray-600 hover:text-primary">
+                <a href="#" className="text-gray-600 hover:text-primary" style={{ '&:hover': { color: 'var(--color-primary)' } }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </a>
-                <a href="#" className="text-gray-600 hover:text-primary">
+                <a href="#" className="text-gray-600 hover:text-primary" style={{ '&:hover': { color: 'var(--color-primary)' } }}>
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
@@ -200,7 +211,7 @@ export default function StorefrontPage() {
           </div>
           <div className="mt-8 pt-8 border-t border-gray-200 text-center text-gray-500 text-sm">
             <p>© {new Date().getFullYear()} {vendor?.companyName}. All rights reserved.</p>
-            <p className="mt-2">Powered by <a href="https://multivend.com" className="text-primary hover:underline">MultiVend</a></p>
+            <p className="mt-2">Powered by <a href="https://multivend.com" style={{ color: 'var(--color-primary)' }} className="hover:underline">MultiVend</a></p>
           </div>
         </div>
       </footer>
