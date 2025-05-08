@@ -1,6 +1,9 @@
 // Script to add new columns to vendors table
-import { Pool } from '@neondatabase/serverless';
+import { Pool, neonConfig } from '@neondatabase/serverless';
 import ws from 'ws';
+
+// Required for Neon Serverless
+neonConfig.webSocketConstructor = ws;
 
 // Configure for Neon serverless
 const pool = new Pool({

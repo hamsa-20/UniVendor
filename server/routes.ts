@@ -231,15 +231,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Database migration endpoint (TEMPORARY - FOR DEVELOPMENT ONLY)
   app.post("/api/migrate", async (req, res) => {
     try {
-      const pool = db.client;
-      
-      // Run migrations
-      await pool.execute(sql`
+      // Run migrations using the pool directly
+      await pool.query(`
         ALTER TABLE vendors 
         ADD COLUMN IF NOT EXISTS color_palette text DEFAULT 'default'
       `);
       
-      await pool.execute(sql`
+      await pool.query(`
         ALTER TABLE vendors 
         ADD COLUMN IF NOT EXISTS font_settings jsonb
       `);
