@@ -398,34 +398,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
-                        name="price"
+                        name="purchasePrice"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Price *</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="0.01" 
-                                  placeholder="0.00" 
-                                  className="pl-7"
-                                  {...field} 
-                                />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="compareAtPrice"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Compare-at Price</FormLabel>
+                            <FormLabel>Purchase Price</FormLabel>
                             <FormControl>
                               <div className="relative">
                                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
@@ -440,7 +416,89 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                               </div>
                             </FormControl>
                             <FormDescription>
-                              Original price for showing a discount
+                              Price you paid to acquire the product
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="sellingPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Selling Price *</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="0.01" 
+                                  placeholder="0.00" 
+                                  className="pl-7"
+                                  {...field} 
+                                />
+                              </div>
+                            </FormControl>
+                            <FormDescription>
+                              Price displayed to customers and used for checkout
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="mrp"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>MRP (Maximum Retail Price)</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">$</span>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  step="0.01" 
+                                  placeholder="0.00" 
+                                  className="pl-7"
+                                  {...field} 
+                                />
+                              </div>
+                            </FormControl>
+                            <FormDescription>
+                              Original price before discount (displayed as strikethrough)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="gst"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>GST (%)</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-500">%</span>
+                                <Input 
+                                  type="number" 
+                                  min="0" 
+                                  max="100"
+                                  step="0.01" 
+                                  placeholder="0" 
+                                  className="pr-7"
+                                  {...field} 
+                                />
+                              </div>
+                            </FormControl>
+                            <FormDescription>
+                              Goods and Services Tax percentage
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
