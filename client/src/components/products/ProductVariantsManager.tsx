@@ -165,10 +165,27 @@ const ProductVariantsManager = ({
     }
   }, [variants, onVariantsChange]);
   
-  // Initialize variant form with option values
+  // Initialize variant form with option values - enforcing Color→Size hierarchy
   useEffect(() => {
     if (options.length > 0 && isAddVariantDialogOpen) {
-      const optionValues = options.map(option => ({
+      // Sort options to prioritize Color first, then Size
+      const sortedOptions = [...options].sort((a, b) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        
+        // Color is always first in hierarchy
+        if (aName.includes('color')) return -1;
+        if (bName.includes('color')) return 1;
+        
+        // Size is always second in hierarchy
+        if (aName.includes('size')) return -1;
+        if (bName.includes('size')) return 1;
+        
+        // Other options in original order
+        return 0;
+      });
+      
+      const optionValues = sortedOptions.map(option => ({
         optionId: option.id?.toString() || '',
         optionValueId: '',
       }));
@@ -634,6 +651,18 @@ const ProductVariantsManager = ({
           
           <Form {...optionForm}>
             <form onSubmit={optionForm.handleSubmit(handleOptionSubmit)} className="space-y-4">
+              <Alert variant="default" className="bg-blue-50 mb-4">
+                <AlertTitle className="text-blue-600">Option Hierarchy</AlertTitle>
+                <AlertDescription>
+                  {options.length === 0 ? 
+                    "Add Color first, then Size for proper variant hierarchy." : 
+                    options.some(o => o.name.toLowerCase().includes('color')) ? 
+                      "Color already added. Now add Size option." : 
+                      "Add Color option first for proper variant hierarchy."
+                  }
+                </AlertDescription>
+              </Alert>
+              
               <FormField
                 control={optionForm.control}
                 name="name"
