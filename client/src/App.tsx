@@ -13,6 +13,7 @@ import SuperAdminDashboard from "@/pages/dashboard/SuperAdminDashboard";
 import VendorDashboard from "@/pages/dashboard/VendorDashboard";
 import VendorsPage from "@/pages/vendors/VendorsPage";
 import VendorDetails from "@/pages/vendors/VendorDetails";
+import TestStorePage from "@/pages/TestStorePage";
 import DomainsPage from "@/pages/domains/DomainsPage";
 import DomainDetailPage from "@/pages/domains/DomainDetailPage";
 import SubscriptionsPage from "@/pages/subscriptions/SubscriptionsPage";
@@ -48,6 +49,11 @@ function Router() {
   // Otherwise show the platform's routes
   return (
     <Switch>
+      {/* Test Route - only for development */}
+      <Route path="/test-store">
+        {process.env.NODE_ENV === 'development' && <TestStorePage />}
+      </Route>
+      
       {/* Welcome Route */}
       <Route path="/">
         <div className="min-h-screen bg-white">

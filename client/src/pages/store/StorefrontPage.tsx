@@ -26,7 +26,7 @@ export default function StorefrontPage() {
     isLoading: loadingProducts,
     error: productsError
   } = useQuery<Product[]>({
-    queryKey: vendor ? ['/api/vendors', vendor.id, 'products'] : null,
+    queryKey: vendor ? [`/api/vendors/${vendor.id}/products`] : null,
     enabled: !!isVendorStore && !!vendor,
   });
 

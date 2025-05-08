@@ -1118,6 +1118,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+  
+  // Get all domains (for domain selector and store testing)
+  app.get("/api/domains", async (req, res) => {
+    try {
+      const domains = await storage.getAllDomains();
+      return res.status(200).json(domains);
+    } catch (err) {
+      console.error('Error fetching domains:', err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Register payment-related routes
   registerPaymentRoutes(app);
