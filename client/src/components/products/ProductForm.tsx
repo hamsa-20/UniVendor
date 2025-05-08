@@ -274,6 +274,16 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const onSubmit = (data: ProductFormValues) => {
     mutation.mutate(data);
   };
+  
+  // Save as draft handler
+  const saveAsDraft = () => {
+    // Get current form values
+    const currentValues = form.getValues();
+    // Ensure status is set to draft
+    currentValues.status = 'draft';
+    // Save the product
+    mutation.mutate(currentValues);
+  };
 
   if (isLoadingProduct && productId) {
     return (
@@ -452,7 +462,10 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                     />
                   </div>
 
-                  <div className="flex justify-end space-x-2">
+                  <div className="flex justify-between space-x-2">
+                    <Button type="button" variant="secondary" onClick={saveAsDraft}>
+                      Save as Draft
+                    </Button>
                     <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
                       Next: Pricing & Inventory
                     </Button>
@@ -625,11 +638,16 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   />
 
                   <div className="flex justify-between space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('basic')}>
-                      Back: Basic Info
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('images')}>
-                      Next: Images
+                    <div className="flex space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setActiveTab('basic')}>
+                        Back: Basic Info
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
+                        Save as Draft
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" onClick={() => setActiveTab('variants')}>
+                      Next: Variants
                     </Button>
                   </div>
                 </TabsContent>
@@ -691,9 +709,14 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   />
 
                   <div className="flex justify-between space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
-                      Back: Pricing & Inventory
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setActiveTab('variants')}>
+                        Back: Variants
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
+                        Save as Draft
+                      </Button>
+                    </div>
                     <Button type="button" variant="outline" onClick={() => setActiveTab('additional')}>
                       Next: Additional Info
                     </Button>
@@ -845,9 +868,14 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   />
 
                   <div className="flex justify-between space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('images')}>
-                      Back: Images
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setActiveTab('images')}>
+                        Back: Images
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
+                        Save as Draft
+                      </Button>
+                    </div>
                     <Button
                       type="submit"
                       disabled={mutation.isPending}
@@ -877,9 +905,14 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   </div>
                   
                   <div className="flex justify-between space-x-2">
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
-                      Back: Pricing & Inventory
-                    </Button>
+                    <div className="flex space-x-2">
+                      <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
+                        Back: Pricing & Inventory
+                      </Button>
+                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
+                        Save as Draft
+                      </Button>
+                    </div>
                     <Button 
                       type="button" 
                       variant="outline" 
