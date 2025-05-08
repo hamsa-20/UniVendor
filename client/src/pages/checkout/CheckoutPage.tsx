@@ -153,7 +153,7 @@ const CheckoutPage = () => {
             Try Again
           </Button>
           <Button variant="outline" asChild>
-            <Link href="/cart">
+            <Link to="/cart">
               <ShoppingCart className="mr-2 h-4 w-4" />
               Return to Cart
             </Link>

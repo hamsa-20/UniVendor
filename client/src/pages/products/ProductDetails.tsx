@@ -54,7 +54,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
               The product you're looking for doesn't exist or has been removed.
             </p>
             <Button asChild>
-              <Link href="/products">Back to Products</Link>
+              <Link to="/products">Back to Products</Link>
             </Button>
           </CardContent>
         </Card>
@@ -69,7 +69,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
     >
       <div className="mb-6">
         <Button variant="outline" size="sm" asChild>
-          <Link href="/products">
+          <Link to="/products">
             <ChevronLeft className="mr-2 h-4 w-4" />
             Back to Products
           </Link>

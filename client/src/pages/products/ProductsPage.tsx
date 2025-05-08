@@ -54,7 +54,7 @@ const ProductsPage = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Link href="/product-categories">
+          <Link to="/product-categories">
             <Button variant="outline" className="flex items-center gap-2">
               <FolderTree className="h-4 w-4" />
               Manage Categories

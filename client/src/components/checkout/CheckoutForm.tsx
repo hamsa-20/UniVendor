@@ -236,7 +236,7 @@ const ShippingForm = ({
 
         <div className="flex justify-between">
           <Button type="button" variant="outline" asChild>
-            <Link href="/cart">
+            <Link to="/cart">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Cart
             </Link>

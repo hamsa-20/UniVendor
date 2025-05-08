@@ -461,7 +461,7 @@ const RegisterPage = () => {
               <CardFooter className="flex flex-col space-y-2">
                 <div className="text-sm text-center text-gray-500 dark:text-gray-400">
                   Already have an account?{" "}
-                  <Link href="/login" className="text-primary hover:text-primary/80 font-medium">
+                  <Link to="/login" className="text-primary hover:text-primary/80 font-medium">
                     Sign in
                   </Link>
                 </div>
