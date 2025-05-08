@@ -35,6 +35,8 @@ type Category = {
   name: string;
   description?: string;
   vendorId: number;
+  parentId?: number | null;
+  level?: number;
   productCount?: number;
 };
 
@@ -51,6 +53,7 @@ const ProductCategoriesPage = () => {
   const [categoryFormData, setCategoryFormData] = useState({
     name: '',
     description: '',
+    parentId: null as number | null,
   });
 
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
@@ -63,16 +66,20 @@ const ProductCategoriesPage = () => {
 
   // Add category mutation
   const addCategoryMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string }) => {
+    mutationFn: async (data: { name: string; description: string; parentId: number | null }) => {
+      // If it has a parent, set level to 2, otherwise 1
+      const level = data.parentId ? 2 : 1;
+      
       return apiRequest('POST', '/api/product-categories', {
         ...data,
         vendorId,
+        level,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
       setIsAddCategoryOpen(false);
-      setCategoryFormData({ name: '', description: '' });
+      setCategoryFormData({ name: '', description: '', parentId: null });
       toast({
         title: 'Category created',
         description: 'Category has been created successfully',
@@ -89,14 +96,20 @@ const ProductCategoriesPage = () => {
 
   // Update category mutation
   const updateCategoryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { name: string; description: string } }) => {
-      return apiRequest('PATCH', `/api/product-categories/${id}`, data);
+    mutationFn: async ({ id, data }: { id: number; data: { name: string; description: string; parentId: number | null } }) => {
+      // If it has a parent, set level to 2, otherwise 1
+      const level = data.parentId ? 2 : 1;
+      
+      return apiRequest('PATCH', `/api/product-categories/${id}`, {
+        ...data,
+        level,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
       setIsAddCategoryOpen(false);
       setSelectedCategory(null);
-      setCategoryFormData({ name: '', description: '' });
+      setCategoryFormData({ name: '', description: '', parentId: null });
       toast({
         title: 'Category updated',
         description: 'Category has been updated successfully',
@@ -168,6 +181,7 @@ const ProductCategoriesPage = () => {
     setCategoryFormData({
       name: category.name,
       description: category.description || '',
+      parentId: category.parentId || null,
     });
     setIsAddCategoryOpen(true);
   };
@@ -205,7 +219,7 @@ const ProductCategoriesPage = () => {
         </div>
         <Button onClick={() => {
           setSelectedCategory(null);
-          setCategoryFormData({ name: '', description: '' });
+          setCategoryFormData({ name: '', description: '', parentId: null });
           setIsAddCategoryOpen(true);
         }}>
           <PlusCircle className="mr-2 h-4 w-4" />

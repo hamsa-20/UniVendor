@@ -62,8 +62,20 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   // Get vendor ID from user context
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
 
+  // Define extended category type with subcategory support
+  type Category = {
+    id: number;
+    name: string;
+    description?: string;
+    vendorId: number;
+    parentId?: number | null;
+    level?: number;
+    slug?: string;
+    isActive?: boolean;
+  };
+
   // Fetch product categories
-  const { data: categories } = useQuery({
+  const { data: categories } = useQuery<Category[]>({
     queryKey: [`/api/vendors/${vendorId}/product-categories`],
     enabled: !!vendorId,
   });
@@ -280,13 +292,25 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="0">None</SelectItem>
-                            {categories?.map((category) => (
+                            
+                            {/* Main categories (level 1) */}
+                            {categories?.filter(cat => !cat.parentId)?.map((category) => (
                               <SelectItem key={category.id} value={category.id.toString()}>
                                 {category.name}
                               </SelectItem>
                             ))}
+                            
+                            {/* Display subcategories with indentation for level 2 */}
+                            {categories?.filter(cat => cat.parentId)?.map((category) => (
+                              <SelectItem key={category.id} value={category.id.toString()}>
+                                {'\u00A0\u00A0\u00A0\u00A0'}{category.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Categories help organize your products
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
