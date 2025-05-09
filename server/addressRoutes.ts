@@ -4,12 +4,20 @@ import { z } from 'zod';
 import { insertCustomerAddressSchema } from '../shared/schema';
 import { isAuthenticated } from './auth';
 
+// Extend Request with user property
+interface AuthRequest extends Request {
+  user?: any;
+  isAuthenticated(): boolean;
+  login(user: any, callback: (err: any) => void): void;
+  logout(callback: (err: any) => void): void;
+}
+
 /**
  * Register address-related routes
  */
 export default function registerAddressRoutes(app: Express) {
   // Get all addresses for authenticated user
-  app.get('/api/addresses', isAuthenticated, async (req: Request, res: Response) => {
+  app.get('/api/addresses', isAuthenticated, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.id;
       const vendorId = parseInt(req.query.vendorId as string);
@@ -34,7 +42,7 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Create new address
-  app.post('/api/addresses', isAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/addresses', isAuthenticated, async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user?.id;
       const vendorId = parseInt(req.body.vendorId as string);

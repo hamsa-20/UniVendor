@@ -2378,6 +2378,15 @@ export class DatabaseStorage implements IStorage {
       .where(eq(customers.email, email));
     return customer;
   }
+  
+  async getCustomerByUserId(userId: number, vendorId: number): Promise<Customer | undefined> {
+    // Get user by ID
+    const user = await this.getUser(userId);
+    if (!user || !user.email) return undefined;
+    
+    // Find customer by email and vendor ID
+    return this.getCustomerByEmail(vendorId, user.email);
+  }
 
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
     const [newCustomer] = await db

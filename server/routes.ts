@@ -22,6 +22,7 @@ import { setupAuth, isAuthenticated, hasRole } from "./auth";
 import { DomainRequest } from "./middleware/domainMiddleware";
 import { registerUploadRoutes } from "./uploadService";
 import registerCheckoutRoutes from "./checkoutRoutes";
+import registerAddressRoutes from "./addressRoutes";
 
 // Helper function to handle validation errors
 function handleValidationError(err: unknown, res: Response) {
@@ -1419,6 +1420,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register checkout-related routes (cart, checkout, orders)
   registerCheckoutRoutes(app);
+  
+  // Register address-related routes
+  registerAddressRoutes(app);
 
   // Register payment-related routes
   registerPaymentRoutes(app);
