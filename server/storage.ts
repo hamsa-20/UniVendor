@@ -18,8 +18,12 @@ import {
   transactions, type Transaction, type InsertTransaction,
   payouts, type Payout, type InsertPayout,
   customerPaymentMethods, type CustomerPaymentMethod, type InsertCustomerPaymentMethod,
-  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings
+  paymentProviderSettings, type PaymentProviderSettings, type InsertPaymentProviderSettings,
+  carts, cartItems
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
+import Decimal from "decimal.js";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -688,100 +692,417 @@ export class MemStorage implements IStorage {
 
   // Cart operations
   async getCartByUserId(userId: number): Promise<any> {
-    return this.carts.get(userId) || {
-      id: 1,
-      items: [],
-      subtotal: "0.00",
-      total: "0.00",
-      vendorId: 1
-    };
-  }
-
-  async addToCart(userId: number, item: any): Promise<any> {
-    const cart = await this.getCartByUserId(userId);
-    const existingItemIndex = cart.items.findIndex((i: any) => i.productId === item.productId);
-
-    if (existingItemIndex >= 0) {
-      // Update quantity if item exists
-      cart.items[existingItemIndex].quantity += item.quantity;
-    } else {
-      // Add new item with generated ID if it doesn't exist
-      const itemId = Math.floor(Math.random() * 10000);
-      cart.items.push({ ...item, id: itemId });
+    try {
+      // First check if there's a cart in memory
+      let cart = this.carts.get(userId);
+      if (cart) return cart;
+      
+      // Otherwise, try to get from database
+      try {
+        // Check if user has an existing cart
+        const [existingCart] = await db
+          .select()
+          .from(carts)
+          .where(eq(carts.userId, userId))
+          .limit(1);
+        
+        if (existingCart) {
+          // Get cart items
+          const items = await db
+            .select()
+            .from(cartItems)
+            .where(eq(cartItems.cartId, existingCart.id));
+          
+          // Create cart object
+          cart = {
+            ...existingCart,
+            items: items || []
+          };
+          
+          // Cache it
+          this.carts.set(userId, cart);
+          return cart;
+        }
+      } catch (error) {
+        console.error("Error getting cart from database:", error);
+      }
+      
+      // Return default cart if nothing found
+      return {
+        id: 0,
+        userId,
+        items: [],
+        subtotal: "0.00",
+        tax: "0.00",
+        total: "0.00",
+        vendorId: 1
+      };
+    } catch (error) {
+      console.error("Error in getCartByUserId:", error);
+      return {
+        id: 0,
+        userId,
+        items: [],
+        subtotal: "0.00",
+        tax: "0.00",
+        total: "0.00",
+        vendorId: 1
+      };
     }
-
-    // Recalculate cart totals
-    let subtotal = cart.items.reduce(
-      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
-      0
-    );
-
-    cart.subtotal = subtotal.toFixed(2);
-    cart.total = subtotal.toFixed(2); // Add tax calculation as needed
-
-    this.carts.set(userId, cart);
-    return cart;
   }
-
-  async updateCartItemQuantity(userId: number, itemId: number, quantity: number): Promise<any> {
-    const cart = await this.getCartByUserId(userId);
-    const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
-
-    if (itemIndex === -1) {
-      throw new Error("Cart item not found");
+  
+  async getCartBySessionId(sessionId: string): Promise<any> {
+    try {
+      // Try to get from database
+      try {
+        // Check if session has an existing cart
+        const [existingCart] = await db
+          .select()
+          .from(carts)
+          .where(eq(carts.sessionId, sessionId))
+          .limit(1);
+        
+        if (existingCart) {
+          // Get cart items
+          const items = await db
+            .select()
+            .from(cartItems)
+            .where(eq(cartItems.cartId, existingCart.id));
+          
+          // Return cart with items
+          return {
+            ...existingCart,
+            items: items || []
+          };
+        }
+      } catch (error) {
+        console.error("Error getting cart from database:", error);
+      }
+      
+      // Return default cart if nothing found
+      return {
+        id: 0,
+        sessionId,
+        items: [],
+        subtotal: "0.00",
+        tax: "0.00",
+        total: "0.00",
+        vendorId: 1
+      };
+    } catch (error) {
+      console.error("Error in getCartBySessionId:", error);
+      return {
+        id: 0,
+        sessionId,
+        items: [],
+        subtotal: "0.00",
+        tax: "0.00",
+        total: "0.00",
+        vendorId: 1
+      };
     }
-
-    // Update item quantity
-    cart.items[itemIndex].quantity = quantity;
-
-    // Recalculate cart totals
-    let subtotal = cart.items.reduce(
-      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
-      0
-    );
-
-    cart.subtotal = subtotal.toFixed(2);
-    cart.total = subtotal.toFixed(2);
-
-    this.carts.set(userId, cart);
-    return cart;
   }
 
-  async removeFromCart(userId: number, itemId: number): Promise<any> {
-    const cart = await this.getCartByUserId(userId);
-    const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
+  async addToCart(userId: number | null, sessionId: string | null, item: any): Promise<any> {
+    try {
+      let cart;
+      
+      // Get appropriate cart based on authentication status
+      if (userId) {
+        cart = await this.getCartByUserId(userId);
+      } else if (sessionId) {
+        cart = await this.getCartBySessionId(sessionId);
+      } else {
+        throw new Error("Either userId or sessionId is required");
+      }
+      
+      // Create cart in database if it doesn't exist
+      if (!cart.id || cart.id === 0) {
+        try {
+          const [newCart] = await db
+            .insert(carts)
+            .values({
+              userId: userId || null,
+              sessionId: sessionId || null,
+              vendorId: item.vendorId || 1,
+              subtotal: "0.00",
+              tax: "0.00",
+              total: "0.00",
+            })
+            .returning();
+            
+          cart = { ...newCart, items: [] };
+        } catch (error) {
+          console.error("Error creating cart:", error);
+          // Continue with in-memory cart if database operation fails
+        }
+      }
+      
+      // Get product details
+      const product = await this.getProduct(item.productId);
+      if (!product) {
+        throw new Error("Product not found");
+      }
 
-    if (itemIndex === -1) {
-      throw new Error("Cart item not found");
+      // Check for existing item
+      const existingItem = cart.items.find((i: any) => i.productId === item.productId);
+      
+      if (existingItem) {
+        // Update quantity if item exists
+        try {
+          await db
+            .update(cartItems)
+            .set({ quantity: existingItem.quantity + item.quantity })
+            .where(eq(cartItems.id, existingItem.id));
+            
+          existingItem.quantity += item.quantity;
+        } catch (error) {
+          console.error("Error updating cart item:", error);
+          // Update in-memory if database operation fails
+          existingItem.quantity += item.quantity;
+        }
+      } else {
+        // Add new item
+        try {
+          const [newItem] = await db
+            .insert(cartItems)
+            .values({
+              cartId: cart.id,
+              productId: product.id,
+              name: product.name,
+              price: product.sellingPrice.toString(),
+              quantity: item.quantity,
+              imageUrl: product.featuredImageUrl || null,
+              variant: item.variant || null,
+            })
+            .returning();
+            
+          cart.items.push(newItem);
+        } catch (error) {
+          console.error("Error adding cart item:", error);
+          // Add to in-memory if database operation fails
+          const tempItem = {
+            id: Math.floor(Math.random() * 10000),
+            cartId: cart.id,
+            productId: product.id,
+            name: product.name,
+            price: product.sellingPrice.toString(),
+            quantity: item.quantity,
+            imageUrl: product.featuredImageUrl || null,
+            variant: item.variant || null,
+            createdAt: new Date()
+          };
+          
+          cart.items.push(tempItem);
+        }
+      }
+      
+      // Recalculate cart totals
+      await this.recalculateCartTotals(cart);
+      
+      // Sync with in-memory storage
+      if (userId) {
+        this.carts.set(userId, cart);
+      }
+      
+      return cart;
+    } catch (error) {
+      console.error("Error in addToCart:", error);
+      throw error;
     }
-
-    // Remove item
-    cart.items.splice(itemIndex, 1);
-
-    // Recalculate cart totals
-    let subtotal = cart.items.reduce(
-      (total: number, item: any) => total + parseFloat(item.price) * item.quantity,
-      0
-    );
-
-    cart.subtotal = subtotal.toFixed(2);
-    cart.total = subtotal.toFixed(2);
-
-    this.carts.set(userId, cart);
-    return cart;
   }
 
-  async clearCart(userId: number): Promise<boolean> {
-    const emptyCart = {
-      id: 1,
-      items: [],
-      subtotal: "0.00",
-      total: "0.00",
-      vendorId: 1
-    };
-    
-    this.carts.set(userId, emptyCart);
-    return true;
+  async updateCartItemQuantity(userId: number | null, sessionId: string | null, itemId: number, quantity: number): Promise<any> {
+    try {
+      let cart;
+      
+      // Get appropriate cart based on authentication status
+      if (userId) {
+        cart = await this.getCartByUserId(userId);
+      } else if (sessionId) {
+        cart = await this.getCartBySessionId(sessionId);
+      } else {
+        throw new Error("Either userId or sessionId is required");
+      }
+      
+      // Find the item
+      const item = cart.items.find((i: any) => i.id === itemId);
+      if (!item) {
+        throw new Error("Cart item not found");
+      }
+      
+      // Update quantity
+      try {
+        await db
+          .update(cartItems)
+          .set({ quantity })
+          .where(eq(cartItems.id, itemId));
+          
+        item.quantity = quantity;
+      } catch (error) {
+        console.error("Error updating cart item quantity:", error);
+        // Update in-memory if database operation fails
+        item.quantity = quantity;
+      }
+      
+      // Recalculate cart totals
+      await this.recalculateCartTotals(cart);
+      
+      // Sync with in-memory storage
+      if (userId) {
+        this.carts.set(userId, cart);
+      }
+      
+      return cart;
+    } catch (error) {
+      console.error("Error in updateCartItemQuantity:", error);
+      throw error;
+    }
+  }
+
+  async removeFromCart(userId: number | null, sessionId: string | null, itemId: number): Promise<any> {
+    try {
+      let cart;
+      
+      // Get appropriate cart based on authentication status
+      if (userId) {
+        cart = await this.getCartByUserId(userId);
+      } else if (sessionId) {
+        cart = await this.getCartBySessionId(sessionId);
+      } else {
+        throw new Error("Either userId or sessionId is required");
+      }
+      
+      // Find the item
+      const itemIndex = cart.items.findIndex((i: any) => i.id === itemId);
+      if (itemIndex === -1) {
+        throw new Error("Cart item not found");
+      }
+      
+      // Remove from database
+      try {
+        await db
+          .delete(cartItems)
+          .where(eq(cartItems.id, itemId));
+      } catch (error) {
+        console.error("Error removing cart item from database:", error);
+      }
+      
+      // Remove from in-memory cart
+      cart.items.splice(itemIndex, 1);
+      
+      // Recalculate cart totals
+      await this.recalculateCartTotals(cart);
+      
+      // Sync with in-memory storage
+      if (userId) {
+        this.carts.set(userId, cart);
+      }
+      
+      return cart;
+    } catch (error) {
+      console.error("Error in removeFromCart:", error);
+      throw error;
+    }
+  }
+
+  async clearCart(userId: number | null, sessionId: string | null): Promise<boolean> {
+    try {
+      let cart;
+      
+      // Get appropriate cart based on authentication status
+      if (userId) {
+        cart = await this.getCartByUserId(userId);
+      } else if (sessionId) {
+        cart = await this.getCartBySessionId(sessionId);
+      } else {
+        throw new Error("Either userId or sessionId is required");
+      }
+      
+      if (!cart || !cart.id || cart.id === 0) {
+        return true; // Cart is already empty
+      }
+      
+      // Delete all items from database
+      try {
+        await db
+          .delete(cartItems)
+          .where(eq(cartItems.cartId, cart.id));
+          
+        // Reset cart totals
+        await db
+          .update(carts)
+          .set({
+            subtotal: "0.00",
+            tax: "0.00",
+            total: "0.00",
+          })
+          .where(eq(carts.id, cart.id));
+      } catch (error) {
+        console.error("Error clearing cart from database:", error);
+      }
+      
+      // Clear in-memory cart
+      const emptyCart = {
+        ...cart,
+        items: [],
+        subtotal: "0.00",
+        tax: "0.00",
+        total: "0.00",
+      };
+      
+      // Sync with in-memory storage
+      if (userId) {
+        this.carts.set(userId, emptyCart);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error in clearCart:", error);
+      return false;
+    }
+  }
+  
+  // Helper method to recalculate cart totals
+  private async recalculateCartTotals(cart: any): Promise<void> {
+    try {
+      if (!cart || !cart.id || cart.id === 0) return;
+      
+      // Calculate subtotal
+      let subtotal = new Decimal(0);
+      for (const item of cart.items) {
+        const price = new Decimal(item.price || 0);
+        const quantity = new Decimal(item.quantity || 0);
+        subtotal = subtotal.plus(price.times(quantity));
+      }
+      
+      // Calculate tax (8.25% example rate)
+      const tax = subtotal.times(0.0825);
+      
+      // Calculate total
+      const total = subtotal.plus(tax);
+      
+      // Update cart object
+      cart.subtotal = subtotal.toFixed(2);
+      cart.tax = tax.toFixed(2);
+      cart.total = total.toFixed(2);
+      
+      // Update in database
+      try {
+        await db
+          .update(carts)
+          .set({
+            subtotal: subtotal.toFixed(2),
+            tax: tax.toFixed(2),
+            total: total.toFixed(2),
+          })
+          .where(eq(carts.id, cart.id));
+      } catch (error) {
+        console.error("Error updating cart totals in database:", error);
+      }
+    } catch (error) {
+      console.error("Error in recalculateCartTotals:", error);
+    }
   }
 
   // Customer operations
