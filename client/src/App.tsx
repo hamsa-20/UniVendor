@@ -33,6 +33,7 @@ import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
 import UsersManagementPage from "./pages/admin/UsersManagementPage";
 import MarketingPage from "./pages/marketing/MarketingPage";
 import ReportsPage from "./pages/reports/ReportsPage";
+import SubscriptionPage from "./pages/vendor/SubscriptionPage";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
