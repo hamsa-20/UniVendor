@@ -283,59 +283,58 @@ export class MemStorage implements IStorage {
   }
 
   private initializeDefaultData() {
-    // Create default subscription plans
-    const freePlan: InsertSubscriptionPlan = {
-      name: "Free",
-      description: "Basic solution for small businesses or individuals just starting out.",
-      price: "0",
-      features: ["1 subdomain", "Up to 50 products", "Basic analytics", "Email support"],
-      productLimit: 50,
-      storageLimit: 1,
-      customDomainLimit: 0,
-      supportLevel: "email",
-      isActive: true
-    };
-    
+    // Create default subscription plans based on the design
     const basicPlan: InsertSubscriptionPlan = {
       name: "Basic",
-      description: "For growing businesses looking to expand their online presence.",
-      price: "29",
-      features: ["1 custom domain", "Up to 500 products", "Advanced analytics", "Priority email support", "Basic customization"],
-      productLimit: 500,
-      storageLimit: 5,
+      description: "Perfect for small businesses just getting started with e-commerce",
+      price: "2999",
+      yearlyPrice: "29990",
+      features: ["Up to 50 products", "5GB storage", "1 custom domain", "Email support"],
+      productLimit: 50,
+      storageLimit: 5000,
       customDomainLimit: 1,
-      supportLevel: "priority_email",
-      isActive: true
+      supportLevel: "basic",
+      isActive: true,
+      trialDays: 7,
+      isDefault: false,
+      currency: "INR"
     };
     
     const proPlan: InsertSubscriptionPlan = {
       name: "Pro",
-      description: "Complete solution for established businesses with comprehensive needs.",
-      price: "79",
-      features: ["3 custom domains", "Unlimited products", "Full analytics suite", "Phone & email support", "Advanced customization"],
-      productLimit: 10000,
-      storageLimit: 20,
+      description: "For growing businesses with expanded inventory needs",
+      price: "7999",
+      yearlyPrice: "79990",
+      features: ["Up to 500 products", "20GB storage", "3 custom domains", "Priority support", "Advanced analytics", "Automated inventory alerts"],
+      productLimit: 500,
+      storageLimit: 20000,
       customDomainLimit: 3,
-      supportLevel: "phone_email",
-      isActive: true
+      supportLevel: "priority",
+      isActive: true,
+      trialDays: 7,
+      isDefault: true,
+      currency: "INR"
     };
     
-    const enterprisePlan: InsertSubscriptionPlan = {
-      name: "Enterprise",
-      description: "Custom solution for large businesses with complex requirements.",
-      price: "199",
-      features: ["10 custom domains", "Unlimited products", "Enterprise analytics", "Dedicated support", "Custom development"],
-      productLimit: 100000,
-      storageLimit: 100,
+    const businessPlan: InsertSubscriptionPlan = {
+      name: "Business",
+      description: "Enterprise-grade solution for established online retailers",
+      price: "14999",
+      yearlyPrice: "149990",
+      features: ["Unlimited products", "100GB storage", "10 custom domains", "Premium support", "Advanced analytics", "API access", "Dedicated account manager"],
+      productLimit: 10000,
+      storageLimit: 100000,
       customDomainLimit: 10,
-      supportLevel: "dedicated",
-      isActive: true
+      supportLevel: "premium",
+      isActive: true,
+      trialDays: 7,
+      isDefault: false,
+      currency: "INR"
     };
     
-    this.createSubscriptionPlan(freePlan);
     this.createSubscriptionPlan(basicPlan);
     this.createSubscriptionPlan(proPlan);
-    this.createSubscriptionPlan(enterprisePlan);
+    this.createSubscriptionPlan(businessPlan);
     
     // Create super admin user
     const adminUser: Partial<InsertUser> = {

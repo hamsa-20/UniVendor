@@ -52,6 +52,7 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   isDefault: boolean("is_default").default(false), // Whether this is the default plan for new vendors
   stripePriceIdMonthly: text("stripe_price_id_monthly"), // Stripe price ID for monthly billing
   stripePriceIdYearly: text("stripe_price_id_yearly"), // Stripe price ID for yearly billing
+  currency: text("currency").default("INR").notNull(), // Currency for the plan pricing
   createdAt: timestamp("created_at").defaultNow(),
 });
 
