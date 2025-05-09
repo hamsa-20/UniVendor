@@ -438,9 +438,40 @@ export class MemStorage implements IStorage {
     const plan = await this.getSubscriptionPlan(id);
     if (!plan) return undefined;
     
+    // If setting this plan as default, unset default on all other plans
+    if (data.isDefault) {
+      // Get all plans
+      const plans = await this.getSubscriptionPlans();
+      // Update other default plans to not be default
+      for (const otherPlan of plans) {
+        if (otherPlan.id !== id && otherPlan.isDefault) {
+          const updatedOtherPlan = { ...otherPlan, isDefault: false };
+          this.subscriptionPlans.set(otherPlan.id, updatedOtherPlan);
+        }
+      }
+    }
+    
     const updatedPlan = { ...plan, ...data };
     this.subscriptionPlans.set(id, updatedPlan);
     return updatedPlan;
+  }
+
+  async deleteSubscriptionPlan(id: number): Promise<boolean> {
+    // Check if plan exists
+    const plan = await this.getSubscriptionPlan(id);
+    if (!plan) return false;
+    
+    // Check if any vendors are using this plan
+    for (const vendor of this.vendors.values()) {
+      if (vendor.subscriptionPlanId === id) {
+        // Plan is in use, cannot delete
+        return false;
+      }
+    }
+    
+    // Delete the plan
+    this.subscriptionPlans.delete(id);
+    return true;
   }
 
   async getVendorIdByUserId(userId: number): Promise<number | undefined> {
