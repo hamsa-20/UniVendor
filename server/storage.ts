@@ -53,9 +53,16 @@ export interface IStorage {
 
   // Subscription plan operations
   getSubscriptionPlan(id: number): Promise<SubscriptionPlan | undefined>;
+  getSubscriptionPlanById(id: number): Promise<SubscriptionPlan | undefined>;
   getSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
   updateSubscriptionPlan(id: number, data: Partial<InsertSubscriptionPlan>): Promise<SubscriptionPlan | undefined>;
+  
+  // Vendor subscription operations
+  getVendorSubscription(vendorId: number): Promise<SubscriptionInfo | undefined>;
+  createVendorSubscription(subscription: InsertPlatformSubscription): Promise<SubscriptionInfo>;
+  updateVendorSubscription(id: number, data: Partial<InsertPlatformSubscription>): Promise<SubscriptionInfo | undefined>;
+  getVendorIdByUserId(userId: number): Promise<number | undefined>;
 
   // Vendor operations
   getVendor(id: number): Promise<Vendor | undefined>;

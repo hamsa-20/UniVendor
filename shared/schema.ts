@@ -546,6 +546,11 @@ export type InsertPaymentMethod = z.infer<typeof insertPaymentMethodSchema>;
 export type PlatformSubscription = typeof platformSubscriptions.$inferSelect;
 export type InsertPlatformSubscription = z.infer<typeof insertPlatformSubscriptionSchema>;
 
+// Combined subscription info type with related plan data
+export interface SubscriptionInfo extends PlatformSubscription {
+  plan: SubscriptionPlan;
+}
+
 export type Invoice = typeof invoices.$inferSelect;
 export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 
