@@ -105,16 +105,16 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
   };
 
   // Next step handler
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (step === "shipping") {
       // Validate shipping fields
-      const shippingValid = form.trigger("shippingAddress");
+      const shippingValid = await form.trigger("shippingAddress");
       if (shippingValid) {
         setStep("payment");
       }
     } else if (step === "payment") {
       // Validate payment fields
-      const paymentValid = form.trigger("paymentMethod");
+      const paymentValid = await form.trigger("paymentMethod");
       if (paymentValid) {
         setStep("review");
       }

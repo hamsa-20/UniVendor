@@ -9,6 +9,6 @@ export function formatCurrency(amount: number, currency: string = 'INR'): string
     style: 'currency',
     currency: currency,
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   }).format(amount);
 }

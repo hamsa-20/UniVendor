@@ -34,7 +34,7 @@ export function useCart() {
     refetch 
   } = useQuery<Cart>({
     queryKey: ['/api/cart'],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   // Add to cart mutation
