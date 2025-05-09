@@ -74,7 +74,11 @@ const BuyerLoginPage = () => {
     setError(null);
     
     try {
-      const result = await requestOtpMutation.mutateAsync({ email: data.email });
+      // For buyer login, we need to indicate this is a customer account
+      const result = await requestOtpMutation.mutateAsync({ 
+        email: data.email,
+        isCustomer: true // Indicate this is a customer/buyer login
+      });
       
       // Save email for OTP verification step
       setCurrentEmail(data.email);
@@ -100,6 +104,7 @@ const BuyerLoginPage = () => {
       await verifyOtpMutation.mutateAsync({
         email: currentEmail,
         otp: data.otp,
+        isCustomer: true // Indicate this is a customer/buyer login
       });
       
       // No need to redirect here as it's handled by the useEffect above

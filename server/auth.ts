@@ -155,10 +155,13 @@ export function setupAuth(app: Express) {
       let user = await storage.getUserByEmail(email);
       
       if (!user) {
+        // Determine the appropriate role based on request
+        const role = req.body.isCustomer ? "customer" : "vendor";
+        
         // Create new user with email only, profile will be completed later
         user = await storage.createUser({
           email,
-          role: "vendor", // Default role
+          role,
           isProfileComplete: false
         });
       }
