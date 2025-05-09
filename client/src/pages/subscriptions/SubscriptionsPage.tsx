@@ -620,8 +620,11 @@ const SubscriptionsPage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the subscription plan.
-              Any vendors currently on this plan will need to be reassigned.
+              This action cannot be undone and will permanently delete the subscription plan.
+              
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800">
+                <strong>Important:</strong> Plans that are currently assigned to vendors cannot be deleted. You must first reassign those vendors to a different plan.
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
