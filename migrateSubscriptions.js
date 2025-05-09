@@ -1,15 +1,27 @@
-import { pool, db } from './server/db.js';
-import { sql } from 'drizzle-orm';
+// Script to update subscription-related tables
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 
-/**
- * Apply subscription model schema changes
- */
+// Required for Neon Serverless
+neonConfig.webSocketConstructor = ws;
+
+// Configure for Neon serverless
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  connectionTimeoutMillis: 5000
+});
+
 async function runMigration() {
-  console.log('Starting subscription model migration...');
+  const client = await pool.connect();
   
   try {
-    // Update subscription_plans table to add new fields
-    await db.execute(sql`
+    console.log('Connected to database...');
+    
+    // Start transaction
+    await client.query('BEGIN');
+    
+    // Update subscription_plans table
+    await client.query(`
       ALTER TABLE subscription_plans 
       ADD COLUMN IF NOT EXISTS yearly_price NUMERIC,
       ADD COLUMN IF NOT EXISTS trial_days INTEGER DEFAULT 7,
@@ -19,31 +31,75 @@ async function runMigration() {
     `);
     console.log('✅ Added new columns to subscription_plans table');
 
-    // Update platform_subscriptions table to add new fields
-    await db.execute(sql`
-      ALTER TABLE platform_subscriptions 
-      ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP,
-      ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE,
-      ADD COLUMN IF NOT EXISTS amount NUMERIC,
-      ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD',
-      ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
-      ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT,
-      ADD COLUMN IF NOT EXISTS payment_failure_count INTEGER DEFAULT 0,
-      ADD COLUMN IF NOT EXISTS metadata JSONB
+    // Check if the platform_subscriptions table exists, if not create it
+    const tableExists = await client.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'platform_subscriptions'
+      )
     `);
+    
+    if (!tableExists.rows[0].exists) {
+      console.log('Creating platform_subscriptions table...');
+      
+      await client.query(`
+        CREATE TABLE platform_subscriptions (
+          id SERIAL PRIMARY KEY,
+          vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+          plan_id INTEGER NOT NULL REFERENCES subscription_plans(id),
+          status TEXT NOT NULL DEFAULT 'trialing',
+          start_date TIMESTAMP NOT NULL DEFAULT NOW(),
+          end_date TIMESTAMP,
+          trial_ends_at TIMESTAMP,
+          current_period_start TIMESTAMP,
+          current_period_end TIMESTAMP,
+          cancel_at_period_end BOOLEAN DEFAULT FALSE,
+          renewal_date TIMESTAMP,
+          billing_cycle TEXT NOT NULL DEFAULT 'monthly',
+          amount NUMERIC,
+          currency TEXT DEFAULT 'USD',
+          payment_method_id INTEGER REFERENCES payment_methods(id),
+          stripe_customer_id TEXT,
+          stripe_subscription_id TEXT,
+          canceled_at TIMESTAMP,
+          cancel_reason TEXT,
+          payment_failure_count INTEGER DEFAULT 0,
+          metadata JSONB,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      console.log('✅ Created platform_subscriptions table');
+    } else {
+      // The table exists, so just update it with new columns
+      console.log('Updating platform_subscriptions table...');
+      
+      await client.query(`
+        ALTER TABLE platform_subscriptions 
+        ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS current_period_start TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS current_period_end TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS amount NUMERIC,
+        ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD',
+        ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
+        ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT,
+        ADD COLUMN IF NOT EXISTS payment_failure_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS metadata JSONB
+      `);
+      console.log('✅ Updated platform_subscriptions table');
+    }
     console.log('✅ Added new columns to platform_subscriptions table');
 
     // Create default subscription plans if none exist
-    const plansExist = await db.execute(sql`SELECT COUNT(*) FROM subscription_plans`);
+    const plansExist = await client.query('SELECT COUNT(*) FROM subscription_plans');
     const count = parseInt(plansExist.rows[0].count, 10);
     
     if (count === 0) {
       console.log('Creating default subscription plans...');
       
       // Basic Plan
-      await db.execute(sql`
+      await client.query(`
         INSERT INTO subscription_plans (
           name, description, price, yearly_price, features, 
           product_limit, storage_limit, custom_domain_limit, 
@@ -65,7 +121,7 @@ async function runMigration() {
       `);
       
       // Pro Plan
-      await db.execute(sql`
+      await client.query(`
         INSERT INTO subscription_plans (
           name, description, price, yearly_price, features, 
           product_limit, storage_limit, custom_domain_limit, 
@@ -86,7 +142,7 @@ async function runMigration() {
       `);
       
       // Business Plan
-      await db.execute(sql`
+      await client.query(`
         INSERT INTO subscription_plans (
           name, description, price, yearly_price, features, 
           product_limit, storage_limit, custom_domain_limit, 
@@ -111,16 +167,23 @@ async function runMigration() {
       console.log('Subscription plans already exist, skipping default plan creation');
     }
 
-    console.log('Migration completed successfully!');
+    // Commit transaction
+    await client.query('COMMIT');
+    console.log('Migration completed successfully');
+    
   } catch (error) {
+    // Rollback on error
+    await client.query('ROLLBACK');
     console.error('Migration failed:', error);
-    throw error;
   } finally {
+    // Release client
+    client.release();
+    // Close pool
     await pool.end();
+    process.exit(0);
   }
 }
 
-runMigration().catch(err => {
-  console.error('Migration error:', err);
-  process.exit(1);
-});
+// Run migration
+console.log('Running subscription model migration...');
+runMigration();
