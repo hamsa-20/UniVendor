@@ -34,6 +34,7 @@ import UsersManagementPage from "./pages/admin/UsersManagementPage";
 import MarketingPage from "./pages/marketing/MarketingPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import SubscriptionPage from "./pages/vendor/SubscriptionPage";
+import S3UploadTestPage from "./pages/s3-upload-test";
 import PrivateRoute from "@/components/PrivateRoute";
 
 function Router() {
@@ -609,6 +610,12 @@ function Router() {
       <Route path="/reports">
         <PrivateRoute roles={["vendor"]}>
           <ReportsPage />
+        </PrivateRoute>
+      </Route>
+
+      <Route path="/s3-upload-test">
+        <PrivateRoute roles={["super_admin", "vendor"]}>
+          <S3UploadTestPage />
         </PrivateRoute>
       </Route>
 
