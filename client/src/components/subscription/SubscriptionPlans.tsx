@@ -92,13 +92,13 @@ export default function SubscriptionPlans({
   return (
     <div className="grid gap-8 md:grid-cols-3">
       {plans?.map((plan) => {
-        const price = billingCycle === 'yearly' ? plan.yearlyPrice : plan.price;
+        const price = billingCycle === 'yearly' ? plan.yearlyPrice || plan.price : plan.price;
         const isCurrentPlan = currentPlanId === plan.id;
         const showYearlySavings = billingCycle === 'yearly' && plan.yearlyPrice && plan.price;
         
         // Calculate annual savings if on yearly plan
         const yearlySavings = showYearlySavings 
-          ? parseFloat(plan.price) * 12 - parseFloat(plan.yearlyPrice)
+          ? parseFloat(plan.price) * 12 - parseFloat(plan.yearlyPrice || '0')
           : 0;
         
         return (

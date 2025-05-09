@@ -5,7 +5,7 @@ import { Helmet } from 'react-helmet';
 
 export default function SubscriptionPage() {
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Subscription Management">
       <Helmet>
         <title>Subscription Management | LeLeKart Vendor Dashboard</title>
         <meta name="description" content="Manage your vendor subscription plan, billing cycle, and account details." />

@@ -611,6 +611,12 @@ function Router() {
           <ReportsPage />
         </PrivateRoute>
       </Route>
+
+      <Route path="/subscription">
+        <PrivateRoute roles={["vendor"]}>
+          <SubscriptionPage />
+        </PrivateRoute>
+      </Route>
       
       {/* Fallback to 404 */}
       <Route component={NotFound} />

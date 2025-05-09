@@ -1,381 +1,368 @@
-import { Request, Response, NextFunction, Router, Express } from 'express';
-import { db } from './db';
-import { platformSubscriptions, subscriptionPlans, vendors } from '@shared/schema';
-import { and, eq } from 'drizzle-orm';
-import { DateTime } from 'luxon';
-import { isAuthenticated } from './auth';
+import { Request, Response, NextFunction, Router } from 'express';
+import { storage } from './storage';
+import Stripe from 'stripe';
+import { z } from 'zod';
+
+interface AuthRequest extends Request {
+  user?: any;
+  isAuthenticated(): boolean;
+  login(user: any, callback: (err: any) => void): void;
+  logout(callback: (err: any) => void): void;
+}
+
+// Initialize Stripe if API key is available
+let stripe: Stripe | null = null;
+
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2023-10-16',
+  });
+} else {
+  console.warn('STRIPE_SECRET_KEY not set. Stripe functionality will be unavailable.');
+}
+
+// Auth middleware for subscription routes
+const requireAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+  next();
+};
+
+// Schema for changing plan
+const changePlanSchema = z.object({
+  planId: z.number(),
+});
+
+// Schema for changing billing cycle
+const changeBillingCycleSchema = z.object({
+  billingCycle: z.enum(['monthly', 'yearly']),
+});
+
+// Schema for cancellation
+const cancelSubscriptionSchema = z.object({
+  cancelAtPeriodEnd: z.boolean(),
+  cancelReason: z.string().optional(),
+});
 
 /**
  * Register subscription-related routes
  */
-export default function registerSubscriptionRoutes(app: Express) {
-  // Get all subscription plans (public route)
+export default function registerSubscriptionRoutes(app: Router) {
+  // Get available subscription plans
   app.get('/api/subscription-plans', async (req: Request, res: Response) => {
     try {
-      const plans = await db.query.subscriptionPlans.findMany({
-        where: eq(subscriptionPlans.isActive, true),
-        orderBy: (subscription) => subscription.price
-      });
-      
-      return res.status(200).json(plans);
-    } catch (error) {
+      const plans = await storage.getSubscriptionPlans();
+      res.json(plans);
+    } catch (error: any) {
       console.error('Error fetching subscription plans:', error);
-      return res.status(500).json({ message: 'Failed to fetch subscription plans' });
+      res.status(500).json({ message: 'Failed to fetch subscription plans' });
     }
   });
 
-  // Get a specific subscription plan
-  app.get('/api/subscription-plans/:id', async (req: Request, res: Response) => {
+  // Get current vendor subscription
+  app.get('/api/vendor/subscription', requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      const planId = parseInt(req.params.id);
-      if (isNaN(planId)) {
-        return res.status(400).json({ message: 'Invalid plan ID' });
-      }
-
-      const plan = await db.query.subscriptionPlans.findFirst({
-        where: and(
-          eq(subscriptionPlans.id, planId),
-          eq(subscriptionPlans.isActive, true)
-        )
-      });
-
-      if (!plan) {
-        return res.status(404).json({ message: 'Subscription plan not found' });
-      }
-
-      return res.status(200).json(plan);
-    } catch (error) {
-      console.error('Error fetching subscription plan:', error);
-      return res.status(500).json({ message: 'Failed to fetch subscription plan' });
-    }
-  });
-
-  // Get current vendor's subscription
-  app.get('/api/vendor/subscription', isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      // Find the vendor for this user
-      const vendor = await db.query.vendors.findFirst({
-        where: eq(vendors.userId, req.user.id)
-      });
-
-      if (!vendor) {
+      const userId = req.user.id;
+      const vendorId = await storage.getVendorIdByUserId(userId);
+      
+      if (!vendorId) {
         return res.status(404).json({ message: 'Vendor account not found' });
       }
 
-      // Get current subscription
-      const subscription = await db.query.platformSubscriptions.findFirst({
-        where: eq(platformSubscriptions.vendorId, vendor.id),
-        orderBy: (sub) => sub.createdAt,
-        orderByDesc: true,
-        with: {
-          plan: true
-        }
-      });
-
+      const subscription = await storage.getVendorSubscription(vendorId);
+      
       if (!subscription) {
-        return res.status(404).json({ message: 'No subscription found' });
+        return res.status(404).json({ message: 'No active subscription found' });
       }
 
-      return res.status(200).json(subscription);
-    } catch (error) {
+      res.json(subscription);
+    } catch (error: any) {
       console.error('Error fetching vendor subscription:', error);
-      return res.status(500).json({ message: 'Failed to fetch subscription details' });
+      res.status(500).json({ message: 'Failed to fetch subscription details' });
     }
   });
 
   // Start a trial subscription
-  app.post('/api/vendor/subscription/start-trial', isAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/vendor/subscription/start-trial', requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const { planId } = req.body;
-      if (!planId) {
-        return res.status(400).json({ message: 'Plan ID is required' });
-      }
-
-      // Find the vendor for this user
-      const vendor = await db.query.vendors.findFirst({
-        where: eq(vendors.userId, req.user.id)
-      });
-
-      if (!vendor) {
+      const { planId } = changePlanSchema.parse(req.body);
+      const userId = req.user.id;
+      
+      // Get the vendor ID
+      const vendorId = await storage.getVendorIdByUserId(userId);
+      
+      if (!vendorId) {
         return res.status(404).json({ message: 'Vendor account not found' });
       }
 
-      // Check if vendor already has an active subscription
-      const existingSubscription = await db.query.platformSubscriptions.findFirst({
-        where: and(
-          eq(platformSubscriptions.vendorId, vendor.id),
-          eq(platformSubscriptions.status, 'active')
-        )
-      });
-
+      // Check if vendor already has a subscription
+      const existingSubscription = await storage.getVendorSubscription(vendorId);
+      
       if (existingSubscription) {
-        return res.status(400).json({ message: 'Vendor already has an active subscription' });
+        return res.status(400).json({ message: 'Vendor already has a subscription' });
       }
 
       // Get the plan
-      const plan = await db.query.subscriptionPlans.findFirst({
-        where: eq(subscriptionPlans.id, planId)
-      });
-
+      const plan = await storage.getSubscriptionPlanById(planId);
+      
       if (!plan) {
         return res.status(404).json({ message: 'Subscription plan not found' });
       }
 
-      const now = new Date();
-      const trialDays = plan.trialDays || 7;
-      const trialEndsAt = DateTime.fromJSDate(now).plus({ days: trialDays }).toJSDate();
+      // Calculate trial end date
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + plan.trialDays);
 
-      // Create the trial subscription
-      const [subscription] = await db.insert(platformSubscriptions).values({
-        vendorId: vendor.id,
-        planId: plan.id,
+      // Create a subscription record
+      const subscription = await storage.createVendorSubscription({
+        vendorId,
+        planId,
         status: 'trialing',
-        startDate: now,
+        startDate: new Date(),
         trialEndsAt,
-        currentPeriodStart: now,
-        currentPeriodEnd: trialEndsAt,
-        renewalDate: trialEndsAt,
-        billingCycle: 'monthly', // Default to monthly billing for trials
-      }).returning();
-
-      // Update vendor status to reflect they're on a trial
-      await db.update(vendors)
-        .set({
-          subscriptionStatus: 'trial',
-          subscriptionPlanId: plan.id,
-          trialEndsAt,
-          nextBillingDate: trialEndsAt
-        })
-        .where(eq(vendors.id, vendor.id));
-
-      return res.status(201).json(subscription);
-    } catch (error) {
-      console.error('Error starting trial subscription:', error);
-      return res.status(500).json({ message: 'Failed to start trial subscription' });
-    }
-  });
-
-  // Cancel a subscription
-  app.post('/api/vendor/subscription/cancel', isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const { cancelAtPeriodEnd, cancelReason } = req.body;
-
-      // Find the vendor for this user
-      const vendor = await db.query.vendors.findFirst({
-        where: eq(vendors.userId, req.user.id)
+        billingCycle: 'monthly', // Default to monthly
+        amount: plan.price,
+        currency: 'USD',
+        renewalDate: trialEndsAt, // Renewal will be after trial
       });
 
-      if (!vendor) {
-        return res.status(404).json({ message: 'Vendor account not found' });
+      res.status(201).json(subscription);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
       }
-
-      // Get current subscription
-      const subscription = await db.query.platformSubscriptions.findFirst({
-        where: and(
-          eq(platformSubscriptions.vendorId, vendor.id),
-          eq(platformSubscriptions.status, 'active')
-        )
-      });
-
-      if (!subscription) {
-        return res.status(404).json({ message: 'No active subscription found' });
-      }
-
-      // If there's a Stripe subscription, handle cancellation there
-      if (subscription.stripeSubscriptionId) {
-        // TODO: Implement Stripe cancellation
-        // For now, we'll just update the local records
-      }
-
-      // Update the subscription
-      if (cancelAtPeriodEnd) {
-        // Cancel at the end of the current period
-        const [updatedSubscription] = await db.update(platformSubscriptions)
-          .set({
-            cancelAtPeriodEnd: true,
-            cancelReason
-          })
-          .where(eq(platformSubscriptions.id, subscription.id))
-          .returning();
-
-        return res.status(200).json(updatedSubscription);
-      } else {
-        // Cancel immediately
-        const now = new Date();
-        const [updatedSubscription] = await db.update(platformSubscriptions)
-          .set({
-            status: 'canceled',
-            canceledAt: now,
-            cancelReason,
-            endDate: now
-          })
-          .where(eq(platformSubscriptions.id, subscription.id))
-          .returning();
-
-        // Update vendor status
-        await db.update(vendors)
-          .set({
-            subscriptionStatus: 'inactive'
-          })
-          .where(eq(vendors.id, vendor.id));
-
-        return res.status(200).json(updatedSubscription);
-      }
-    } catch (error) {
-      console.error('Error canceling subscription:', error);
-      return res.status(500).json({ message: 'Failed to cancel subscription' });
-    }
-  });
-
-  // Change billing cycle (monthly/yearly)
-  app.post('/api/vendor/subscription/change-billing-cycle', isAuthenticated, async (req: Request, res: Response) => {
-    try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const { billingCycle } = req.body;
       
-      if (!billingCycle || (billingCycle !== 'monthly' && billingCycle !== 'yearly')) {
-        return res.status(400).json({ message: 'Valid billing cycle (monthly/yearly) is required' });
-      }
-
-      // Find the vendor for this user
-      const vendor = await db.query.vendors.findFirst({
-        where: eq(vendors.userId, req.user.id)
-      });
-
-      if (!vendor) {
-        return res.status(404).json({ message: 'Vendor account not found' });
-      }
-
-      // Get current subscription
-      const subscription = await db.query.platformSubscriptions.findFirst({
-        where: and(
-          eq(platformSubscriptions.vendorId, vendor.id),
-          eq(platformSubscriptions.status, 'active')
-        ),
-        with: {
-          plan: true
-        }
-      });
-
-      if (!subscription) {
-        return res.status(404).json({ message: 'No active subscription found' });
-      }
-
-      // If the billing cycle is the same, no changes needed
-      if (subscription.billingCycle === billingCycle) {
-        return res.status(200).json(subscription);
-      }
-
-      // TODO: For Stripe integration, create a new subscription with the new billing cycle
-      // For now, just update the local records
-
-      const [updatedSubscription] = await db.update(platformSubscriptions)
-        .set({
-          billingCycle,
-          // Calculate new amount based on the plan's price
-          amount: billingCycle === 'monthly' 
-            ? subscription.plan.price 
-            : subscription.plan.yearlyPrice
-        })
-        .where(eq(platformSubscriptions.id, subscription.id))
-        .returning();
-
-      return res.status(200).json(updatedSubscription);
-    } catch (error) {
-      console.error('Error changing billing cycle:', error);
-      return res.status(500).json({ message: 'Failed to change billing cycle' });
+      console.error('Error starting trial subscription:', error);
+      res.status(500).json({ message: 'Failed to start trial subscription' });
     }
   });
 
   // Change subscription plan
-  app.post('/api/vendor/subscription/change-plan', isAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/vendor/subscription/change-plan', requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authenticated' });
-      }
-
-      const { planId } = req.body;
+      const { planId } = changePlanSchema.parse(req.body);
+      const userId = req.user.id;
       
-      if (!planId) {
-        return res.status(400).json({ message: 'Plan ID is required' });
-      }
-
-      // Find the vendor for this user
-      const vendor = await db.query.vendors.findFirst({
-        where: eq(vendors.userId, req.user.id)
-      });
-
-      if (!vendor) {
+      // Get the vendor ID
+      const vendorId = await storage.getVendorIdByUserId(userId);
+      
+      if (!vendorId) {
         return res.status(404).json({ message: 'Vendor account not found' });
       }
 
       // Get current subscription
-      const subscription = await db.query.platformSubscriptions.findFirst({
-        where: and(
-          eq(platformSubscriptions.vendorId, vendor.id),
-          eq(platformSubscriptions.status, 'active')
-        )
-      });
-
-      if (!subscription) {
+      const currentSubscription = await storage.getVendorSubscription(vendorId);
+      
+      if (!currentSubscription) {
         return res.status(404).json({ message: 'No active subscription found' });
       }
 
       // Get the new plan
-      const newPlan = await db.query.subscriptionPlans.findFirst({
-        where: eq(subscriptionPlans.id, planId)
+      const newPlan = await storage.getSubscriptionPlanById(planId);
+      
+      if (!newPlan) {
+        return res.status(404).json({ message: 'Subscription plan not found' });
+      }
+
+      // If we have Stripe integration
+      if (stripe && currentSubscription.stripeSubscriptionId) {
+        try {
+          // Get the price ID based on billing cycle
+          const stripePriceId = currentSubscription.billingCycle === 'yearly' 
+            ? newPlan.stripePriceIdYearly 
+            : newPlan.stripePriceIdMonthly;
+          
+          if (!stripePriceId) {
+            return res.status(400).json({ 
+              message: `No Stripe price ID found for ${currentSubscription.billingCycle} billing cycle` 
+            });
+          }
+
+          // Update the subscription in Stripe
+          await stripe.subscriptions.update(currentSubscription.stripeSubscriptionId, {
+            items: [{
+              id: currentSubscription.stripeItemId || '',
+              price: stripePriceId,
+            }],
+          });
+          
+        } catch (stripeErr: any) {
+          console.error('Stripe subscription update error:', stripeErr);
+          return res.status(500).json({ 
+            message: 'Failed to update subscription with payment provider',
+            error: stripeErr.message
+          });
+        }
+      }
+
+      // Update the subscription in our database
+      const amount = currentSubscription.billingCycle === 'yearly' 
+        ? newPlan.yearlyPrice || newPlan.price 
+        : newPlan.price;
+
+      const updatedSubscription = await storage.updateVendorSubscription(currentSubscription.id, {
+        planId,
+        amount,
       });
 
-      if (!newPlan) {
-        return res.status(404).json({ message: 'New subscription plan not found' });
+      res.json(updatedSubscription);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
       }
-
-      // If the plan is the same, no changes needed
-      if (subscription.planId === newPlan.id) {
-        return res.status(200).json(subscription);
-      }
-
-      // TODO: For Stripe integration, update the subscription with the new plan
-      // For now, just update the local records
-
-      const amount = subscription.billingCycle === 'monthly' 
-        ? newPlan.price 
-        : newPlan.yearlyPrice;
-
-      const [updatedSubscription] = await db.update(platformSubscriptions)
-        .set({
-          planId: newPlan.id,
-          amount
-        })
-        .where(eq(platformSubscriptions.id, subscription.id))
-        .returning();
-
-      // Update vendor's subscription plan ID
-      await db.update(vendors)
-        .set({
-          subscriptionPlanId: newPlan.id
-        })
-        .where(eq(vendors.id, vendor.id));
-
-      return res.status(200).json(updatedSubscription);
-    } catch (error) {
+      
       console.error('Error changing subscription plan:', error);
-      return res.status(500).json({ message: 'Failed to change subscription plan' });
+      res.status(500).json({ message: 'Failed to change subscription plan' });
     }
   });
+
+  // Change billing cycle (monthly/yearly)
+  app.post('/api/vendor/subscription/change-billing-cycle', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const { billingCycle } = changeBillingCycleSchema.parse(req.body);
+      const userId = req.user.id;
+      
+      // Get the vendor ID
+      const vendorId = await storage.getVendorIdByUserId(userId);
+      
+      if (!vendorId) {
+        return res.status(404).json({ message: 'Vendor account not found' });
+      }
+
+      // Get current subscription
+      const subscription = await storage.getVendorSubscription(vendorId);
+      
+      if (!subscription) {
+        return res.status(404).json({ message: 'No active subscription found' });
+      }
+
+      // Get the plan
+      const plan = await storage.getSubscriptionPlanById(subscription.planId);
+      
+      if (!plan) {
+        return res.status(404).json({ message: 'Subscription plan not found' });
+      }
+
+      // If already on the requested billing cycle, return early
+      if (subscription.billingCycle === billingCycle) {
+        return res.status(400).json({ 
+          message: `Subscription is already on ${billingCycle} billing cycle` 
+        });
+      }
+
+      // If we have Stripe integration
+      if (stripe && subscription.stripeSubscriptionId) {
+        try {
+          // Get the price ID based on new billing cycle
+          const stripePriceId = billingCycle === 'yearly' 
+            ? plan.stripePriceIdYearly 
+            : plan.stripePriceIdMonthly;
+          
+          if (!stripePriceId) {
+            return res.status(400).json({ 
+              message: `No Stripe price ID found for ${billingCycle} billing cycle` 
+            });
+          }
+
+          // Update the subscription in Stripe
+          await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+            items: [{
+              id: subscription.stripeItemId || '',
+              price: stripePriceId,
+            }],
+          });
+          
+        } catch (stripeErr: any) {
+          console.error('Stripe subscription update error:', stripeErr);
+          return res.status(500).json({ 
+            message: 'Failed to update billing cycle with payment provider',
+            error: stripeErr.message
+          });
+        }
+      }
+
+      // Determine the new amount based on billing cycle
+      const amount = billingCycle === 'yearly' 
+        ? plan.yearlyPrice || plan.price
+        : plan.price;
+
+      // Update the subscription in our database
+      const updatedSubscription = await storage.updateVendorSubscription(subscription.id, {
+        billingCycle,
+        amount,
+      });
+
+      res.json(updatedSubscription);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
+      }
+      
+      console.error('Error changing billing cycle:', error);
+      res.status(500).json({ message: 'Failed to change billing cycle' });
+    }
+  });
+
+  // Cancel subscription
+  app.post('/api/vendor/subscription/cancel', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+      const { cancelAtPeriodEnd, cancelReason } = cancelSubscriptionSchema.parse(req.body);
+      const userId = req.user.id;
+      
+      // Get the vendor ID
+      const vendorId = await storage.getVendorIdByUserId(userId);
+      
+      if (!vendorId) {
+        return res.status(404).json({ message: 'Vendor account not found' });
+      }
+
+      // Get current subscription
+      const subscription = await storage.getVendorSubscription(vendorId);
+      
+      if (!subscription) {
+        return res.status(404).json({ message: 'No active subscription found' });
+      }
+
+      // If subscription is already canceled, return early
+      if (subscription.status === 'canceled' || subscription.cancelAtPeriodEnd) {
+        return res.status(400).json({ message: 'Subscription is already canceled' });
+      }
+
+      // If we have Stripe integration
+      if (stripe && subscription.stripeSubscriptionId) {
+        try {
+          // Update the subscription in Stripe
+          await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+            cancel_at_period_end: cancelAtPeriodEnd,
+          });
+          
+        } catch (stripeErr: any) {
+          console.error('Stripe subscription cancellation error:', stripeErr);
+          return res.status(500).json({ 
+            message: 'Failed to cancel subscription with payment provider',
+            error: stripeErr.message
+          });
+        }
+      }
+
+      // Update the subscription in our database
+      const updatedSubscription = await storage.updateVendorSubscription(subscription.id, {
+        cancelAtPeriodEnd,
+        cancelReason: cancelReason || null,
+        ...(cancelAtPeriodEnd ? {} : { status: 'canceled', endDate: new Date() }),
+      });
+
+      res.json(updatedSubscription);
+    } catch (error: any) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid request data', errors: error.errors });
+      }
+      
+      console.error('Error canceling subscription:', error);
+      res.status(500).json({ message: 'Failed to cancel subscription' });
+    }
+  });
+
+  return app;
 }
