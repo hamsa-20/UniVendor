@@ -100,7 +100,7 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Update address
-  app.put('/api/addresses/:id', isAuthenticated, async (req: Request, res: Response) => {
+  app.put('/api/addresses/:id', isAuthenticated, async (req: AuthRequest, res: Response) => {
     try {
       const addressId = parseInt(req.params.id);
       if (isNaN(addressId)) {
@@ -146,7 +146,7 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Delete address
-  app.delete('/api/addresses/:id', isAuthenticated, async (req: Request, res: Response) => {
+  app.delete('/api/addresses/:id', isAuthenticated, async (req: AuthRequest, res: Response) => {
     try {
       const addressId = parseInt(req.params.id);
       if (isNaN(addressId)) {
@@ -190,7 +190,7 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Set address as default
-  app.post('/api/addresses/:id/set-default', isAuthenticated, async (req: Request, res: Response) => {
+  app.post('/api/addresses/:id/set-default', isAuthenticated, async (req: AuthRequest, res: Response) => {
     try {
       const addressId = parseInt(req.params.id);
       if (isNaN(addressId)) {

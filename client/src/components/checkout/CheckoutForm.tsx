@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,15 +15,31 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { AddressList } from "./AddressList";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface CustomerAddress {
+  id: number;
+  customerId: number;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  isDefault: boolean | null;
+  createdAt: string;
+}
 
 // Define checkout form schema
 const checkoutFormSchema = z.object({
+  shippingAddressId: z.number().optional(),
   shippingAddress: z.object({
     addressLine1: z.string().min(1, "Address is required"),
     addressLine2: z.string().optional(),
@@ -49,11 +65,29 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const [step, setStep] = useState<"shipping" | "payment" | "review">("shipping");
+  const [addressTab, setAddressTab] = useState<"saved" | "new">("saved");
+  const [selectedAddress, setSelectedAddress] = useState<CustomerAddress | null>(null);
+  
+  // Check if user is authenticated
+  const { data: user, isLoading: isLoadingUser } = useQuery({
+    queryKey: ['/api/auth/session'],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest('GET', '/api/auth/session');
+        return await res.json();
+      } catch (error) {
+        return null;
+      }
+    }
+  });
+
+  const isAuthenticated = !!user;
 
   // Create form
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
+      shippingAddressId: undefined,
       shippingAddress: {
         addressLine1: "",
         addressLine2: "",
@@ -66,6 +100,21 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
       notes: "",
     },
   });
+
+  // Update form values when an address is selected
+  useEffect(() => {
+    if (selectedAddress) {
+      form.setValue("shippingAddressId", selectedAddress.id);
+      form.setValue("shippingAddress", {
+        addressLine1: selectedAddress.addressLine1,
+        addressLine2: selectedAddress.addressLine2 || "",
+        city: selectedAddress.city,
+        state: selectedAddress.state,
+        postalCode: selectedAddress.postalCode,
+        country: selectedAddress.country,
+      });
+    }
+  }, [selectedAddress, form]);
 
   // Checkout mutation
   const checkout = useMutation({
@@ -140,88 +189,190 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
               <CardDescription>Enter your shipping address details</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="shippingAddress.addressLine1"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address Line 1</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 Main St" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="shippingAddress.addressLine2"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address Line 2 (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Apartment, suite, etc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="shippingAddress.city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input placeholder="City" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="shippingAddress.state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State</FormLabel>
-                      <FormControl>
-                        <Input placeholder="State" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="shippingAddress.postalCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Postal Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Postal Code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="shippingAddress.country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Country" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+              {isAuthenticated ? (
+                <Tabs defaultValue="saved" value={addressTab} onValueChange={(value) => setAddressTab(value as "saved" | "new")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="saved">Saved Addresses</TabsTrigger>
+                    <TabsTrigger value="new">New Address</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="saved" className="pt-4">
+                    <AddressList 
+                      vendorId={vendorId} 
+                      onAddressSelect={setSelectedAddress}
+                      selectedAddressId={selectedAddress?.id}
+                    />
+                  </TabsContent>
+                  <TabsContent value="new" className="pt-4">
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress.addressLine1"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address Line 1</FormLabel>
+                          <FormControl>
+                            <Input placeholder="123 Main St" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress.addressLine2"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address Line 2 (Optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Apartment, suite, etc." {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <FormField
+                        control={form.control}
+                        name="shippingAddress.city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input placeholder="City" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="shippingAddress.state"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>State</FormLabel>
+                            <FormControl>
+                              <Input placeholder="State" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <FormField
+                        control={form.control}
+                        name="shippingAddress.postalCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Postal Code</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Postal Code" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="shippingAddress.country"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Country</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Country" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              ) : (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="shippingAddress.addressLine1"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address Line 1</FormLabel>
+                        <FormControl>
+                          <Input placeholder="123 Main St" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="shippingAddress.addressLine2"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Address Line 2 (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Apartment, suite, etc." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress.city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input placeholder="City" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress.state"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>State</FormLabel>
+                          <FormControl>
+                            <Input placeholder="State" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress.postalCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Postal Code" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="shippingAddress.country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Country" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </>
+              )}
               <div className="flex justify-end">
                 <Button type="button" onClick={handleNextStep}>
                   Next: Payment
@@ -229,7 +380,7 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
               </div>
             </CardContent>
           </Card>
-        )}
+        )
 
         {step === "payment" && (
           <Card>
@@ -310,30 +461,80 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
             <CardContent className="space-y-4">
               <div>
                 <h3 className="font-medium">Shipping Address</h3>
-                <p className="text-sm text-muted-foreground">
-                  {form.getValues("shippingAddress.addressLine1")}
-                  {form.getValues("shippingAddress.addressLine2") && (
-                    <>
-                      <br />
-                      {form.getValues("shippingAddress.addressLine2")}
-                    </>
-                  )}
-                  <br />
-                  {form.getValues("shippingAddress.city")}, {form.getValues("shippingAddress.state")} {form.getValues("shippingAddress.postalCode")}
-                  <br />
-                  {form.getValues("shippingAddress.country")}
-                </p>
+                {selectedAddress ? (
+                  <div className="flex flex-row items-center gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">
+                        {selectedAddress.addressLine1}
+                        {selectedAddress.addressLine2 && (
+                          <>
+                            <br />
+                            {selectedAddress.addressLine2}
+                          </>
+                        )}
+                        <br />
+                        {selectedAddress.city}, {selectedAddress.state} {selectedAddress.postalCode}
+                        <br />
+                        {selectedAddress.country}
+                      </p>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setStep("shipping")}
+                    >
+                      Change
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex flex-row items-center gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm text-muted-foreground">
+                        {form.getValues("shippingAddress.addressLine1")}
+                        {form.getValues("shippingAddress.addressLine2") && (
+                          <>
+                            <br />
+                            {form.getValues("shippingAddress.addressLine2")}
+                          </>
+                        )}
+                        <br />
+                        {form.getValues("shippingAddress.city")}, {form.getValues("shippingAddress.state")} {form.getValues("shippingAddress.postalCode")}
+                        <br />
+                        {form.getValues("shippingAddress.country")}
+                      </p>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setStep("shipping")}
+                    >
+                      Change
+                    </Button>
+                  </div>
+                )}
               </div>
               <Separator />
               <div>
                 <h3 className="font-medium">Payment Method</h3>
-                <p className="text-sm text-muted-foreground">
-                  {form.getValues("paymentMethod") === "cod"
-                    ? "Cash on Delivery"
-                    : form.getValues("paymentMethod") === "paypal"
-                    ? "PayPal"
-                    : "Credit/Debit Card"}
-                </p>
+                <div className="flex flex-row items-center gap-2">
+                  <p className="flex-1 text-sm text-muted-foreground">
+                    {form.getValues("paymentMethod") === "cod"
+                      ? "Cash on Delivery"
+                      : form.getValues("paymentMethod") === "paypal"
+                      ? "PayPal"
+                      : "Credit/Debit Card"}
+                  </p>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setStep("payment")}
+                  >
+                    Change
+                  </Button>
+                </div>
               </div>
               {form.getValues("notes") && (
                 <>
