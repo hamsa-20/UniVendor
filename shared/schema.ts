@@ -307,6 +307,49 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
+// Shopping cart
+export const carts = pgTable("carts", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id),
+  sessionId: text("session_id"), // For guest carts
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  subtotal: numeric("subtotal").default("0"),
+  tax: numeric("tax").default("0"),
+  total: numeric("total").default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertCartSchema = createInsertSchema(carts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+// Cart items
+export const cartItems = pgTable("cart_items", {
+  id: serial("id").primaryKey(),
+  cartId: integer("cart_id").notNull().references(() => carts.id),
+  productId: integer("product_id").notNull().references(() => products.id),
+  name: text("name").notNull(),
+  price: numeric("price").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  variant: text("variant"), // For products with variants (size, color, etc.)
+  imageUrl: text("image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertCartItemSchema = createInsertSchema(cartItems).omit({
+  id: true,
+  createdAt: true
+});
+
+export type Cart = typeof carts.$inferSelect;
+export type InsertCart = z.infer<typeof insertCartSchema>;
+
+export type CartItem = typeof cartItems.$inferSelect;
+export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+
 // Payment methods for vendors
 export const paymentMethods = pgTable("payment_methods", {
   id: serial("id").primaryKey(),
