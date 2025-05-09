@@ -36,10 +36,11 @@ export interface IStorage {
   
   // Cart operations
   getCartByUserId(userId: number): Promise<any>;
-  addToCart(userId: number, item: any): Promise<any>;
-  updateCartItemQuantity(userId: number, itemId: number, quantity: number): Promise<any>;
-  removeFromCart(userId: number, itemId: number): Promise<any>;
-  clearCart(userId: number): Promise<boolean>;
+  getCartBySessionId(sessionId: string): Promise<any>;
+  addToCart(userId: number | null, sessionId: string | null, item: any): Promise<any>;
+  updateCartItemQuantity(userId: number | null, sessionId: string | null, itemId: number, quantity: number): Promise<any>;
+  removeFromCart(userId: number | null, sessionId: string | null, itemId: number): Promise<any>;
+  clearCart(userId: number | null, sessionId: string | null): Promise<boolean>;
   
   // OTP operations
   createOtp(email: string, code: string, expiresAt: Date): Promise<OtpCode>;
