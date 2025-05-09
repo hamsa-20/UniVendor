@@ -13,6 +13,7 @@ import { Check, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { formatCurrency, formatSubscriptionPrice } from '@/lib/formatCurrency';
 import {
   Dialog,
   DialogContent,
@@ -37,12 +38,16 @@ const planFormSchema = z.object({
   name: z.string().min(2, { message: 'Name is required' }),
   description: z.string().min(10, { message: 'Description should be at least 10 characters' }),
   price: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Please enter a valid price' }),
+  yearlyPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, { message: 'Please enter a valid price' }).optional(),
   productLimit: z.string().regex(/^\d+$/, { message: 'Please enter a valid number' }),
   storageLimit: z.string().regex(/^\d+$/, { message: 'Please enter a valid number' }),
   customDomainLimit: z.string().regex(/^\d+$/, { message: 'Please enter a valid number' }),
   supportLevel: z.string(),
+  trialDays: z.string().regex(/^\d+$/, { message: 'Please enter a valid number' }).default('7'),
   features: z.string().transform(val => val.split('\n').filter(Boolean)),
   isActive: z.boolean().default(true),
+  isDefault: z.boolean().default(false),
+  currency: z.string().default('INR'),
 });
 
 type PlanFormValues = z.infer<typeof planFormSchema>;
@@ -90,12 +95,16 @@ const SubscriptionsPage = () => {
       name: '',
       description: '',
       price: '',
+      yearlyPrice: '',
       productLimit: '',
       storageLimit: '',
       customDomainLimit: '',
       supportLevel: 'email',
+      trialDays: '7',
       features: [],
       isActive: true,
+      isDefault: false,
+      currency: 'INR',
     },
   });
 
@@ -250,8 +259,9 @@ const SubscriptionsPage = () => {
                   <CardHeader>
                     <CardTitle>{plan.name}</CardTitle>
                     <div className="mt-2 flex items-baseline">
-                      <span className="text-3xl font-bold">${parseFloat(plan.price).toFixed(2)}</span>
-                      <span className="ml-1 text-muted-foreground">/month</span>
+                      <span className="text-3xl font-bold">
+                        {formatSubscriptionPrice(parseFloat(plan.price), 'monthly')}
+                      </span>
                     </div>
                     <CardDescription className="mt-2">{plan.description}</CardDescription>
                   </CardHeader>
@@ -426,7 +436,7 @@ const SubscriptionsPage = () => {
                 </div>
                 
                 <div>
-                  <Label htmlFor="price">Monthly Price ($) *</Label>
+                  <Label htmlFor="price">Monthly Price (₹) *</Label>
                   <Input
                     id="price"
                     placeholder="0.00"
@@ -434,6 +444,31 @@ const SubscriptionsPage = () => {
                   />
                   {form.formState.errors.price && (
                     <p className="text-sm text-destructive mt-1">{form.formState.errors.price.message}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <Label htmlFor="yearlyPrice">Yearly Price (₹) (Optional)</Label>
+                  <Input
+                    id="yearlyPrice"
+                    placeholder="0.00"
+                    {...form.register('yearlyPrice')}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty to disable yearly payment option</p>
+                  {form.formState.errors.yearlyPrice && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.yearlyPrice.message}</p>
+                  )}
+                </div>
+                
+                <div>
+                  <Label htmlFor="trialDays">Free Trial Days</Label>
+                  <Input
+                    id="trialDays"
+                    placeholder="7"
+                    {...form.register('trialDays')}
+                  />
+                  {form.formState.errors.trialDays && (
+                    <p className="text-sm text-destructive mt-1">{form.formState.errors.trialDays.message}</p>
                   )}
                 </div>
                 
