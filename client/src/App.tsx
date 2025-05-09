@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { VendorStoreProvider, useVendorStore } from "@/contexts/VendorStoreContext";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import LoginPage from "@/pages/auth/LoginPage";
+import BuyerLoginPage from "@/pages/store/BuyerLoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import SuperAdminDashboard from "@/pages/dashboard/SuperAdminDashboard";
 import VendorDashboard from "@/pages/dashboard/VendorDashboard";
@@ -44,6 +45,9 @@ function Router() {
   if (isVendorStore) {
     return (
       <Switch>
+        <Route path="/buyer-login">
+          <BuyerLoginPage />
+        </Route>
         <Route path="/">
           <StorefrontPage />
         </Route>
