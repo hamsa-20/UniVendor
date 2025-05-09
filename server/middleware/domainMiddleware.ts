@@ -64,17 +64,36 @@ async function handleDomainRouting(
       // For localhost/Replit domains, check for test header or query parameter
       if (hostname === 'localhost' || hostname === '0.0.0.0' || hostname.includes('.repl.co')) {
         // Check for special test header or query param
-        const testDomain = req.headers['x-test-domain'] || req.query.test_domain;
+        const testDomain = req.headers['x-test-domain'] || req.query.domain || req.query.test_domain;
         
         if (testDomain) {
-          // If test domain specified, look it up
           console.log(`Testing with domain: ${testDomain}`);
-          const domain = await storage.getDomainByName(testDomain as string);
           
-          if (domain && domain.status === 'active') {
+          // Try to find the domain including the full domain name
+          let domain = await storage.getDomainByName(testDomain as string);
+          
+          // If not found, check if it's a subdomain format like "vendor.multivend.com"
+          if (!domain && typeof testDomain === 'string') {
+            const domainParts = (testDomain as string).split('.');
+            if (domainParts.length >= 3) {
+              // For subdomains in format: subdomain.multivend.com
+              const subdomainName = `${domainParts[0]}.multivend.com`;
+              domain = await storage.getDomainByName(subdomainName);
+              console.log(`Trying subdomain: ${subdomainName}`);
+            } else if (domainParts.length === 1) {
+              // Just the subdomain part was provided
+              const subdomainName = `${testDomain}.multivend.com`;
+              domain = await storage.getDomainByName(subdomainName);
+              console.log(`Trying subdomain with suffix: ${subdomainName}`);
+            }
+          }
+          
+          if (domain) {
+            console.log(`Found domain: ${domain.name}`);
             const vendor = await storage.getVendor(domain.vendorId);
             
             if (vendor) {
+              console.log(`Found vendor: ${vendor.companyName}`);
               req.domain = {
                 id: domain.id,
                 name: domain.name,
