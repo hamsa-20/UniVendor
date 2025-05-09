@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Check, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Check, PlusCircle, Edit, Trash2, Info } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -118,24 +118,32 @@ const SubscriptionsPage = () => {
         name: plan.name || '',
         description: plan.description || '',
         price: plan.price.toString() || '',
+        yearlyPrice: plan.yearlyPrice ? plan.yearlyPrice.toString() : '',
         productLimit: plan.productLimit.toString() || '',
         storageLimit: plan.storageLimit.toString() || '',
         customDomainLimit: plan.customDomainLimit.toString() || '',
         supportLevel: plan.supportLevel || 'email',
+        trialDays: plan.trialDays ? plan.trialDays.toString() : '7',
         features: plan.features ? plan.features.join('\n') : '',
         isActive: plan.isActive ?? true,
+        isDefault: plan.isDefault ?? false,
+        currency: plan.currency || 'INR',
       });
     } else {
       form.reset({
         name: '',
         description: '',
         price: '',
+        yearlyPrice: '',
         productLimit: '',
         storageLimit: '',
         customDomainLimit: '',
         supportLevel: 'email',
+        trialDays: '7',
         features: '',
         isActive: true,
+        isDefault: false,
+        currency: 'INR',
       });
     }
   };
@@ -146,9 +154,12 @@ const SubscriptionsPage = () => {
       const planData = {
         ...data,
         price: data.price,
+        yearlyPrice: data.yearlyPrice || null,
         productLimit: parseInt(data.productLimit),
         storageLimit: parseInt(data.storageLimit),
         customDomainLimit: parseInt(data.customDomainLimit),
+        trialDays: parseInt(data.trialDays || '7'),
+        currency: data.currency || 'INR',
       };
 
       if (selectedPlanId) {
@@ -542,14 +553,27 @@ const SubscriptionsPage = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                {...form.register('isActive')}
-              />
-              <Label htmlFor="isActive">Plan is active and available to vendors</Label>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isActive"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  {...form.register('isActive')}
+                />
+                <Label htmlFor="isActive">Plan is active and available to vendors</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isDefault"
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  {...form.register('isDefault')}
+                />
+                <Label htmlFor="isDefault">Set as default plan for new vendors</Label>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" title="Only one plan can be the default. Setting this plan as default will remove default status from any other plan." />
+              </div>
             </div>
             
             <div className="flex justify-end space-x-2">
