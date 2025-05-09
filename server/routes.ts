@@ -23,6 +23,7 @@ import { DomainRequest } from "./middleware/domainMiddleware";
 import { registerUploadRoutes } from "./uploadService";
 import registerCheckoutRoutes from "./checkoutRoutes";
 import registerAddressRoutes from "./addressRoutes";
+import registerSubscriptionRoutes from "./subscriptionRoutes";
 
 // Helper function to handle validation errors
 function handleValidationError(err: unknown, res: Response) {
@@ -1423,6 +1424,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Register address-related routes
   registerAddressRoutes(app);
+
+  // Register subscription-related routes
+  registerSubscriptionRoutes(app);
 
   // Register payment-related routes
   registerPaymentRoutes(app);
