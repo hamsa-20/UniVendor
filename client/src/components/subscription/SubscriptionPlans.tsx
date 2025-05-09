@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Card,
@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatCurrency, formatSubscriptionPrice } from '@/lib/formatCurrency';
 import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type Plan = {
   id: number;
@@ -46,6 +47,7 @@ export default function SubscriptionPlans({
   isLoading: isActionLoading = false,
 }: SubscriptionPlanProps) {
   const { toast } = useToast();
+  const [selectedBillingCycle, setSelectedBillingCycle] = useState<'monthly' | 'yearly'>(billingCycle);
   
   const { 
     data: plans, 
@@ -89,94 +91,130 @@ export default function SubscriptionPlans({
     );
   }
 
+  // Check if we need to show the billing cycle toggle
+  // (only needed if we have a Pro plan with yearly pricing)
+  const shouldShowBillingToggle = plans?.some(plan => 
+    plan.name === 'Pro' && plan.yearlyPrice !== null
+  );
+
   return (
-    <div className="grid gap-8 md:grid-cols-3">
-      {plans?.map((plan) => {
-        const price = billingCycle === 'yearly' ? plan.yearlyPrice || plan.price : plan.price;
-        const isCurrentPlan = currentPlanId === plan.id;
-        const showYearlySavings = billingCycle === 'yearly' && plan.yearlyPrice && plan.price;
-        
-        // Calculate annual savings if on yearly plan
-        const yearlySavings = showYearlySavings 
-          ? parseFloat(plan.price) * 12 - parseFloat(plan.yearlyPrice || '0')
-          : 0;
-        
-        return (
-          <Card 
-            key={plan.id} 
-            className={`flex flex-col ${isCurrentPlan ? 'border-primary' : ''}`}
+    <div className="space-y-8">
+      {shouldShowBillingToggle && (
+        <div className="flex justify-center">
+          <Tabs 
+            value={selectedBillingCycle} 
+            onValueChange={(value) => setSelectedBillingCycle(value as 'monthly' | 'yearly')}
+            className="w-full max-w-md"
           >
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>{plan.name}</CardTitle>
-                {plan.isDefault && (
-                  <Badge variant="outline" className="bg-muted">
-                    Popular
-                  </Badge>
-                )}
-              </div>
-              <CardDescription>{plan.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-grow">
-              <div className="mb-4">
-                <div className="text-3xl font-bold">
-                  {price ? formatSubscriptionPrice(
-                    parseFloat(price), 
-                    billingCycle === 'yearly' ? 'yearly' : 'monthly'
-                  ) : '₹0/mon'}
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="monthly">Monthly Billing</TabsTrigger>
+              <TabsTrigger value="yearly">Yearly Billing</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
+
+      <div className="grid gap-8 md:grid-cols-3">
+        {plans?.map((plan) => {
+          const effectiveBillingCycle = selectedBillingCycle;
+          const price = effectiveBillingCycle === 'yearly' ? plan.yearlyPrice || plan.price : plan.price;
+          const isCurrentPlan = currentPlanId === plan.id;
+          const showYearlySavings = effectiveBillingCycle === 'yearly' && plan.yearlyPrice && plan.price;
+          
+          // Calculate annual savings if on yearly plan
+          const yearlySavings = showYearlySavings 
+            ? parseFloat(plan.price) * 12 - parseFloat(plan.yearlyPrice || '0')
+            : 0;
+          
+          // Calculate monthly equivalent price for yearly plans
+          const showMonthlyEquivalent = effectiveBillingCycle === 'yearly' && plan.yearlyPrice && plan.name === 'Pro';
+          const monthlyEquivalent = showMonthlyEquivalent 
+            ? parseFloat(plan.yearlyPrice || '0') / 12
+            : 0;
+          
+          return (
+            <Card 
+              key={plan.id} 
+              className={`flex flex-col ${isCurrentPlan ? 'border-primary' : ''}`}
+            >
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>{plan.name}</CardTitle>
+                  {plan.isDefault && (
+                    <Badge variant="outline" className="bg-muted">
+                      Popular
+                    </Badge>
+                  )}
+                </div>
+                <CardDescription>{plan.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-grow">
+                <div className="mb-4">
+                  <div className="text-3xl font-bold">
+                    {price ? formatSubscriptionPrice(
+                      parseFloat(price), 
+                      effectiveBillingCycle === 'yearly' ? 'yearly' : 'monthly'
+                    ) : '₹0/mon'}
+                  </div>
+                  
+                  {showMonthlyEquivalent && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      (₹{monthlyEquivalent.toLocaleString('en-IN')}/month equivalent)
+                    </div>
+                  )}
+                  
+                  {showYearlySavings && yearlySavings > 0 && (
+                    <div className="text-sm text-green-600 flex items-center gap-1 mt-1">
+                      <Zap size={14} />
+                      Save {formatCurrency(yearlySavings)} per year
+                    </div>
+                  )}
+                  
+                  {plan.trialDays > 0 && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Includes {plan.trialDays}-day free trial
+                    </div>
+                  )}
                 </div>
                 
-                {showYearlySavings && yearlySavings > 0 && (
-                  <div className="text-sm text-green-600 flex items-center gap-1 mt-1">
-                    <Zap size={14} />
-                    Save {formatCurrency(yearlySavings)} per year
-                  </div>
+                <div className="space-y-2">
+                  {plan.features?.map((feature, idx) => (
+                    <div key={idx} className="flex items-start gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter>
+                {isCurrentPlan ? (
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    disabled
+                  >
+                    Current Plan
+                  </Button>
+                ) : (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => onSelectPlan(plan.id)}
+                    disabled={isActionLoading}
+                  >
+                    {isActionLoading ? (
+                      <>Processing</>
+                    ) : (
+                      <>
+                        Select {plan.name} <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
                 )}
-                
-                {plan.trialDays > 0 && (
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Includes {plan.trialDays}-day free trial
-                  </div>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                {plan.features?.map((feature, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                    <span>{feature}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter>
-              {isCurrentPlan ? (
-                <Button 
-                  variant="outline" 
-                  className="w-full" 
-                  disabled
-                >
-                  Current Plan
-                </Button>
-              ) : (
-                <Button 
-                  className="w-full" 
-                  onClick={() => onSelectPlan(plan.id)}
-                  disabled={isActionLoading}
-                >
-                  {isActionLoading ? (
-                    <>Processing</>
-                  ) : (
-                    <>
-                      Select {plan.name} <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
-        );
-      })}
+              </CardFooter>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
