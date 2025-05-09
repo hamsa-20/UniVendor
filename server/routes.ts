@@ -21,6 +21,7 @@ import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
 import { DomainRequest } from "./middleware/domainMiddleware";
 import { registerUploadRoutes } from "./uploadService";
+import { registerS3UploadRoutes } from "./s3UploadService";
 import registerCheckoutRoutes from "./checkoutRoutes";
 import registerAddressRoutes from "./addressRoutes";
 import registerSubscriptionRoutes from "./subscriptionRoutes";
@@ -52,6 +53,9 @@ function handleValidationError(err: unknown, res: Response) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication with OTP
   setupAuth(app);
+  
+  // Register S3 file upload routes
+  registerS3UploadRoutes(app);
   
   // Register file upload routes
   registerUploadRoutes(app);
