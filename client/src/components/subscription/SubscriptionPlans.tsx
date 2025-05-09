@@ -12,7 +12,7 @@ import { CheckCircle2, ArrowRight, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatCurrency } from '@/lib/formatCurrency';
+import { formatCurrency, formatSubscriptionPrice } from '@/lib/formatCurrency';
 import { useToast } from '@/hooks/use-toast';
 
 type Plan = {
@@ -120,10 +120,10 @@ export default function SubscriptionPlans({
             <CardContent className="flex-grow">
               <div className="mb-4">
                 <div className="text-3xl font-bold">
-                  {price ? formatCurrency(parseFloat(price)) : '$0'}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">
-                    /{billingCycle === 'yearly' ? 'year' : 'month'}
-                  </span>
+                  {price ? formatSubscriptionPrice(
+                    parseFloat(price), 
+                    billingCycle === 'yearly' ? 'yearly' : 'monthly'
+                  ) : '₹0/mon'}
                 </div>
                 
                 {showYearlySavings && yearlySavings > 0 && (
