@@ -94,7 +94,7 @@ const Header = ({ onToggleSidebar, title, subtitle }: HeaderProps) => {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => {
                 logoutMutation.mutate();
-                setLocation('/auth');
+                setLocation('/');
               }}>
                 Logout
               </DropdownMenuItem>
