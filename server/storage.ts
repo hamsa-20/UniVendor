@@ -420,6 +420,10 @@ export class MemStorage implements IStorage {
     return this.subscriptionPlans.get(id);
   }
 
+  async getSubscriptionPlanById(id: number): Promise<SubscriptionPlan | undefined> {
+    return this.subscriptionPlans.get(id);
+  }
+
   async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
     return Array.from(this.subscriptionPlans.values());
   }
@@ -438,6 +442,88 @@ export class MemStorage implements IStorage {
     const updatedPlan = { ...plan, ...data };
     this.subscriptionPlans.set(id, updatedPlan);
     return updatedPlan;
+  }
+
+  async getVendorIdByUserId(userId: number): Promise<number | undefined> {
+    for (const vendor of this.vendors.values()) {
+      if (vendor.userId === userId) {
+        return vendor.id;
+      }
+    }
+    return undefined;
+  }
+
+  async getVendorSubscription(vendorId: number): Promise<SubscriptionInfo | undefined> {
+    // Find the subscription for this vendor
+    for (const subscription of this.platformSubscriptions.values()) {
+      if (subscription.vendorId === vendorId) {
+        // Get the associated plan
+        const plan = await this.getSubscriptionPlan(subscription.planId);
+        if (!plan) {
+          return undefined;
+        }
+        
+        // Return the combined subscription info
+        return {
+          ...subscription,
+          plan
+        };
+      }
+    }
+    return undefined;
+  }
+
+  async createVendorSubscription(subscriptionData: InsertPlatformSubscription): Promise<SubscriptionInfo> {
+    // Create the subscription
+    const id = this.platformSubscriptionId++;
+    const subscription: PlatformSubscription = {
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...subscriptionData
+    };
+    
+    this.platformSubscriptions.set(id, subscription);
+    
+    // Get the associated plan
+    const plan = await this.getSubscriptionPlan(subscription.planId);
+    if (!plan) {
+      throw new Error(`Subscription plan with ID ${subscription.planId} not found`);
+    }
+    
+    // Return the combined subscription info
+    return {
+      ...subscription,
+      plan
+    };
+  }
+
+  async updateVendorSubscription(
+    id: number,
+    data: Partial<InsertPlatformSubscription>
+  ): Promise<SubscriptionInfo | undefined> {
+    const subscription = this.platformSubscriptions.get(id);
+    if (!subscription) return undefined;
+    
+    const updatedSubscription = {
+      ...subscription,
+      ...data,
+      updatedAt: new Date()
+    };
+    
+    this.platformSubscriptions.set(id, updatedSubscription);
+    
+    // Get the associated plan
+    const plan = await this.getSubscriptionPlan(updatedSubscription.planId);
+    if (!plan) {
+      throw new Error(`Subscription plan with ID ${updatedSubscription.planId} not found`);
+    }
+    
+    // Return the combined subscription info
+    return {
+      ...updatedSubscription,
+      plan
+    };
   }
 
   // Vendor operations
