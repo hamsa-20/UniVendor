@@ -21,6 +21,7 @@ import { ZodError } from "zod";
 import { setupAuth, isAuthenticated, hasRole } from "./auth";
 import { DomainRequest } from "./middleware/domainMiddleware";
 import { registerUploadRoutes } from "./uploadService";
+import registerCheckoutRoutes from "./checkoutRoutes";
 
 // Helper function to handle validation errors
 function handleValidationError(err: unknown, res: Response) {
@@ -1415,6 +1416,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(500).json({ message: "Internal server error" });
     }
   });
+
+  // Register checkout-related routes (cart, checkout, orders)
+  registerCheckoutRoutes(app);
 
   // Register payment-related routes
   registerPaymentRoutes(app);
