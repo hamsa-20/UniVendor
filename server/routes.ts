@@ -256,6 +256,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return handleValidationError(err, res);
     }
   });
+  
+  app.delete("/api/subscription-plans/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // First check if the plan exists
+      const plan = await storage.getSubscriptionPlan(id);
+      if (!plan) {
+        return res.status(404).json({ message: "Subscription plan not found" });
+      }
+      
+      // Try to delete the plan
+      const deleted = await storage.deleteSubscriptionPlan(id);
+      
+      if (!deleted) {
+        // Plan couldn't be deleted, likely because it's in use
+        return res.status(409).json({ 
+          message: "Cannot delete this subscription plan as it is currently in use by one or more vendors",
+          error: "PLAN_IN_USE"
+        });
+      }
+      
+      // Plan was successfully deleted
+      return res.status(200).json({ message: "Subscription plan deleted successfully" });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
 
   // Vendor endpoints
   // Database migration endpoint (TEMPORARY - FOR DEVELOPMENT ONLY)

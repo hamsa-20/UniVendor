@@ -79,12 +79,22 @@ const SubscriptionsPage = () => {
       queryClient.invalidateQueries({ queryKey: ['/api/subscription-plans'] });
       setIsDeleteDialogOpen(false);
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to delete plan: ${error.message}`,
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      // Check if it's a 409 conflict error (plan in use)
+      if (error.response?.status === 409 || error.message?.includes('in use')) {
+        toast({
+          title: "Cannot delete plan",
+          description: "This plan is currently in use by one or more vendors. Please reassign those vendors to a different plan before deleting.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: `Failed to delete plan: ${error.message}`,
+          variant: "destructive",
+        });
+      }
+      setIsDeleteDialogOpen(false);
     },
   });
 
