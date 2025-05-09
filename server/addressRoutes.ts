@@ -1,8 +1,16 @@
-import { Express, Request, Response } from 'express';
+import { Express, Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import { z } from 'zod';
 import { insertCustomerAddressSchema } from '../shared/schema';
 import { isAuthenticated } from './auth';
+
+// Authorization middleware with correct typing
+const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  isAuthenticated(req, res, () => {
+    // If isAuthenticated doesn't send a response, proceed to the next middleware
+    next();
+  });
+};
 
 // Extend Request with user property
 interface AuthRequest extends Request {
@@ -17,9 +25,11 @@ interface AuthRequest extends Request {
  */
 export default function registerAddressRoutes(app: Express) {
   // Get all addresses for authenticated user
-  app.get('/api/addresses', isAuthenticated, async (req: AuthRequest, res: Response) => {
+  app.get('/api/addresses', authMiddleware, async (req: Request, res: Response) => {
+    // Cast req to AuthRequest type after it's gone through authMiddleware
+    const authReq = req as unknown as AuthRequest;
     try {
-      const userId = req.user?.id;
+      const userId = authReq.user?.id;
       const vendorId = parseInt(req.query.vendorId as string);
       
       if (!vendorId) {

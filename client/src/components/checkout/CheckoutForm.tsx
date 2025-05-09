@@ -380,7 +380,7 @@ export function CheckoutForm({ vendorId, onSuccess }: CheckoutFormProps) {
               </div>
             </CardContent>
           </Card>
-        )
+        )}
 
         {step === "payment" && (
           <Card>
