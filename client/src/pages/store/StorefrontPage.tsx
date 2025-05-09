@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'wouter';
 import { useVendorStore } from '@/contexts/VendorStoreContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { Loader2, ShoppingBag, ShoppingCart, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Product {
   id: number;
@@ -19,6 +22,7 @@ interface Product {
 
 export default function StorefrontPage() {
   const { isVendorStore, vendor, domain, loading, error } = useVendorStore();
+  const { user, isAuthenticated, logoutMutation } = useAuth();
   
   // Use React Query to fetch products for better caching and loading states
   const { 
@@ -90,9 +94,62 @@ export default function StorefrontPage() {
               )}
               <h1 className="text-2xl font-bold">{vendor?.companyName}</h1>
             </div>
-            <div className="text-sm">
-              <span className="opacity-80">Powered by</span>{' '}
-              <a href="https://multivend.com" className="font-semibold underline">MultiVend</a>
+
+            <div className="flex items-center space-x-6">
+              {/* Cart */}
+              <button className="text-white hover:text-white/80 transition-colors">
+                <ShoppingCart className="h-5 w-5" />
+              </button>
+
+              {/* User Account */}
+              {isAuthenticated && user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center space-x-2 text-white hover:text-white/80 transition-colors">
+                      {user.avatarUrl ? (
+                        <img 
+                          src={user.avatarUrl} 
+                          alt={`${user.firstName || user.email}`} 
+                          className="h-8 w-8 rounded-full object-cover border-2 border-white"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-white">
+                          {user.firstName?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span className="hidden md:inline">
+                        {user.firstName || 'My Account'}
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem>
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <ShoppingBag className="mr-2 h-4 w-4" />
+                      <span>My Orders</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => logoutMutation.mutate()}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logout</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Link href="/buyer-login" className="text-white hover:text-white/80 transition-colors">
+                  <div className="flex items-center">
+                    <User className="h-5 w-5 mr-2" />
+                    <span className="hidden md:inline">Login</span>
+                  </div>
+                </Link>
+              )}
+
+              <div className="text-sm">
+                <span className="opacity-80">Powered by</span>{' '}
+                <a href="https://multivend.com" className="font-semibold underline">MultiVend</a>
+              </div>
             </div>
           </div>
         </div>
