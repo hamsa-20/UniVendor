@@ -40,13 +40,18 @@ export const subscriptionPlans = pgTable("subscription_plans", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   description: text("description").notNull(),
-  price: numeric("price").notNull(),
+  price: numeric("price").notNull(), // Monthly price
+  yearlyPrice: numeric("yearly_price"), // Optional yearly price (with discount)
   features: text("features").array(),
   productLimit: integer("product_limit").notNull(),
   storageLimit: integer("storage_limit").notNull(), // in GB
   customDomainLimit: integer("custom_domain_limit").notNull(),
   supportLevel: text("support_level").notNull(),
+  trialDays: integer("trial_days").default(7), // Default 7-day trial period
   isActive: boolean("is_active").notNull().default(true),
+  isDefault: boolean("is_default").default(false), // Whether this is the default plan for new vendors
+  stripePriceIdMonthly: text("stripe_price_id_monthly"), // Stripe price ID for monthly billing
+  stripePriceIdYearly: text("stripe_price_id_yearly"), // Stripe price ID for yearly billing
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -379,15 +384,24 @@ export const platformSubscriptions = pgTable("platform_subscriptions", {
   id: serial("id").primaryKey(),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id),
   planId: integer("plan_id").notNull().references(() => subscriptionPlans.id),
-  status: text("status").notNull().default("active"), // "active", "canceled", "past_due", "unpaid", "trialing"
+  status: text("status").notNull().default("trialing"), // "trialing", "active", "canceled", "past_due", "unpaid"
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date"), // Null for ongoing subscriptions
-  renewalDate: timestamp("renewal_date"),
+  trialEndsAt: timestamp("trial_ends_at"), // When the trial period ends
+  currentPeriodStart: timestamp("current_period_start"), // Start of current billing period
+  currentPeriodEnd: timestamp("current_period_end"), // End of current billing period
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false), // Whether to cancel at the end of the period
+  renewalDate: timestamp("renewal_date"), // Next renewal date (same as currentPeriodEnd typically)
   billingCycle: text("billing_cycle").notNull().default("monthly"), // "monthly", "yearly"
+  amount: numeric("amount"), // Amount charged in the current billing cycle
+  currency: text("currency").default("USD"), // Currency of the subscription
   paymentMethodId: integer("payment_method_id").references(() => paymentMethods.id),
-  gatewaySubscriptionId: text("gateway_subscription_id"), // ID in payment gateway
-  canceledAt: timestamp("canceled_at"),
-  cancelReason: text("cancel_reason"),
+  stripeCustomerId: text("stripe_customer_id"), // Customer ID in Stripe
+  stripeSubscriptionId: text("stripe_subscription_id"), // Subscription ID in Stripe
+  canceledAt: timestamp("canceled_at"), // When the subscription was canceled
+  cancelReason: text("cancel_reason"), // Reason for cancellation
+  paymentFailureCount: integer("payment_failure_count").default(0), // Count of payment failures
+  metadata: jsonb("metadata"), // Additional metadata about the subscription
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
