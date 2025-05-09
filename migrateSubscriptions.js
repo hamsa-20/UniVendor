@@ -58,7 +58,7 @@ async function runMigration() {
           billing_cycle TEXT NOT NULL DEFAULT 'monthly',
           amount NUMERIC,
           currency TEXT DEFAULT 'USD',
-          payment_method_id INTEGER REFERENCES payment_methods(id),
+          payment_method_id INTEGER,
           stripe_customer_id TEXT,
           stripe_subscription_id TEXT,
           canceled_at TIMESTAMP,
