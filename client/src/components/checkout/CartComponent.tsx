@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { useNavigate } from "wouter";
+import { useLocation } from "wouter";
 import { formatCurrency } from "@/lib/formatCurrency";
 
 type CartProps = {
@@ -22,7 +22,7 @@ export function CartComponent({ vendorId, onCheckout }: CartProps) {
     getCartSummary,
     isUpdatingQuantity
   } = useCart();
-  const navigate = useNavigate();
+  const [_, setLocation] = useLocation();
 
   const { subtotal, tax, total, itemCount } = getCartSummary();
 
@@ -30,7 +30,7 @@ export function CartComponent({ vendorId, onCheckout }: CartProps) {
     if (onCheckout) {
       onCheckout();
     } else {
-      navigate(`/checkout?vendorId=${vendorId}`);
+      setLocation(`/checkout?vendorId=${vendorId}`);
     }
   };
 
@@ -59,7 +59,7 @@ export function CartComponent({ vendorId, onCheckout }: CartProps) {
             <p className="text-sm text-muted-foreground mb-4">
               Browse products and add items to your cart
             </p>
-            <Button onClick={() => navigate(`/store/${vendorId}`)}>
+            <Button onClick={() => setLocation(`/store/${vendorId}`)}>
               Continue Shopping
             </Button>
           </div>
@@ -175,7 +175,7 @@ export function CartComponent({ vendorId, onCheckout }: CartProps) {
         <Button 
           variant="ghost"
           className="w-full"
-          onClick={() => navigate(`/store/${vendorId}`)}
+          onClick={() => setLocation(`/store/${vendorId}`)}
         >
           Continue Shopping
         </Button>
