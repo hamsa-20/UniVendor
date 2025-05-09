@@ -17,9 +17,11 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { PlusCircle, Trash2 } from "lucide-react";
+import { PlusCircle, Trash2, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { ProductVariant } from "@shared/schema";
+import S3FileUpload from "@/components/common/S3FileUpload";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Common Indian clothing sizes
 const CommonSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -45,6 +47,7 @@ export interface VariantFormData {
   sellingPrice: string;
   inventoryQuantity: string;
   sku?: string;
+  imageUrl?: string | null;
 }
 
 interface ProductVariantManagerProps {
@@ -60,12 +63,15 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
 }) => {
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [currentVariantIndex, setCurrentVariantIndex] = useState<number | null>(null);
   const [newVariant, setNewVariant] = useState<VariantFormData>({
     color: '',
     size: '',
     sellingPrice: '',
     inventoryQuantity: '0',
-    sku: ''
+    sku: '',
+    imageUrl: null
   });
 
   const handleAddVariant = () => {
@@ -141,7 +147,8 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
       size: '',
       sellingPrice: '',
       inventoryQuantity: '0',
-      sku: ''
+      sku: '',
+      imageUrl: null
     });
     setIsDialogOpen(false);
     
@@ -183,6 +190,27 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
     onChange(updatedVariants);
   };
 
+  const handleEditVariantImage = (index: number) => {
+    setCurrentVariantIndex(index);
+    setIsImageDialogOpen(true);
+  };
+  
+  const handleVariantImageUpdate = (imageUrl: string) => {
+    if (currentVariantIndex === null) return;
+    
+    const updatedVariants = [...variants];
+    updatedVariants[currentVariantIndex].imageUrl = imageUrl;
+    onChange(updatedVariants);
+    
+    setIsImageDialogOpen(false);
+    setCurrentVariantIndex(null);
+    
+    toast({
+      title: "Image updated",
+      description: "Variant image has been updated successfully"
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -203,6 +231,7 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Image</TableHead>
                 <TableHead>Color</TableHead>
                 <TableHead>Size</TableHead>
                 <TableHead>Selling Price (₹)</TableHead>
@@ -214,6 +243,14 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
             <TableBody>
               {variants.map((variant, index) => (
                 <TableRow key={variant.id}>
+                  <TableCell>
+                    <Avatar className="h-10 w-10 cursor-pointer" onClick={() => handleEditVariantImage(index)}>
+                      <AvatarImage src={variant.imageUrl || undefined} alt={`${variant.color} ${variant.size}`} />
+                      <AvatarFallback>
+                        <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </TableCell>
                   <TableCell>
                     <Input
                       value={variant.color}
@@ -365,6 +402,52 @@ export const ProductVariantManager: React.FC<ProductVariantManagerProps> = ({
             </Button>
             <Button onClick={handleAddVariant}>
               Add Variant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Variant Image Upload Dialog */}
+      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Variant Image</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {currentVariantIndex !== null && variants[currentVariantIndex] && (
+              <div className="space-y-4">
+                <div className="text-center mb-4">
+                  <p className="text-sm text-muted-foreground">
+                    Uploading image for <span className="font-medium">{variants[currentVariantIndex].color} - {variants[currentVariantIndex].size}</span>
+                  </p>
+                </div>
+                
+                {variants[currentVariantIndex].imageUrl && (
+                  <div className="flex justify-center mb-4">
+                    <div className="relative w-32 h-32">
+                      <img 
+                        src={variants[currentVariantIndex].imageUrl} 
+                        alt={`${variants[currentVariantIndex].color} ${variants[currentVariantIndex].size}`}
+                        className="w-full h-full object-contain border rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <S3FileUpload
+                  folder="variants"
+                  onSuccess={handleVariantImageUpdate}
+                  acceptedFileTypes="image/*"
+                  maxSize={10 * 1024 * 1024} // 10MB
+                />
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
