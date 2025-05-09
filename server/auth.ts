@@ -289,6 +289,43 @@ export function setupAuth(app: Express) {
       } : null
     });
   });
+  
+  // Traditional user registration endpoint (for vendor creation)
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, firstName, lastName, password, role } = req.body;
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+      
+      // Create the user
+      const user = await storage.createUser({
+        email,
+        firstName,
+        lastName,
+        password,
+        role: role || 'vendor',
+        isProfileComplete: true
+      });
+      
+      // Log the user in
+      req.login(user, (err) => {
+        if (err) {
+          console.error("Login error after registration:", err);
+          return res.status(500).json({ message: "User created but failed to log in" });
+        }
+        
+        return res.status(200).json(user);
+      });
+      
+    } catch (err) {
+      console.error("Error during user registration:", err);
+      return res.status(500).json({ message: "Failed to register user" });
+    }
+  });
 }
 
 // Middleware to check if user is authenticated
