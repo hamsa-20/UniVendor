@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Menu, Bell, Search, ChevronDown } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLocation } from "wouter";
 
 type HeaderProps = {
   onToggleSidebar: () => void;
@@ -17,8 +18,9 @@ type HeaderProps = {
 };
 
 const Header = ({ onToggleSidebar, title, subtitle }: HeaderProps) => {
-  const { user, logout } = useAuth();
+  const { user, logoutMutation } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [, setLocation] = useLocation();
 
   return (
     <header className="bg-white shadow-sm z-10 relative">
@@ -90,7 +92,12 @@ const Header = ({ onToggleSidebar, title, subtitle }: HeaderProps) => {
               <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => {
+                logoutMutation.mutate();
+                setLocation('/auth');
+              }}>
+                Logout
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
