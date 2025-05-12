@@ -406,6 +406,30 @@ const ProductSubcategoriesPage = () => {
                 )}
               />
               
+              {/* Global Category Checkbox - Only visible for admin users */}
+              {user?.role === 'admin' && (
+                <FormField
+                  control={form.control}
+                  name="isGlobal"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Global Category</FormLabel>
+                        <FormDescription>
+                          Make this subcategory available to all vendors on the platform
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              )}
+              
               <DialogFooter>
                 <Button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending ? 'Creating...' : 'Create Subcategory'}
@@ -489,6 +513,30 @@ const ProductSubcategoriesPage = () => {
                   </FormItem>
                 )}
               />
+              
+              {/* Global Category Checkbox - Only visible for admin users */}
+              {user?.role === 'admin' && (
+                <FormField
+                  control={form.control}
+                  name="isGlobal"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Global Category</FormLabel>
+                        <FormDescription>
+                          Make this subcategory available to all vendors on the platform
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              )}
               
               <DialogFooter>
                 <Button type="submit" disabled={updateMutation.isPending}>
