@@ -687,17 +687,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const vendorId = parseInt(req.params.vendorId);
       
-      // Get products directly without requiring vendor validation
-      // This ensures products are available even during impersonation
-      const products = await storage.getProducts(vendorId);
-      
       // Optionally filter by category
       const categoryId = req.query.categoryId ? parseInt(req.query.categoryId as string) : null;
-      const filteredProducts = categoryId && products 
-        ? products.filter(p => p.categoryId === categoryId)
-        : products || [];
+      const includeSubcategories = req.query.includeSubcategories === 'true';
       
-      return res.status(200).json(filteredProducts);
+      let products;
+      
+      if (categoryId) {
+        // If requesting products by category, use the categoryId filter
+        // Optionally include products from subcategories
+        products = await storage.getProductsByCategory(categoryId, includeSubcategories);
+        // Filter further to ensure we only get products from this vendor
+        products = products.filter(p => p.vendorId === vendorId);
+      } else {
+        // Get all products for this vendor
+        products = await storage.getProducts(vendorId);
+      }
+      
+      return res.status(200).json(products || []);
     } catch (err) {
       console.error(err);
       return res.status(500).json({ message: "Internal server error" });
@@ -1018,6 +1025,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(categories || []);
     } catch (err) {
       console.error("Error fetching product categories:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get a specific category with its subcategories
+  app.get("/api/category/:slug", async (req, res) => {
+    try {
+      const { slug } = req.params;
+      const domainInfo = (req as DomainRequest).domainInfo;
+      
+      // Ensure we have the vendor ID from the domain
+      if (!domainInfo || !domainInfo.vendorId) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
+      const vendorId = domainInfo.vendorId;
+      
+      // Get all categories for this vendor
+      const allCategories = await storage.getProductCategories(vendorId);
+      
+      // Find the requested category by slug
+      const category = allCategories.find(c => c.slug === slug);
+      
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+      
+      // Find subcategories of this category
+      const subcategories = allCategories.filter(c => c.parentId === category.id);
+      
+      // Get products in this category (including from subcategories if it's a parent category)
+      const includeSubcategories = subcategories.length > 0;
+      const products = await storage.getProductsByCategory(category.id, includeSubcategories);
+      
+      // Filter products to only include those from this vendor
+      const vendorProducts = products.filter(p => p.vendorId === vendorId);
+      
+      return res.status(200).json({
+        category,
+        subcategories,
+        products: vendorProducts
+      });
+    } catch (err) {
+      console.error("Error fetching category:", err);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
