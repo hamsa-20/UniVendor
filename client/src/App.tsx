@@ -30,6 +30,7 @@ import OrdersPage from "./pages/orders/OrdersPage";
 import CustomersPage from "./pages/customers/CustomersPage";
 import StoreDesignPage from "./pages/store/StoreDesignPage";
 import StorefrontPage from "./pages/store/StorefrontPage";
+import CategoryPage from "./pages/store/CategoryPage";
 import PaymentSettingsPage from "./pages/payments/PaymentSettingsPage";
 import UsersManagementPage from "./pages/admin/UsersManagementPage";
 import MarketingPage from "./pages/marketing/MarketingPage";
@@ -47,6 +48,9 @@ function Router() {
       <Switch>
         <Route path="/buyer-login">
           <BuyerLoginPage />
+        </Route>
+        <Route path="/category/:slug">
+          <CategoryPage />
         </Route>
         <Route path="/">
           <StorefrontPage />

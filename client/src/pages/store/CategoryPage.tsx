@@ -38,7 +38,13 @@ export default function CategoryPage() {
     isLoading,
     error
   } = useQuery({
-    queryKey: vendor ? [`/api/category/${slug}`] : undefined,
+    queryKey: vendor && slug ? [`/api/category/${slug}`] : [],
+    queryFn: vendor && slug ? 
+      async () => {
+        const response = await fetch(`/api/category/${slug}`);
+        if (!response.ok) throw new Error('Failed to fetch category data');
+        return response.json();
+      } : undefined,
     enabled: !!vendor && !!slug,
   });
   
