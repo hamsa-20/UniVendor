@@ -78,13 +78,11 @@ export default function CategoryNav({ vendorId, className }: CategoryNavProps) {
                 <ChevronDown className="h-4 w-4" />
               </button>
             ) : (
-              <Link href={`/category/${category.slug}`}>
-                <a className={cn(
-                  "text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap",
-                  location === `/category/${category.slug}` && "text-indigo-600"
-                )}>
-                  {category.name}
-                </a>
+              <Link href={`/category/${category.slug}`} className={cn(
+                "text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap",
+                location === `/category/${category.slug}` && "text-indigo-600"
+              )}>
+                {category.name}
               </Link>
             )}
 
@@ -92,13 +90,15 @@ export default function CategoryNav({ vendorId, className }: CategoryNavProps) {
             {hoveredCategory === category.id && hasSubcategories(category.id) && (
               <div className="absolute top-full left-0 mt-1 z-50 bg-white shadow-lg rounded-md py-2 min-w-[180px]">
                 {getSubcategories(category.id).map(subcategory => (
-                  <Link key={subcategory.id} href={`/category/${subcategory.slug}`}>
-                    <a className={cn(
+                  <Link 
+                    key={subcategory.id} 
+                    href={`/category/${subcategory.slug}`}
+                    className={cn(
                       "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-indigo-600",
                       location === `/category/${subcategory.slug}` && "text-indigo-600 bg-gray-50"
-                    )}>
-                      {subcategory.name}
-                    </a>
+                    )}
+                  >
+                    {subcategory.name}
                   </Link>
                 ))}
               </div>

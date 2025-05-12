@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, ShoppingBag, ShoppingCart, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import CategoryNav from '@/components/store/CategoryNav';
 
 interface Product {
   id: number;
@@ -154,6 +155,17 @@ export default function StorefrontPage() {
           </div>
         </div>
       </header>
+      
+      {/* Category Navigation Bar */}
+      <div className="border-b border-gray-200 bg-white shadow-sm sticky top-0 z-10">
+        <div className="container mx-auto px-4">
+          {vendor && (
+            <div className="relative">
+              <CategoryNav vendorId={vendor.id} className="py-2" />
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Store Content */}
       <main className="container mx-auto px-4 py-8">
