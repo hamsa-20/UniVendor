@@ -392,17 +392,17 @@ const ProductCategoriesPage = () => {
               <div className="grid gap-2">
                 <Label htmlFor="parent">Parent Category</Label>
                 <Select
-                  value={categoryFormData.parentId?.toString() || ""}
+                  value={categoryFormData.parentId?.toString() || "null"}
                   onValueChange={(value) => setCategoryFormData({ 
                     ...categoryFormData, 
-                    parentId: value ? parseInt(value) : null
+                    parentId: value !== "null" ? parseInt(value) : null
                   })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="No parent (top-level category)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No parent (top-level category)</SelectItem>
+                    <SelectItem value="null">No parent (top-level category)</SelectItem>
                     {filteredCategories?.filter((cat: Category) => 
                       // Only show top-level categories (level 1 or undefined)
                       (cat.level === 1 || cat.level === undefined) && 

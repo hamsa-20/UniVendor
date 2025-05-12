@@ -2430,16 +2430,21 @@ export class DatabaseStorage implements IStorage {
       .orderBy(productCategories.level, productCategories.name);
     
     // Get product counts for each category to determine which are in use
-    const categoryCounts = await db.select({
-      categoryId: products.categoryId,
-      count: db.fn.count(products.id)
-    })
-    .from(products)
-    .where(and(
-      eq(products.vendorId, vendorId),
-      db.isNotNull(products.categoryId)
-    ))
-    .groupBy(products.categoryId);
+    let categoryCounts = [];
+    
+    // Only query products if vendorId is provided (not null or undefined)
+    if (vendorId) {
+      categoryCounts = await db.select({
+        categoryId: products.categoryId,
+        count: db.fn.count(products.id)
+      })
+      .from(products)
+      .where(and(
+        eq(products.vendorId, vendorId),
+        db.isNotNull(products.categoryId)
+      ))
+      .groupBy(products.categoryId);
+    }
     
     // Create a map of category IDs to product counts
     const countMap = new Map<number, number>();
