@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'wouter';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, FolderTree, Search, Pencil, Trash2, AlertCircle, Package } from 'lucide-react';
+import { PlusCircle, FolderTree, Search, Pencil, Trash2, AlertCircle, Package, Image, Upload } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import S3FileUpload from '@/components/common/S3FileUpload';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
@@ -39,6 +40,19 @@ type Category = {
   parentId?: number | null;
   level?: number;
   productCount?: number;
+  imageUrl?: string | null;
+  slug?: string | null;
+};
+
+// Helper function to generate a slug from a string
+const generateSlug = (str: string): string => {
+  return str
+    .toLowerCase()
+    .replace(/\s+/g, '-')           // Replace spaces with dashes
+    .replace(/[^\w\-]+/g, '')       // Remove all non-word characters
+    .replace(/\-\-+/g, '-')         // Replace multiple dashes with single dash
+    .replace(/^-+/, '')             // Trim dash from start
+    .replace(/-+$/, '');            // Trim dash from end
 };
 
 const ProductCategoriesPage = () => {
@@ -156,6 +170,23 @@ const ProductCategoriesPage = () => {
     category.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Generate slug from name
+  useEffect(() => {
+    if (categoryFormData.name) {
+      const slug = generateSlug(categoryFormData.name);
+      setCategoryFormData(prev => ({ ...prev, slug }));
+    }
+  }, [categoryFormData.name]);
+
+  // Handle image upload
+  const handleImageUploaded = (url: string) => {
+    setCategoryFormData(prev => ({ ...prev, imageUrl: url }));
+    toast({
+      title: 'Image uploaded',
+      description: 'Category image has been uploaded successfully',
+    });
+  };
+
   // Handle form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,13 +199,19 @@ const ProductCategoriesPage = () => {
       return;
     }
 
+    // Ensure slug is set
+    const submissionData = {
+      ...categoryFormData,
+      slug: categoryFormData.slug || generateSlug(categoryFormData.name),
+    };
+
     if (selectedCategory) {
       updateCategoryMutation.mutate({
         id: selectedCategory.id,
-        data: categoryFormData,
+        data: submissionData,
       });
     } else {
-      addCategoryMutation.mutate(categoryFormData);
+      addCategoryMutation.mutate(submissionData);
     }
   };
 
@@ -185,6 +222,8 @@ const ProductCategoriesPage = () => {
       name: category.name,
       description: category.description || '',
       parentId: category.parentId || null,
+      imageUrl: category.imageUrl || null,
+      slug: category.slug || generateSlug(category.name),
     });
     setIsAddCategoryOpen(true);
   };
@@ -289,6 +328,63 @@ const ProductCategoriesPage = () => {
                   Select a parent to make this a subcategory
                 </p>
               </div>
+              
+              {/* Category image upload section */}
+              <div className="grid gap-2">
+                <Label htmlFor="image">Category Image</Label>
+                {categoryFormData.imageUrl ? (
+                  <div className="relative w-full h-40 bg-muted rounded-md overflow-hidden mb-2">
+                    <img
+                      src={categoryFormData.imageUrl}
+                      alt={categoryFormData.name || "Category image"}
+                      className="w-full h-full object-cover"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      className="absolute top-2 right-2"
+                      onClick={() => setCategoryFormData({ ...categoryFormData, imageUrl: null })}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-md p-4 text-center">
+                    <Image className="h-10 w-10 mx-auto mb-2 text-muted-foreground/50" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Upload an image for this category
+                    </p>
+                    <S3FileUpload
+                      onSuccess={handleImageUploaded}
+                      endpoint="product-image"
+                      acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp']}
+                    >
+                      <Button type="button" variant="outline" size="sm">
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload Image
+                      </Button>
+                    </S3FileUpload>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  Recommended size: 800x600px. Max size: 5MB.
+                </p>
+              </div>
+
+              {/* Slug field - autogenerated but can be edited */}
+              <div className="grid gap-2">
+                <Label htmlFor="slug">SEO-Friendly URL</Label>
+                <Input
+                  id="slug"
+                  placeholder="category-slug"
+                  value={categoryFormData.slug || ''}
+                  onChange={(e) => setCategoryFormData({ ...categoryFormData, slug: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Auto-generated from name. Edit if needed for better SEO.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button
@@ -359,8 +455,9 @@ const ProductCategoriesPage = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead className="w-[250px]">Name</TableHead>
                   <TableHead>Description</TableHead>
+                  <TableHead>Image</TableHead>
                   <TableHead>Products</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -374,6 +471,21 @@ const ProductCategoriesPage = () => {
                       <TableRow>
                         <TableCell className="font-medium">{category.name}</TableCell>
                         <TableCell>{category.description || '—'}</TableCell>
+                        <TableCell>
+                          {category.imageUrl ? (
+                            <div className="h-10 w-10 bg-muted rounded-md overflow-hidden">
+                              <img
+                                src={category.imageUrl}
+                                alt={category.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                              <Image className="h-6 w-6 text-muted-foreground/50" />
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Button 
                             variant="link" 
@@ -417,6 +529,21 @@ const ProductCategoriesPage = () => {
                               </div>
                             </TableCell>
                             <TableCell>{subcategory.description || '—'}</TableCell>
+                            <TableCell>
+                              {subcategory.imageUrl ? (
+                                <div className="h-10 w-10 bg-muted rounded-md overflow-hidden">
+                                  <img
+                                    src={subcategory.imageUrl}
+                                    alt={subcategory.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center">
+                                  <Image className="h-6 w-6 text-muted-foreground/50" />
+                                </div>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <Button 
                                 variant="link" 
