@@ -18,6 +18,7 @@ import {
   DialogDescription
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Trash2, ImageIcon, RefreshCw, Edit, Check, X } from "lucide-react";
@@ -504,52 +505,91 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
         ))}
       </div>
       
-      {/* Bulk Edit Controls */}
-      {isBulkEditMode && (
-        <Card className="mb-4">
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="bulk-field">Field to Edit</Label>
-                <select 
-                  id="bulk-field"
-                  value={bulkEditField}
-                  onChange={(e) => setBulkEditField(e.target.value)}
-                  className="w-full p-2 border rounded-md"
-                >
-                  <option value="">Select Field</option>
-                  <option value="sellingPrice">Selling Price</option>
-                  <option value="mrp">MRP</option>
-                  <option value="purchasePrice">Purchase Price</option>
-                  <option value="gst">GST</option>
-                  <option value="inventoryQuantity">Stock Units</option>
-                </select>
-              </div>
-              
-              <div>
-                <Label htmlFor="bulk-value">New Value</Label>
+      {/* Bulk Update Controls */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <h3 className="font-medium mb-4">Bulk Update</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <Label htmlFor="bulk-price" className="mb-2 block">Set All Prices</Label>
+              <div className="flex gap-2">
                 <Input 
-                  id="bulk-value"
-                  type={["sellingPrice", "mrp", "purchasePrice", "gst", "inventoryQuantity"].includes(bulkEditField) ? "number" : "text"}
-                  value={bulkEditValue}
-                  onChange={(e) => setBulkEditValue(e.target.value)}
-                  placeholder="Enter value to apply to all variants"
+                  id="bulk-price"
+                  type="number"
+                  min="0"
+                  placeholder="Price"
+                  value={bulkEditField === "sellingPrice" ? bulkEditValue : ""}
+                  onChange={(e) => {
+                    setBulkEditField("sellingPrice");
+                    setBulkEditValue(e.target.value);
+                  }}
                 />
-              </div>
-              
-              <div className="flex items-end">
                 <Button 
-                  onClick={applyBulkEdit}
-                  className="w-full"
+                  onClick={() => {
+                    if (bulkEditField === "sellingPrice" && bulkEditValue) {
+                      applyBulkEdit();
+                    }
+                  }}
                 >
-                  <Check className="h-4 w-4 mr-2" />
-                  Apply to All Variants
+                  Apply
                 </Button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+            
+            <div>
+              <Label htmlFor="bulk-mrp" className="mb-2 block">Set All MRP</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="bulk-mrp"
+                  type="number"
+                  min="0"
+                  placeholder="MRP"
+                  value={bulkEditField === "mrp" ? bulkEditValue : ""}
+                  onChange={(e) => {
+                    setBulkEditField("mrp");
+                    setBulkEditValue(e.target.value);
+                  }}
+                />
+                <Button 
+                  onClick={() => {
+                    if (bulkEditField === "mrp" && bulkEditValue) {
+                      applyBulkEdit();
+                    }
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="bulk-stock" className="mb-2 block">Set All Stock</Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="bulk-stock"
+                  type="number"
+                  min="0"
+                  placeholder="Stock"
+                  value={bulkEditField === "inventoryQuantity" ? bulkEditValue : ""}
+                  onChange={(e) => {
+                    setBulkEditField("inventoryQuantity");
+                    setBulkEditValue(e.target.value);
+                  }}
+                />
+                <Button 
+                  onClick={() => {
+                    if (bulkEditField === "inventoryQuantity" && bulkEditValue) {
+                      applyBulkEdit();
+                    }
+                  }}
+                >
+                  Apply
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       
       {/* Variants Table */}
       {matrixVariants.length > 0 ? (
@@ -557,47 +597,27 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Images</TableHead>
+                <TableHead className="w-12 text-center">Use</TableHead>
                 {attributes.map((attr, index) => (
                   <TableHead key={index}>{attr.name}</TableHead>
                 ))}
-                <TableHead>Selling Price (₹)</TableHead>
-                <TableHead>MRP (₹)</TableHead>
-                <TableHead>Purchase Price (₹)</TableHead>
-                <TableHead>GST (%)</TableHead>
-                <TableHead>Stock Units</TableHead>
                 <TableHead>SKU</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>MRP</TableHead>
+                <TableHead>Stock</TableHead>
+                <TableHead>Images</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {matrixVariants.map((variant, index) => (
                 <TableRow key={variant.id}>
-                  {/* Images */}
-                  <TableCell>
-                    <div 
-                      className="flex gap-1 cursor-pointer" 
-                      onClick={() => openImageDialog(index)}
-                    >
-                      {variant.images && variant.images.length > 0 ? (
-                        <div className="relative w-10 h-10 rounded overflow-hidden">
-                          <img 
-                            src={variant.images[0]} 
-                            alt={`Product Variant`}
-                            className="w-full h-full object-cover"
-                          />
-                          {variant.images.length > 1 && (
-                            <Badge className="absolute bottom-0 right-0 text-[10px] p-1 h-5">
-                              +{variant.images.length - 1}
-                            </Badge>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                          <ImageIcon className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
+                  {/* Checkbox */}
+                  <TableCell className="text-center">
+                    <Checkbox
+                      checked={true}
+                      // In a real implementation, you would track which variants are enabled
+                      // onChange={(checked) => toggleVariantUsage(index, checked)}
+                    />
                   </TableCell>
                   
                   {/* Attributes */}
@@ -606,6 +626,15 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                       {variant.attributes[attr.name] || ""}
                     </TableCell>
                   ))}
+                  
+                  {/* SKU */}
+                  <TableCell>
+                    <Input
+                      value={variant.sku || ""}
+                      onChange={(e) => updateVariant(index, "sku", e.target.value)}
+                      className="w-full"
+                    />
+                  </TableCell>
                   
                   {/* Selling Price */}
                   <TableCell>
@@ -627,26 +656,6 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                     />
                   </TableCell>
                   
-                  {/* Purchase Price */}
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={variant.purchasePrice || ""}
-                      onChange={(e) => updateVariant(index, "purchasePrice", Number(e.target.value))}
-                      className="w-full"
-                    />
-                  </TableCell>
-                  
-                  {/* GST */}
-                  <TableCell>
-                    <Input
-                      type="number"
-                      value={variant.gst || ""}
-                      onChange={(e) => updateVariant(index, "gst", Number(e.target.value))}
-                      className="w-full"
-                    />
-                  </TableCell>
-                  
                   {/* Stock Units */}
                   <TableCell>
                     <Input
@@ -657,24 +666,51 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                     />
                   </TableCell>
                   
-                  {/* SKU */}
+                  {/* Images */}
                   <TableCell>
-                    <Input
-                      value={variant.sku || ""}
-                      onChange={(e) => updateVariant(index, "sku", e.target.value)}
-                      className="w-full"
-                    />
-                  </TableCell>
-                  
-                  {/* Actions */}
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeVariant(index)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    {variant.images && variant.images.length > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex items-center gap-1">
+                          <div 
+                            className="w-8 h-8 rounded overflow-hidden cursor-pointer"
+                            onClick={() => openImageDialog(index)}
+                          >
+                            <img 
+                              src={variant.images[0]} 
+                              alt={`Product Variant`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          {variant.images.length > 1 && (
+                            <Badge className="text-xs">
+                              {variant.images.length} images
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openImageDialog(index)}
+                            className="h-8 w-8"
+                          >
+                            <ImageIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openImageDialog(index)}
+                          className="h-8"
+                        >
+                          <ImageIcon className="h-4 w-4 mr-1" />
+                          Add Images
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
