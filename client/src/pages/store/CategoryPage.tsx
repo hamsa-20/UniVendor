@@ -28,6 +28,7 @@ interface Product {
   sku: string;
   categoryId: number;
   inventoryQuantity: number;
+  vendorId: number | null;
 }
 
 export default function CategoryPage() {
@@ -151,6 +152,12 @@ export default function CategoryPage() {
                         <span className="bg-accent text-accent-foreground text-xs font-bold px-2 py-1 rounded">SALE</span>
                       </div>
                     )}
+                    {/* Show global badge if this is a product from a global category and not from this vendor */}
+                    {(category.isGlobal && product.vendorId === null) && (
+                      <div className="absolute top-2 right-2">
+                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Global</span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-sm mb-1 line-clamp-2">{product.name}</h3>
@@ -169,7 +176,11 @@ export default function CategoryPage() {
             <div className="py-12 text-center border border-dashed border-gray-200 rounded-lg">
               <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-1">No Products Found</h3>
-              <p className="text-gray-500">There are no products in this category at the moment.</p>
+              <p className="text-gray-500">
+                {category.isGlobal 
+                  ? "This global category doesn't have any products for your store yet."
+                  : "There are no products in this category at the moment."}
+              </p>
             </div>
           )}
         </div>
