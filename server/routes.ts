@@ -1041,6 +1041,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Global categories endpoint for the updated UI
+  app.get("/api/global-categories", async (req, res) => {
+    try {
+      const categories = await storage.getGlobalProductCategories();
+      return res.status(200).json(categories || []);
+    } catch (error) {
+      console.error("Error fetching global categories:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get global subcategories (subcategories for a given parent category)
+  app.get("/api/global-categories/:parentId/subcategories", async (req, res) => {
+    try {
+      const parentId = parseInt(req.params.parentId);
+      if (isNaN(parentId)) {
+        return res.status(400).json({ message: "Invalid parent category ID" });
+      }
+      
+      // Get subcategories for the global parent category
+      const subcategories = await storage.getProductSubcategories(null, parentId, true);
+      return res.status(200).json(subcategories || []);
+    } catch (error) {
+      console.error("Error fetching global subcategories:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
   // Get all categories (for super admin)
   app.get("/api/all-product-categories", async (req, res) => {
     try {
