@@ -22,7 +22,7 @@ import {
   carts, cartItems
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import Decimal from "decimal.js";
 import session from "express-session";
 import createMemoryStore from "memorystore";
