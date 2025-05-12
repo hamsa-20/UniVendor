@@ -91,6 +91,8 @@ const ProductCategoriesPage = () => {
       parentId: number | null;
       imageUrl: string | null;
       slug: string | null;
+      isGlobal?: boolean;
+      vendorId?: number | null;
     }) => {
       // If it has a parent, set level to 2, otherwise 1
       const level = data.parentId ? 2 : 1;
@@ -98,17 +100,37 @@ const ProductCategoriesPage = () => {
       // Ensure we have a slug if one wasn't provided
       const slug = data.slug || generateSlug(data.name);
       
+      // Determine if this is a global category
+      const isGlobal = !!data.isGlobal;
+      
+      // For global categories (admin only), don't set a vendorId
+      // For vendor categories, use the current vendorId
+      const vendorIdToUse = isGlobal ? null : vendorId;
+      
       return apiRequest('POST', '/api/product-categories', {
         ...data,
         slug,
-        vendorId,
+        vendorId: vendorIdToUse,
         level,
+        isGlobal,
       });
     },
     onSuccess: () => {
+      // Invalidate queries for both vendor-specific and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/product-categories/global`] });
+      
       setIsAddCategoryOpen(false);
-      setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
+      // Reset form completely, including isGlobal
+      setCategoryFormData({ 
+        name: '', 
+        description: '', 
+        parentId: null, 
+        imageUrl: null, 
+        slug: null,
+        isGlobal: false 
+      });
+      
       toast({
         title: 'Category created',
         description: 'Category has been created successfully',
@@ -410,6 +432,32 @@ const ProductCategoriesPage = () => {
                   Auto-generated from name. Edit if needed for better SEO.
                 </p>
               </div>
+              
+              {/* Global category option (only for super admin) */}
+              {user?.role === 'admin' && (
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="isGlobal"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      checked={categoryFormData.isGlobal}
+                      onChange={(e) => setCategoryFormData({ 
+                        ...categoryFormData, 
+                        isGlobal: e.target.checked,
+                        // If global, remove vendorId
+                        vendorId: e.target.checked ? null : vendorId
+                      })}
+                    />
+                    <Label htmlFor="isGlobal" className="font-medium text-gray-900">
+                      Global Category
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground ml-6">
+                    Global categories are available to all vendors in the platform.
+                  </p>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button
