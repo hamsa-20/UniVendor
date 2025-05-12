@@ -96,7 +96,7 @@ const ProductCategoriesPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
       setIsAddCategoryOpen(false);
-      setCategoryFormData({ name: '', description: '', parentId: null });
+      setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
       toast({
         title: 'Category created',
         description: 'Category has been created successfully',
@@ -126,7 +126,7 @@ const ProductCategoriesPage = () => {
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
       setIsAddCategoryOpen(false);
       setSelectedCategory(null);
-      setCategoryFormData({ name: '', description: '', parentId: null });
+      setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
       toast({
         title: 'Category updated',
         description: 'Category has been updated successfully',
@@ -261,7 +261,7 @@ const ProductCategoriesPage = () => {
         </div>
         <Button onClick={() => {
           setSelectedCategory(null);
-          setCategoryFormData({ name: '', description: '', parentId: null });
+          setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
           setIsAddCategoryOpen(true);
         }}>
           <PlusCircle className="mr-2 h-4 w-4" />
