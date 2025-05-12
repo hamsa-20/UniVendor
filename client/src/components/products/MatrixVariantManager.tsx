@@ -148,6 +148,26 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
     return `${prefix}-${attributeParts}`;
   }, []);
 
+  // Function to delete all variants
+  const deleteAllVariants = () => {
+    if (matrixVariants.length === 0) {
+      toast({
+        title: "No variants to delete",
+        description: "There are no variants to delete.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setMatrixVariants([]);
+    onChange([]);
+    
+    toast({
+      title: "All variants deleted",
+      description: "All variants have been deleted successfully.",
+    });
+  };
+
   // Function to generate all possible combinations of attribute values
   const generateVariantCombinations = () => {
     // Make sure we have attribute values to combine
@@ -456,6 +476,27 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap justify-between items-center mb-6">
+        <div>
+          <h3 className="text-lg font-medium">Existing Product Variants</h3>
+          <p className="text-sm text-muted-foreground">
+            The following variants have been saved for this product
+          </p>
+        </div>
+        
+        {matrixVariants.length > 0 && (
+          <Button 
+            onClick={deleteAllVariants}
+            variant="destructive"
+            size="sm"
+            className="gap-1"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete All Variants
+          </Button>
+        )}
+      </div>
+      
       <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
         <div>
           <h3 className="text-lg font-medium">Product Variants Matrix</h3>
@@ -866,10 +907,14 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                     Upload multiple images at once (up to 10 images, 10MB each)
                   </p>
                   
-                  {/* This would typically be a more advanced upload component for multiple files */}
-                  <p className="text-sm">
-                    Note: The multi-file upload feature is still in development. For now, please upload images one at a time.
-                  </p>
+                  <S3FileUpload
+                    onSuccess={handleMultipleImagesUploadSuccess}
+                    endpoint="upload/multiple"
+                    accept="image/*"
+                    buttonText="Upload Multiple Images"
+                    maxSizeMB={10}
+                    multiple={true}
+                  />
                 </div>
               </TabsContent>
               
