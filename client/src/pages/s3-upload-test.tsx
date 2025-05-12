@@ -15,6 +15,7 @@ type UploadedFile = {
 export default function S3UploadTestPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadedProductImage, setUploadedProductImage] = useState<UploadedFile | null>(null);
+  const [multipleUploadedFiles, setMultipleUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
 
   const handleFileUploadSuccess = (fileData: UploadedFile) => {
@@ -23,6 +24,14 @@ export default function S3UploadTestPage() {
 
   const handleProductImageUploadSuccess = (fileData: UploadedFile) => {
     setUploadedProductImage(fileData);
+  };
+
+  const handleMultipleFileUploadSuccess = (data: { files: UploadedFile[] }) => {
+    setMultipleUploadedFiles((prev) => [...prev, ...data.files]);
+    toast({
+      title: 'Multiple files uploaded',
+      description: `Successfully uploaded ${data.files.length} files`,
+    });
   };
 
   const handleUploadError = (error: Error) => {
@@ -147,6 +156,63 @@ export default function S3UploadTestPage() {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Multiple Files Upload Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Multiple Files Upload</CardTitle>
+            <CardDescription>
+              Upload multiple files at once (up to 10 files, 5MB each).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <S3FileUpload
+              onSuccess={handleMultipleFileUploadSuccess}
+              onError={handleUploadError}
+              endpoint="upload/multiple"
+              accept="image/*"
+              buttonText="Upload Multiple Files"
+              maxSizeMB={5}
+              multiple={true}
+              maxFiles={10}
+            />
+
+            {multipleUploadedFiles.length > 0 && (
+              <div className="mt-6 space-y-4">
+                <h3 className="text-sm font-medium">Uploaded Multiple Files</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {multipleUploadedFiles.map((file, index) => (
+                    <div key={index} className="border p-3 rounded-md">
+                      {file.mimetype.startsWith('image/') && (
+                        <div className="w-full h-32 mb-3 bg-gray-100 rounded-md overflow-hidden">
+                          <img
+                            src={file.url}
+                            alt={`File ${index + 1}`}
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        <div className="font-medium text-sm truncate">{file.key.split('/').pop()}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {file.mimetype} - {(file.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
+                        <a
+                          href={file.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline mt-1"
+                        >
+                          View
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );
