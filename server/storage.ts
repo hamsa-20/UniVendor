@@ -2526,11 +2526,20 @@ export class DatabaseStorage implements IStorage {
         .where(eq(products.categoryId, categoryId));
     }
     
+    // Get the category to check if it's global
+    const [category] = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.id, categoryId));
+    
     // If we need to include subcategories, first get all subcategories
-    const subcategories = await db
+    let subcategoriesQuery = db
       .select()
       .from(productCategories)
       .where(eq(productCategories.parentId, categoryId));
+    
+    // For global categories, we also want to fetch vendor-specific subcategories that point to this global category
+    const subcategories = await subcategoriesQuery;
     
     const categoryIds = [categoryId, ...subcategories.map(c => c.id)];
     

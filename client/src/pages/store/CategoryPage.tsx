@@ -95,7 +95,12 @@ export default function CategoryPage() {
       {/* Category Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{category.name}</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-3xl font-bold">{category.name}</h1>
+            {category.isGlobal && (
+              <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">Global Category</span>
+            )}
+          </div>
           {category.description && (
             <p className="text-gray-600">{category.description}</p>
           )}
@@ -109,7 +114,12 @@ export default function CategoryPage() {
               {subcategories.map(subcat => (
                 <Link key={subcat.id} href={`/category/${subcat.slug}`} className="block">
                   <div className="border border-gray-200 rounded-lg p-4 hover:border-indigo-500 hover:shadow-sm transition-all">
-                    <h3 className="font-medium text-gray-900">{subcat.name}</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-gray-900">{subcat.name}</h3>
+                      {subcat.isGlobal && (
+                        <span className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full">Global</span>
+                      )}
+                    </div>
                   </div>
                 </Link>
               ))}

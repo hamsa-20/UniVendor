@@ -1086,8 +1086,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Category not found" });
       }
       
-      // Find subcategories of this category
+      // Find subcategories of this category (both vendor-specific and global)
       const subcategories = allCategories.filter(c => c.parentId === category.id);
+      
+      // For global categories, also include any vendor-specific subcategories that point to this global category
+      if (category.isGlobal) {
+        const vendorSubcategories = vendorCategories.filter(c => 
+          c.parentId === category.id && !c.isGlobal
+        );
+        
+        // Combine with existing subcategories without duplicates
+        const uniqueSubcategories = new Map();
+        [...subcategories, ...vendorSubcategories].forEach(cat => {
+          uniqueSubcategories.set(cat.id, cat);
+        });
+        
+        const combinedSubcategories = Array.from(uniqueSubcategories.values());
+        subcategories.length = 0; // Clear the array
+        subcategories.push(...combinedSubcategories);
+      }
       
       // Get products in this category (including from subcategories if it's a parent category)
       const includeSubcategories = subcategories.length > 0;
