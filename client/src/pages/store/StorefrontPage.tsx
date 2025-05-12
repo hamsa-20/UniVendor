@@ -30,13 +30,13 @@ export default function StorefrontPage() {
     data: products = [],
     isLoading: loadingProducts,
     error: productsError
-  } = useQuery<Product[]>({
-    queryKey: vendor ? [`/api/vendors/${vendor.id}/products`] : null,
+  } = useQuery({
+    queryKey: vendor ? [`/api/vendors/${vendor.id}/products`] : [],
     queryFn: vendor ? 
       async () => {
         const response = await fetch(`/api/vendors/${vendor.id}/products?storefront=true`);
         if (!response.ok) throw new Error('Failed to fetch products');
-        return response.json();
+        return response.json() as Promise<Product[]>;
       } : undefined,
     enabled: !!isVendorStore && !!vendor,
   });

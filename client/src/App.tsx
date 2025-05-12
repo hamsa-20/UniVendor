@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { VendorStoreProvider, useVendorStore } from "@/contexts/VendorStoreContext";
+import CategoryNav from "@/components/store/CategoryNav";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import LoginPage from "@/pages/auth/LoginPage";
 import BuyerLoginPage from "@/pages/store/BuyerLoginPage";
@@ -146,17 +147,37 @@ function Router() {
                 </div>
               </div>
 
-              {/* Main category navigation */}
-              <nav className="flex items-center justify-between py-2 overflow-x-auto scrollbar-hide">
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Home</a>
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">New Arrivals</a>
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Electronics</a>
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Clothing</a>
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Home & Kitchen</a>
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Beauty</a>
-                <a href="#" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Sports</a>
-                <a href="#" className="text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">Sale</a>
-              </nav>
+              {/* Main category navigation - fully dynamic from database */}
+              <div className="flex items-center py-2 overflow-x-auto scrollbar-hide">
+                <Link href="/" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap mr-2">
+                  Home
+                </Link>
+                
+                {/* Dynamic category navigation component */}
+                {!isVendorStore ? (
+                  // Demo categories for platform homepage
+                  <nav className="flex items-center gap-4">
+                    <Link href="/category/new-arrivals" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">
+                      New Arrivals
+                    </Link>
+                    <Link href="/category/electronics" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">
+                      Electronics
+                    </Link>
+                    <Link href="/category/clothing" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">
+                      Clothing
+                    </Link>
+                    <Link href="/category/home-kitchen" className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">
+                      Home & Kitchen
+                    </Link>
+                    <Link href="/category/sale" className="text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap">
+                      Sale
+                    </Link>
+                  </nav>
+                ) : vendor ? (
+                  // Dynamic categories from database for vendor stores
+                  <CategoryNav vendorId={vendor.id} className="flex-1" />
+                ) : null}
+              </div>
             </div>
           </header>
 
