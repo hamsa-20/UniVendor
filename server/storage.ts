@@ -86,6 +86,8 @@ export interface IStorage {
   // Product category operations
   getProductCategory(id: number): Promise<ProductCategory | undefined>;
   getProductCategories(vendorId: number): Promise<ProductCategory[]>;
+  getGlobalProductCategories(): Promise<ProductCategory[]>;
+  getAllProductCategories(): Promise<ProductCategory[]>; // Get both global and vendor-specific categories
   createProductCategory(category: InsertProductCategory): Promise<ProductCategory>;
   updateProductCategory(id: number, data: Partial<InsertProductCategory>): Promise<ProductCategory | undefined>;
   deleteProductCategory(id: number): Promise<boolean>;
@@ -722,7 +724,22 @@ export class MemStorage implements IStorage {
   }
 
   async getProductCategories(vendorId: number): Promise<ProductCategory[]> {
-    return Array.from(this.productCategories.values()).filter(category => category.vendorId === vendorId);
+    // Return vendor-specific categories plus global categories
+    return Array.from(this.productCategories.values()).filter(category => 
+      category.vendorId === vendorId || (category.isGlobal === true)
+    );
+  }
+  
+  async getGlobalProductCategories(): Promise<ProductCategory[]> {
+    // Return only global categories (created by super admin)
+    return Array.from(this.productCategories.values()).filter(category => 
+      category.isGlobal === true
+    );
+  }
+  
+  async getAllProductCategories(): Promise<ProductCategory[]> {
+    // Return all categories (for super admin)
+    return Array.from(this.productCategories.values());
   }
 
   async createProductCategory(categoryData: InsertProductCategory): Promise<ProductCategory> {
@@ -2400,11 +2417,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getProductCategories(vendorId: number): Promise<(ProductCategory & { productCount?: number })[]> {
-    // First, fetch all categories for this vendor
+    // Fetch vendor-specific categories and global categories
     const categories = await db
       .select()
       .from(productCategories)
-      .where(eq(productCategories.vendorId, vendorId))
+      .where(
+        or(
+          eq(productCategories.vendorId, vendorId),
+          eq(productCategories.isGlobal, true)
+        )
+      )
       .orderBy(productCategories.level, productCategories.name);
     
     // Get product counts for each category to determine which are in use
@@ -2449,6 +2471,27 @@ export class DatabaseStorage implements IStorage {
       .where(eq(productCategories.id, id))
       .returning();
     return updatedCategory;
+  }
+  
+  async getGlobalProductCategories(): Promise<ProductCategory[]> {
+    // Fetch only global categories (for super admin)
+    const categories = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.isGlobal, true))
+      .orderBy(productCategories.level, productCategories.name);
+    
+    return categories;
+  }
+  
+  async getAllProductCategories(): Promise<ProductCategory[]> {
+    // Fetch all categories (for super admin)
+    const categories = await db
+      .select()
+      .from(productCategories)
+      .orderBy(productCategories.level, productCategories.name);
+    
+    return categories;
   }
 
   async deleteProductCategory(id: number): Promise<boolean> {

@@ -36,12 +36,13 @@ type Category = {
   id: number;
   name: string;
   description?: string;
-  vendorId: number;
+  vendorId?: number | null;
   parentId?: number | null;
   level?: number;
   productCount?: number;
   imageUrl?: string | null;
   slug?: string | null;
+  isGlobal?: boolean;
 };
 
 // Helper function to generate a slug from a string
@@ -71,6 +72,7 @@ const ProductCategoriesPage = () => {
     parentId: null as number | null,
     imageUrl: '' as string | null,
     slug: '' as string | null,
+    isGlobal: false,
   });
 
   const vendorId = user?.role === 'vendor' ? user.id : undefined;

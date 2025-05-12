@@ -1019,12 +1019,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get categories directly without requiring vendor validation
       // This ensures categories are available even during impersonation or when
       // the vendor record has issues
+      // This includes both vendor-specific categories and global categories
       const categories = await storage.getProductCategories(vendorId);
       
       // Return categories even if empty
       return res.status(200).json(categories || []);
     } catch (err) {
       console.error("Error fetching product categories:", err);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get global categories (created by super admin)
+  app.get("/api/global-product-categories", async (req, res) => {
+    try {
+      const categories = await storage.getGlobalProductCategories();
+      return res.status(200).json(categories || []);
+    } catch (error) {
+      console.error("Error fetching global product categories:", error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  });
+  
+  // Get all categories (for super admin)
+  app.get("/api/all-product-categories", async (req, res) => {
+    try {
+      // Check if user is super admin
+      if (req.user?.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const categories = await storage.getAllProductCategories();
+      return res.status(200).json(categories || []);
+    } catch (error) {
+      console.error("Error fetching all product categories:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   });
@@ -1077,10 +1105,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const categoryData = insertProductCategorySchema.parse(req.body);
       
-      // Ensure the vendor exists
-      const vendor = await storage.getVendor(categoryData.vendorId);
-      if (!vendor) {
-        return res.status(404).json({ message: "Vendor not found" });
+      // If vendorId is provided, ensure the vendor exists
+      if (categoryData.vendorId) {
+        const vendor = await storage.getVendor(categoryData.vendorId);
+        if (!vendor) {
+          return res.status(404).json({ message: "Vendor not found" });
+        }
+      }
+      
+      // If isGlobal is true, ensure the user is a super admin
+      if (categoryData.isGlobal === true && req.user?.role !== "admin") {
+        return res.status(403).json({ message: "Only super admins can create global categories" });
       }
       
       const category = await storage.createProductCategory(categoryData);
