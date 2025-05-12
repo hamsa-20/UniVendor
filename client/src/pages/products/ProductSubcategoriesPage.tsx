@@ -80,7 +80,7 @@ const ProductSubcategoriesPage = () => {
     defaultValues: {
       name: '',
       description: '',
-      parentId: '',
+      parentId: mainCategories.length > 0 ? mainCategories[0].id.toString() : '0',
       isGlobal: false,
     },
   });
@@ -90,7 +90,7 @@ const ProductSubcategoriesPage = () => {
     form.reset({
       name: '',
       description: '',
-      parentId: '',
+      parentId: mainCategories.length > 0 ? mainCategories[0].id.toString() : '0',
       isGlobal: false,
     });
     setIsCreateDialogOpen(true);

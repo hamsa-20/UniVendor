@@ -345,7 +345,14 @@ const ProductCategoriesPage = () => {
         </div>
         <Button onClick={() => {
           setSelectedCategory(null);
-          setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
+          setCategoryFormData({ 
+            name: '', 
+            description: '', 
+            parentId: null, 
+            imageUrl: null, 
+            slug: '', 
+            isGlobal: false 
+          });
           setIsAddCategoryOpen(true);
         }}>
           <PlusCircle className="mr-2 h-4 w-4" />
