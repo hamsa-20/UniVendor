@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { Button } from '@/components/ui/button';
-import { Loader2, Upload, X, FileText, Image, Check } from 'lucide-react';
+import { Loader2, Upload, X, FileText, Image, Check, Files } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -234,7 +234,7 @@ export default function S3FileUpload({
         multiple={multiple}
       />
       
-      {!selectedFile ? (
+      {!selectedFile && selectedFiles.length === 0 ? (
         <Button 
           type="button" 
           variant="outline"
@@ -253,13 +253,29 @@ export default function S3FileUpload({
         <div className="border rounded-md p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              {getFileIcon()}
-              <div className="truncate max-w-xs">
-                <div className="font-medium text-sm">{selectedFile.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                </div>
-              </div>
+              {multiple && selectedFiles.length > 0 ? (
+                <>
+                  <Files className="h-5 w-5 mr-2 text-blue-500" />
+                  <div className="truncate max-w-xs">
+                    <div className="font-medium text-sm">
+                      {selectedFiles.length} {selectedFiles.length === 1 ? 'file' : 'files'} selected
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {(selectedFiles.reduce((total, file) => total + file.size, 0) / 1024 / 1024).toFixed(2)} MB total
+                    </div>
+                  </div>
+                </>
+              ) : selectedFile ? (
+                <>
+                  {getFileIcon()}
+                  <div className="truncate max-w-xs">
+                    <div className="font-medium text-sm">{selectedFile.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                    </div>
+                  </div>
+                </>
+              ) : null}
             </div>
             <button
               type="button"
@@ -284,15 +300,15 @@ export default function S3FileUpload({
             <Button
               type="button"
               onClick={handleUpload}
-              disabled={uploadMutation.isPending}
+              disabled={uploadMutation.isPending || multipleUploadMutation.isPending}
               className="flex-1"
             >
-              {uploadMutation.isPending ? (
+              {uploadMutation.isPending || multipleUploadMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Uploading...
                 </>
-              ) : uploadMutation.isSuccess ? (
+              ) : uploadMutation.isSuccess || multipleUploadMutation.isSuccess ? (
                 <>
                   <Check className="mr-2 h-4 w-4" />
                   Uploaded
