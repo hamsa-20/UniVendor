@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation, Link } from 'wouter';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,11 +77,23 @@ const ProductCategoriesPage = () => {
 
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
 
-  // Fetch categories
-  const { data: categories = [], isLoading } = useQuery<Category[]>({
+  // Fetch vendor-specific categories
+  const { data: vendorCategories = [], isLoading: isLoadingVendorCategories } = useQuery<Category[]>({
     queryKey: [`/api/vendors/${vendorId}/product-categories`],
     enabled: !!vendorId,
   });
+  
+  // Fetch global categories (available to all)
+  const { data: globalCategories = [], isLoading: isLoadingGlobalCategories } = useQuery<Category[]>({
+    queryKey: [`/api/global-product-categories`],
+  });
+  
+  // Combine vendor and global categories
+  const categories = useMemo(() => {
+    return [...vendorCategories, ...globalCategories];
+  }, [vendorCategories, globalCategories]);
+  
+  const isLoading = isLoadingVendorCategories || isLoadingGlobalCategories;
 
   // Add category mutation
   const addCategoryMutation = useMutation({
