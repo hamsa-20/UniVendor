@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -44,18 +45,27 @@ const ProductSubcategoriesPage = () => {
     id: number;
     name: string;
     description?: string;
-    vendorId: number;
+    vendorId?: number | null;
     parentId?: number | null;
     level?: number;
     slug?: string;
     isActive?: boolean;
+    isGlobal?: boolean;
   };
 
   // Fetch categories data for the vendor
-  const { data: categories = [] } = useQuery<Category[]>({
+  const { data: vendorCategories = [] } = useQuery<Category[]>({
     queryKey: [`/api/vendors/${vendorId}/product-categories`],
     enabled: !!vendorId,
   });
+  
+  // Fetch global categories
+  const { data: globalCategories = [] } = useQuery<Category[]>({
+    queryKey: ['/api/global-categories'],
+  });
+  
+  // Combine vendor categories and global categories
+  const categories = [...vendorCategories, ...globalCategories];
   
   // Get only main categories for parent selection
   const mainCategories = categories.filter((cat) => !cat.parentId);
@@ -247,8 +257,26 @@ const ProductSubcategoriesPage = () => {
                 ) : (
                   subcategories.map((category: Category) => (
                     <TableRow key={category.id}>
-                      <TableCell className="font-medium">{category.name}</TableCell>
-                      <TableCell>{getParentCategoryName(category.parentId)}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {category.name}
+                          {category.isGlobal && (
+                            <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">
+                              Global
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {getParentCategoryName(category.parentId)}
+                          {categories.find(c => c.id === category.parentId)?.isGlobal && (
+                            <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-blue-100 text-blue-800 font-medium">
+                              Global
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="max-w-md truncate">
                         {category.description || '-'}
                       </TableCell>

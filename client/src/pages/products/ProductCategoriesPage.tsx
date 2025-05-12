@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FolderTree, Search, Pencil, Trash2, AlertCircle, Package, Image, Upload } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import S3FileUpload from '@/components/common/S3FileUpload';
 import { Label } from '@/components/ui/label';
@@ -473,24 +474,23 @@ const ProductCategoriesPage = () => {
               {user?.role === 'admin' && (
                 <div className="grid gap-2">
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
+                    <Checkbox
                       id="isGlobal"
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                       checked={categoryFormData.isGlobal}
-                      onChange={(e) => setCategoryFormData({ 
+                      onCheckedChange={(checked) => setCategoryFormData({ 
                         ...categoryFormData, 
-                        isGlobal: e.target.checked,
+                        isGlobal: !!checked,
                         // If global, remove vendorId
-                        vendorId: e.target.checked ? null : vendorId
+                        vendorId: checked ? null : vendorId
                       })}
                     />
-                    <Label htmlFor="isGlobal" className="font-medium text-gray-900">
+                    <Label htmlFor="isGlobal" className="font-medium">
                       Global Category
+                      <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-800 rounded-full">Admin Only</span>
                     </Label>
                   </div>
                   <p className="text-xs text-muted-foreground ml-6">
-                    Global categories are available to all vendors in the platform.
+                    Global categories are available to all vendors in the platform and will display on all storefronts.
                   </p>
                 </div>
               )}
