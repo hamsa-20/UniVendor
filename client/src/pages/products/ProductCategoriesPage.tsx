@@ -155,6 +155,8 @@ const ProductCategoriesPage = () => {
         parentId: number | null;
         imageUrl: string | null;
         slug: string | null;
+        isGlobal?: boolean;
+        vendorId?: number | null;
       } 
     }) => {
       // If it has a parent, set level to 2, otherwise 1
@@ -163,17 +165,38 @@ const ProductCategoriesPage = () => {
       // Ensure we have a slug if one wasn't provided
       const slug = data.slug || generateSlug(data.name);
       
+      // Determine if this is a global category
+      const isGlobal = !!data.isGlobal;
+      
+      // For global categories (admin only), don't set a vendorId
+      // For vendor categories, use the current vendorId
+      const vendorIdToUse = isGlobal ? null : vendorId;
+      
       return apiRequest('PATCH', `/api/product-categories/${id}`, {
         ...data,
         slug,
         level,
+        isGlobal,
+        vendorId: vendorIdToUse,
       });
     },
     onSuccess: () => {
+      // Invalidate queries for both vendor-specific and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/product-categories/global`] });
+      
       setIsAddCategoryOpen(false);
       setSelectedCategory(null);
-      setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
+      // Reset form completely, including isGlobal
+      setCategoryFormData({ 
+        name: '', 
+        description: '', 
+        parentId: null, 
+        imageUrl: null, 
+        slug: null,
+        isGlobal: false 
+      });
+      
       toast({
         title: 'Category updated',
         description: 'Category has been updated successfully',
@@ -271,6 +294,7 @@ const ProductCategoriesPage = () => {
       parentId: category.parentId || null,
       imageUrl: category.imageUrl || null,
       slug: category.slug || generateSlug(category.name),
+      isGlobal: category.isGlobal || false,
     });
     setIsAddCategoryOpen(true);
   };
@@ -542,7 +566,16 @@ const ProductCategoriesPage = () => {
                   .map((category: Category) => (
                     <React.Fragment key={category.id}>
                       <TableRow>
-                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {category.name}
+                            {category.isGlobal && (
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">
+                                Global
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell>{category.description || '—'}</TableCell>
                         <TableCell>
                           {category.imageUrl ? (
@@ -598,7 +631,14 @@ const ProductCategoriesPage = () => {
                             <TableCell className="font-medium pl-8">
                               <div className="flex items-center">
                                 <div className="w-4 border-l-2 border-b-2 h-4 border-muted-foreground/30 mr-2"></div>
-                                {subcategory.name}
+                                <div className="flex items-center gap-2">
+                                  {subcategory.name}
+                                  {subcategory.isGlobal && (
+                                    <span className="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">
+                                      Global
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </TableCell>
                             <TableCell>{subcategory.description || '—'}</TableCell>
