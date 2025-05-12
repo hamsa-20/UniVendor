@@ -25,7 +25,7 @@ import { Loader2, Image, X, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import ProductVariantManager from './ProductVariantManager';
+import MatrixVariantManager from './MatrixVariantManager';
 import { ProductVariant } from '@shared/schema';
 import { FileUpload } from '@/components/ui/file-upload';
 import TagInput from '@/components/ui/tag-input';
@@ -927,8 +927,8 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                       </p>
                     </div>
                     
-                    {/* Product Variant Manager */}
-                    <ProductVariantManager 
+                    {/* Matrix Variant Manager */}
+                    <MatrixVariantManager 
                       productId={productId} 
                       variants={variants}
                       onChange={setVariants}

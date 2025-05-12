@@ -581,7 +581,8 @@ export const productVariants = pgTable("product_variants", {
   gst: numeric("gst"), // Added GST percentage
   inventoryQuantity: integer("inventory_quantity").default(0),
   weight: numeric("weight"),
-  imageUrl: text("image_url"),
+  imageUrl: text("image_url"), // Kept for backward compatibility
+  images: text("images").array(), // Added array of image URLs
   position: integer("position").default(0),
   isDefault: boolean("is_default").default(false),
   createdAt: timestamp("created_at").defaultNow(),
@@ -604,6 +605,8 @@ export const insertProductVariantSchema = baseProductVariantSchema.extend({
   gst: z.number().nullable().optional(),
   weight: z.number().nullable().optional(),
   inventoryQuantity: z.number().int().default(0),
+  // Add support for multiple images
+  images: z.array(z.string()).optional(),
 });
 
 
