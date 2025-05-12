@@ -2399,11 +2399,39 @@ export class DatabaseStorage implements IStorage {
     return category;
   }
 
-  async getProductCategories(vendorId: number): Promise<ProductCategory[]> {
-    return db
+  async getProductCategories(vendorId: number): Promise<(ProductCategory & { productCount?: number })[]> {
+    // First, fetch all categories for this vendor
+    const categories = await db
       .select()
       .from(productCategories)
-      .where(eq(productCategories.vendorId, vendorId));
+      .where(eq(productCategories.vendorId, vendorId))
+      .orderBy(productCategories.level, productCategories.name);
+    
+    // Get product counts for each category to determine which are in use
+    const categoryCounts = await db.select({
+      categoryId: products.categoryId,
+      count: db.fn.count(products.id)
+    })
+    .from(products)
+    .where(and(
+      eq(products.vendorId, vendorId),
+      db.isNotNull(products.categoryId)
+    ))
+    .groupBy(products.categoryId);
+    
+    // Create a map of category IDs to product counts
+    const countMap = new Map<number, number>();
+    for (const item of categoryCounts) {
+      if (item.categoryId) {
+        countMap.set(item.categoryId, Number(item.count));
+      }
+    }
+    
+    // Add product count to each category
+    return categories.map(category => ({
+      ...category,
+      productCount: countMap.get(category.id) || 0
+    }));
   }
 
   async createProductCategory(category: InsertProductCategory): Promise<ProductCategory> {
@@ -2446,11 +2474,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(products.vendorId, vendorId));
   }
 
-  async getProductsByCategory(categoryId: number): Promise<Product[]> {
+  async getProductsByCategory(categoryId: number, includeSubcategories: boolean = false): Promise<Product[]> {
+    // If we don't need subcategory products, use the simple query
+    if (!includeSubcategories) {
+      return db
+        .select()
+        .from(products)
+        .where(eq(products.categoryId, categoryId));
+    }
+    
+    // If we need to include subcategories, first get all subcategories
+    const subcategories = await db
+      .select()
+      .from(productCategories)
+      .where(eq(productCategories.parentId, categoryId));
+    
+    const categoryIds = [categoryId, ...subcategories.map(c => c.id)];
+    
+    // Then get products from all these categories
     return db
       .select()
       .from(products)
-      .where(eq(products.categoryId, categoryId));
+      .where(db.inArray(products.categoryId, categoryIds));
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
