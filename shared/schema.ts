@@ -111,7 +111,7 @@ export const insertDomainSchema = createInsertSchema(domains).omit({
 // Product categories
 export const productCategories = pgTable("product_categories", {
   id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").notNull().references(() => vendors.id),
+  vendorId: integer("vendor_id").references(() => vendors.id), // Now optional for global categories
   name: text("name").notNull(),
   description: text("description"),
   slug: text("slug").notNull(),
@@ -119,6 +119,7 @@ export const productCategories = pgTable("product_categories", {
   parentId: integer("parent_id").references(() => productCategories.id), // Self-reference for subcategories
   level: integer("level").default(1), // 1 = main category, 2 = subcategory, etc.
   isActive: boolean("is_active").default(true),
+  isGlobal: boolean("is_global").default(false), // True for super admin created global categories
   createdAt: timestamp("created_at").defaultNow(),
 });
 
