@@ -55,6 +55,8 @@ const ProductCategoriesPage = () => {
     name: '',
     description: '',
     parentId: null as number | null,
+    imageUrl: '' as string | null,
+    slug: '' as string | null,
   });
 
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
