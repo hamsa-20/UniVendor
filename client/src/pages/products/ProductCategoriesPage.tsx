@@ -83,12 +83,22 @@ const ProductCategoriesPage = () => {
 
   // Add category mutation
   const addCategoryMutation = useMutation({
-    mutationFn: async (data: { name: string; description: string; parentId: number | null }) => {
+    mutationFn: async (data: { 
+      name: string; 
+      description: string; 
+      parentId: number | null;
+      imageUrl: string | null;
+      slug: string | null;
+    }) => {
       // If it has a parent, set level to 2, otherwise 1
       const level = data.parentId ? 2 : 1;
       
+      // Ensure we have a slug if one wasn't provided
+      const slug = data.slug || generateSlug(data.name);
+      
       return apiRequest('POST', '/api/product-categories', {
         ...data,
+        slug,
         vendorId,
         level,
       });
@@ -113,12 +123,25 @@ const ProductCategoriesPage = () => {
 
   // Update category mutation
   const updateCategoryMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: { name: string; description: string; parentId: number | null } }) => {
+    mutationFn: async ({ id, data }: { 
+      id: number; 
+      data: { 
+        name: string; 
+        description: string; 
+        parentId: number | null;
+        imageUrl: string | null;
+        slug: string | null;
+      } 
+    }) => {
       // If it has a parent, set level to 2, otherwise 1
       const level = data.parentId ? 2 : 1;
       
+      // Ensure we have a slug if one wasn't provided
+      const slug = data.slug || generateSlug(data.name);
+      
       return apiRequest('PATCH', `/api/product-categories/${id}`, {
         ...data,
+        slug,
         level,
       });
     },
@@ -591,7 +614,7 @@ const ProductCategoriesPage = () => {
             </p>
             <Button onClick={() => {
               setSelectedCategory(null);
-              setCategoryFormData({ name: '', description: '', parentId: null });
+              setCategoryFormData({ name: '', description: '', parentId: null, imageUrl: null, slug: null });
               setIsAddCategoryOpen(true);
             }}>
               <PlusCircle className="mr-2 h-4 w-4" />
