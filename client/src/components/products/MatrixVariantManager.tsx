@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -128,6 +128,26 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
     }
   }, [variants]);
 
+  // Helper function to generate SKU from product ID and attributes
+  const generateSku = useCallback((productId: number | undefined, attributes: Record<string, string>): string => {
+    const prefix = productId ? `P${productId}` : 'TEMP';
+    
+    // Create a code from attribute values (first 1-2 characters of each)
+    const attributeParts = Object.entries(attributes)
+      .sort((a, b) => a[0].localeCompare(b[0])) // Sort by attribute name for consistency
+      .map(([key, value]) => {
+        // Extract first character or first two if first char is a number
+        const valueStr = String(value).trim();
+        if (!valueStr) return '';
+        
+        // For better readability, take up to 2 chars
+        return valueStr.substring(0, 2).toUpperCase();
+      })
+      .join('-');
+    
+    return `${prefix}-${attributeParts}`;
+  }, []);
+
   // Function to generate all possible combinations of attribute values
   const generateVariantCombinations = () => {
     // Make sure we have attribute values to combine
@@ -173,13 +193,16 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
         return existingVariant;
       }
       
+      // Auto-generate SKU
+      const autoSku = generateSku(productId, combo);
+      
       // Create a new variant
       return {
         id: crypto.randomUUID(),
         productId: productId || 0,
         color: combo["Color"] || "",
         size: combo["Size"] || "",
-        sku: "",
+        sku: autoSku,
         attributes: combo,
         sellingPrice: 0,
         mrp: 0,
