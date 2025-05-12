@@ -113,11 +113,14 @@ export default function CategoryNav({ vendorId, className }: CategoryNavProps) {
                     key={subcategory.id} 
                     href={`/category/${subcategory.slug}`}
                     className={cn(
-                      "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-indigo-600",
+                      "block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-indigo-600 flex items-center",
                       location === `/category/${subcategory.slug}` && "text-indigo-600 bg-gray-50"
                     )}
                   >
                     {subcategory.name}
+                    {subcategory.isGlobal && (
+                      <span className="ml-auto px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 rounded-full">Global</span>
+                    )}
                   </Link>
                 ))}
               </div>
