@@ -80,7 +80,7 @@ const ProductSubcategoriesPage = () => {
     defaultValues: {
       name: '',
       description: '',
-      parentId: mainCategories.length > 0 ? mainCategories[0].id.toString() : '0',
+      parentId: mainCategories.length > 0 ? mainCategories[0].id.toString() : 'null',
       isGlobal: false,
     },
   });
@@ -90,7 +90,7 @@ const ProductSubcategoriesPage = () => {
     form.reset({
       name: '',
       description: '',
-      parentId: mainCategories.length > 0 ? mainCategories[0].id.toString() : '0',
+      parentId: mainCategories.length > 0 ? mainCategories[0].id.toString() : 'null',
       isGlobal: false,
     });
     setIsCreateDialogOpen(true);
@@ -102,7 +102,7 @@ const ProductSubcategoriesPage = () => {
     form.reset({
       name: category.name,
       description: category.description || '',
-      parentId: category.parentId?.toString() || '',
+      parentId: category.parentId?.toString() || 'null',
       isGlobal: category.isGlobal || false,
     });
     setIsEditDialogOpen(true);
