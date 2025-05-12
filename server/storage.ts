@@ -2448,9 +2448,13 @@ export class DatabaseStorage implements IStorage {
     
     // Create a map of category IDs to product counts
     const countMap = new Map<number, number>();
-    for (const item of categoryCounts) {
-      if (item.categoryId) {
-        countMap.set(item.categoryId, Number(item.count));
+    
+    // Only process categoryCounts if it exists and has items
+    if (categoryCounts && categoryCounts.length > 0) {
+      for (const item of categoryCounts) {
+        if (item.categoryId) {
+          countMap.set(item.categoryId, Number(item.count));
+        }
       }
     }
     
