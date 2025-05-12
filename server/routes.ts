@@ -1070,8 +1070,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const vendorId = domainInfo.vendorId;
       
-      // Get all categories for this vendor
-      const allCategories = await storage.getProductCategories(vendorId);
+      // Get vendor-specific categories
+      const vendorCategories = await storage.getProductCategories(vendorId);
+      
+      // Get global categories
+      const globalCategories = await storage.getGlobalProductCategories();
+      
+      // Combine both category sets
+      const allCategories = [...vendorCategories, ...globalCategories];
       
       // Find the requested category by slug
       const category = allCategories.find(c => c.slug === slug);

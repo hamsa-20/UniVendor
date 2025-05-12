@@ -13,6 +13,8 @@ interface Category {
   parentId: number | null;
   level: number;
   description: string | null;
+  isGlobal?: boolean;
+  vendorId?: number | null;
 }
 
 interface Product {

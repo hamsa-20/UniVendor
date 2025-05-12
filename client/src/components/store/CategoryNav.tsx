@@ -10,6 +10,8 @@ type Category = {
   slug: string;
   parentId: number | null;
   level: number;
+  isGlobal?: boolean;
+  vendorId?: number | null;
 };
 
 interface CategoryNavProps {
@@ -21,11 +23,22 @@ export default function CategoryNav({ vendorId, className }: CategoryNavProps) {
   const [location] = useLocation();
   const [hoveredCategory, setHoveredCategory] = useState<number | null>(null);
 
-  // Fetch categories
-  const { data: categories = [], isLoading } = useQuery<Category[]>({
+  // Fetch vendor-specific categories
+  const { data: vendorCategories = [], isLoading: isLoadingVendorCategories } = useQuery<Category[]>({
     queryKey: [`/api/vendors/${vendorId}/product-categories`],
     enabled: !!vendorId,
   });
+  
+  // Fetch global categories (available to all)
+  const { data: globalCategories = [], isLoading: isLoadingGlobalCategories } = useQuery<Category[]>({
+    queryKey: [`/api/global-product-categories`],
+  });
+  
+  // Combine vendor and global categories
+  const categories = [...vendorCategories, ...globalCategories];
+  
+  // Combined loading state
+  const isLoading = isLoadingVendorCategories || isLoadingGlobalCategories;
 
   // Filter for main categories (level 1 or parentId is null)
   const mainCategories = categories.filter(c => !c.parentId);
@@ -75,14 +88,20 @@ export default function CategoryNav({ vendorId, className }: CategoryNavProps) {
             {hasSubcategories(category.id) ? (
               <button className="text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap flex items-center gap-1">
                 {category.name}
+                {category.isGlobal && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 rounded-full">Global</span>
+                )}
                 <ChevronDown className="h-4 w-4" />
               </button>
             ) : (
               <Link href={`/category/${category.slug}`} className={cn(
-                "text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap",
+                "text-gray-700 hover:text-indigo-600 font-medium px-3 py-2 text-sm whitespace-nowrap inline-flex items-center",
                 location === `/category/${category.slug}` && "text-indigo-600"
               )}>
                 {category.name}
+                {category.isGlobal && (
+                  <span className="ml-1 px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-800 rounded-full">Global</span>
+                )}
               </Link>
             )}
 
