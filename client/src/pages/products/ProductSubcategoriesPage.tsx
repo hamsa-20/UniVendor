@@ -25,6 +25,7 @@ const subcategoryFormSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   description: z.string().optional(),
   parentId: z.string().min(1, 'Parent category is required'),
+  isGlobal: z.boolean().optional().default(false),
 });
 
 type SubcategoryFormValues = z.infer<typeof subcategoryFormSchema>;
@@ -80,6 +81,7 @@ const ProductSubcategoriesPage = () => {
       name: '',
       description: '',
       parentId: '',
+      isGlobal: false,
     },
   });
 
@@ -89,6 +91,7 @@ const ProductSubcategoriesPage = () => {
       name: '',
       description: '',
       parentId: '',
+      isGlobal: false,
     });
     setIsCreateDialogOpen(true);
   };
@@ -100,6 +103,7 @@ const ProductSubcategoriesPage = () => {
       name: category.name,
       description: category.description || '',
       parentId: category.parentId?.toString() || '',
+      isGlobal: category.isGlobal || false,
     });
     setIsEditDialogOpen(true);
   };
@@ -117,12 +121,16 @@ const ProductSubcategoriesPage = () => {
       const categoryData = {
         ...data,
         parentId: parseInt(data.parentId),
-        vendorId: vendorId,
+        vendorId: data.isGlobal ? null : vendorId,
         isActive: true,
       };
       
-      // Create API request
-      return await apiRequest('POST', `/api/vendors/${vendorId}/product-categories`, categoryData);
+      // Create API request - use appropriate endpoint based on whether it's global
+      const endpoint = data.isGlobal 
+        ? '/api/global-categories' 
+        : `/api/vendors/${vendorId}/product-categories`;
+        
+      return await apiRequest('POST', endpoint, categoryData);
     },
     onSuccess: () => {
       toast({
@@ -130,7 +138,9 @@ const ProductSubcategoriesPage = () => {
         description: 'The subcategory has been created successfully.',
       });
       setIsCreateDialogOpen(false);
+      // Invalidate both vendor categories and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-categories'] });
     },
     onError: (error) => {
       toast({
@@ -152,10 +162,16 @@ const ProductSubcategoriesPage = () => {
       const categoryData = {
         ...data,
         parentId: parseInt(data.parentId),
+        vendorId: data.isGlobal ? null : vendorId,
       };
       
+      // Determine the appropriate endpoint based on whether it's a global category
+      const endpoint = selectedCategory.isGlobal || data.isGlobal
+        ? `/api/global-categories/${selectedCategory.id}`
+        : `/api/vendors/${vendorId}/product-categories/${selectedCategory.id}`;
+      
       // Update API request
-      return await apiRequest('PATCH', `/api/vendors/${vendorId}/product-categories/${selectedCategory.id}`, categoryData);
+      return await apiRequest('PATCH', endpoint, categoryData);
     },
     onSuccess: () => {
       toast({
@@ -163,7 +179,9 @@ const ProductSubcategoriesPage = () => {
         description: 'The subcategory has been updated successfully.',
       });
       setIsEditDialogOpen(false);
+      // Invalidate both vendor categories and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-categories'] });
     },
     onError: (error) => {
       toast({
@@ -180,7 +198,13 @@ const ProductSubcategoriesPage = () => {
       if (!selectedCategory) {
         throw new Error("No category selected for deletion");
       }
-      return await apiRequest('DELETE', `/api/vendors/${vendorId}/product-categories/${selectedCategory.id}`);
+      
+      // Determine the appropriate endpoint based on whether it's a global category
+      const endpoint = selectedCategory.isGlobal
+        ? `/api/global-categories/${selectedCategory.id}`
+        : `/api/vendors/${vendorId}/product-categories/${selectedCategory.id}`;
+        
+      return await apiRequest('DELETE', endpoint);
     },
     onSuccess: () => {
       toast({
@@ -188,7 +212,9 @@ const ProductSubcategoriesPage = () => {
         description: 'The subcategory has been deleted successfully.',
       });
       setIsDeleteDialogOpen(false);
+      // Invalidate both vendor categories and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/global-categories'] });
     },
     onError: (error) => {
       toast({
