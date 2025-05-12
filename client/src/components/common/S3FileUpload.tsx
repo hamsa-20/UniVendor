@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
 interface FileUploadProps {
-  onSuccess?: (fileData: { url: string; key: string; mimetype: string; size: number }) => void;
+  onSuccess?: (fileData: { url: string; key: string; mimetype: string; size: number } | { files: { url: string; key: string; mimetype: string; size: number }[] }) => void;
   onError?: (error: Error) => void;
   endpoint?: 'upload' | 'upload/product-image' | 'upload/multiple';
   className?: string;
@@ -16,6 +16,7 @@ interface FileUploadProps {
   maxSizeMB?: number;
   buttonText?: string;
   showPreview?: boolean;
+  multiple?: boolean;
 }
 
 export default function S3FileUpload({
@@ -28,9 +29,11 @@ export default function S3FileUpload({
   maxSizeMB = 5,
   buttonText = 'Upload File',
   showPreview = true,
+  multiple = false,
 }: FileUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -74,6 +77,59 @@ export default function S3FileUpload({
     },
   });
 
+  // Multiple files upload mutation
+  const multipleUploadMutation = useMutation({
+    mutationFn: async (files: File[]) => {
+      const formData = new FormData();
+      
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+
+      const res = await apiRequest(
+        'POST', 
+        `/api/s3/${endpoint}`, 
+        formData,
+        {
+          'Content-Type': 'multipart/form-data',
+        }
+      );
+      
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (onSuccess) {
+        onSuccess(data);
+      }
+      const fileCount = selectedFiles.length;
+      toast({
+        title: 'Upload successful',
+        description: `${fileCount} ${fileCount === 1 ? 'file has' : 'files have'} been uploaded successfully.`,
+      });
+      
+      // Clear selection
+      setSelectedFiles([]);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    },
+    onError: (error: Error) => {
+      console.error('Upload error:', error);
+      if (onError) {
+        onError(error);
+      }
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload files. Please try again.',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     
@@ -81,34 +137,64 @@ export default function S3FileUpload({
       return;
     }
 
-    const file = files[0];
-    
-    // Check file size
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: `Maximum file size is ${maxSizeMB}MB.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setSelectedFile(file);
-    
-    // Create preview URL for images
-    if (file.type.startsWith('image/') && showPreview) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (multiple) {
+      const fileArray = Array.from(files);
+      
+      // Check size for each file
+      const oversizedFiles = fileArray.filter(file => file.size > maxSizeMB * 1024 * 1024);
+      if (oversizedFiles.length > 0) {
+        toast({
+          title: 'Files too large',
+          description: `${oversizedFiles.length} ${oversizedFiles.length === 1 ? 'file exceeds' : 'files exceed'} the maximum size of ${maxSizeMB}MB.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      setSelectedFiles(fileArray);
+      // For multiple files, only set preview for the first image
+      const firstImage = fileArray.find(file => file.type.startsWith('image/'));
+      if (firstImage && showPreview) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewUrl(reader.result as string);
+        };
+        reader.readAsDataURL(firstImage);
+      } else {
+        setPreviewUrl(null);
+      }
     } else {
-      setPreviewUrl(null);
+      const file = files[0];
+      
+      // Check file size
+      if (file.size > maxSizeMB * 1024 * 1024) {
+        toast({
+          title: 'File too large',
+          description: `Maximum file size is ${maxSizeMB}MB.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview URL for images
+      if (file.type.startsWith('image/') && showPreview) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setPreviewUrl(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setPreviewUrl(null);
+      }
     }
   };
 
   const handleUpload = () => {
-    if (selectedFile) {
+    if (multiple && selectedFiles.length > 0) {
+      multipleUploadMutation.mutate(selectedFiles);
+    } else if (selectedFile) {
       uploadMutation.mutate(selectedFile);
     }
   };
@@ -119,6 +205,7 @@ export default function S3FileUpload({
 
   const clearSelection = () => {
     setSelectedFile(null);
+    setSelectedFiles([]);
     setPreviewUrl(null);
     // Reset the file input
     if (fileInputRef.current) {
@@ -144,7 +231,7 @@ export default function S3FileUpload({
         onChange={handleFileChange}
         className="hidden"
         accept={accept}
-        multiple={maxFiles > 1}
+        multiple={multiple}
       />
       
       {!selectedFile ? (
