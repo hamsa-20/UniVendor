@@ -377,7 +377,6 @@ const ProductSubcategoriesPage = () => {
                         {mainCategories.map((category: Category) => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
-                            {category.isGlobal && " (Global)"}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -475,6 +474,7 @@ const ProductSubcategoriesPage = () => {
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -485,7 +485,6 @@ const ProductSubcategoriesPage = () => {
                         {mainCategories.map((category: Category) => (
                           <SelectItem key={category.id} value={category.id.toString()}>
                             {category.name}
-                            {category.isGlobal && " (Global)"}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -549,13 +548,14 @@ const ProductSubcategoriesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the subcategory. Products in this subcategory will not be deleted, but they may need to be recategorized.
+              This will permanently delete the subcategory "{selectedCategory?.name}". 
+              Products using this subcategory will no longer be associated with it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
