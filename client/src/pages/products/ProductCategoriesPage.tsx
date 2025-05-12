@@ -130,7 +130,7 @@ const ProductCategoriesPage = () => {
     onSuccess: () => {
       // Invalidate queries for both vendor-specific and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/product-categories/global`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/global-product-categories`] });
       
       setIsAddCategoryOpen(false);
       // Reset form completely, including isGlobal
@@ -195,7 +195,7 @@ const ProductCategoriesPage = () => {
     onSuccess: () => {
       // Invalidate queries for both vendor-specific and global categories
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/product-categories`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/product-categories/global`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/global-product-categories`] });
       
       setIsAddCategoryOpen(false);
       setSelectedCategory(null);
