@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,8 +65,10 @@ const ProductCategoriesPage = () => {
   const [_, navigate] = useLocation();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchSubcategory, setSearchSubcategory] = useState('');
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [showAddSubcategoryDialog, setShowAddSubcategoryDialog] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [categoryFormData, setCategoryFormData] = useState({
     name: '',
@@ -324,9 +327,16 @@ const ProductCategoriesPage = () => {
   };
 
   return (
-    <DashboardLayout title="Product Categories" subtitle="Manage your product categories">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
+    <DashboardLayout title="Category Management" subtitle="Manage your product categories and subcategories">
+      <Tabs defaultValue="categories" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="categories">Categories</TabsTrigger>
+          <TabsTrigger value="subcategories">Subcategories</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="categories">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-4">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
@@ -732,6 +742,84 @@ const ProductCategoriesPage = () => {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+        
+        <TabsContent value="subcategories">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-4">
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search subcategories..."
+                  className="pl-8"
+                  value={searchSubcategory}
+                  onChange={(e) => setSearchSubcategory(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button onClick={() => setShowAddSubcategoryDialog(true)}>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Subcategory
+            </Button>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Subcategories</CardTitle>
+              <CardDescription>
+                These subcategories will be available for products in your store
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Parent Category</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categories
+                    .filter(category => 
+                      category.parentId !== null && 
+                      (searchSubcategory === "" || 
+                        category.name.toLowerCase().includes(searchSubcategory.toLowerCase()))
+                    )
+                    .map((subcategory) => (
+                      <TableRow key={subcategory.id}>
+                        <TableCell className="font-medium">{subcategory.name}</TableCell>
+                        <TableCell>
+                          {categories.find(cat => cat.id === subcategory.parentId)?.name || "Unknown"}
+                        </TableCell>
+                        <TableCell>{subcategory.description || "No description"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditCategory(subcategory)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteCategory(subcategory.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 };
