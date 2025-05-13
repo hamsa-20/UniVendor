@@ -1096,6 +1096,8 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                               variantsMutation.mutate({ productId, variants });
                             } else {
                               // For new products, save the basic info first to get a product ID
+                              // This will go through our enhanced 'variants' section handler that creates a
+                              // basic product with the correct vendorId
                               sectionSaveMutation.mutate('variants');
                             }
                           }}
