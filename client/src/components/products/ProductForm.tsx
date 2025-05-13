@@ -25,10 +25,12 @@ import { Loader2, Image, X, Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import MatrixVariantManager from './MatrixVariantManager';
 import { ProductVariant } from '@shared/schema';
 import { FileUpload } from '@/components/ui/file-upload';
 import TagInput from '@/components/ui/tag-input';
+import S3FileUpload from '@/components/common/S3FileUpload';
 
 // Validation schema for product form
 const productFormSchema = z.object({
@@ -737,6 +739,178 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+                  
+                  {/* Additional Product Images section */}
+                  <FormField
+                    control={form.control}
+                    name="images"
+                    render={({ field }) => {
+                      const [newImageUrl, setNewImageUrl] = useState("");
+                      const [multipleUrls, setMultipleUrls] = useState("");
+                  
+                      const addImageUrl = () => {
+                        if (newImageUrl.trim()) {
+                          // Add a single URL
+                          field.onChange([...field.value || [], newImageUrl]);
+                          setNewImageUrl("");
+                        }
+                      };
+                    
+                      const addMultipleUrls = () => {
+                        if (multipleUrls.trim()) {
+                          // Split by newlines and filter empty lines
+                          const urls = multipleUrls
+                            .split('\n')
+                            .map(url => url.trim())
+                            .filter(url => url.length > 0);
+                          
+                          if (urls.length > 0) {
+                            field.onChange([...field.value || [], ...urls]);
+                            setMultipleUrls("");
+                            
+                            toast({
+                              title: "Images added",
+                              description: `Added ${urls.length} image URLs to the product.`
+                            });
+                          }
+                        }
+                      };
+                    
+                      const removeImage = (index: number) => {
+                        const newImages = [...field.value || []];
+                        newImages.splice(index, 1);
+                        field.onChange(newImages);
+                      };
+                    
+                      // Handle S3FileUpload success
+                      const handleImageUploaded = (fileData: any) => {
+                        if ('url' in fileData) {
+                          // Single file upload
+                          field.onChange([...field.value || [], fileData.url]);
+                          toast({
+                            title: "Image uploaded",
+                            description: "Image successfully uploaded and added to product."
+                          });
+                        } else if ('files' in fileData && Array.isArray(fileData.files)) {
+                          // Multiple files upload
+                          const urls = fileData.files.map((file: any) => file.url);
+                          field.onChange([...field.value || [], ...urls]);
+                          toast({
+                            title: "Images uploaded",
+                            description: `${urls.length} images successfully uploaded and added to product.`
+                          });
+                        }
+                      };
+                    
+                      return (
+                        <FormItem>
+                          <FormLabel>Additional Product Images</FormLabel>
+                          <FormControl>
+                            <div className="space-y-6">
+                              {/* Single URL input */}
+                              <div className="flex items-end gap-2">
+                                <div className="flex-grow">
+                                  <Input
+                                    placeholder="Enter image URL"
+                                    value={newImageUrl}
+                                    onChange={(e) => setNewImageUrl(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && addImageUrl()}
+                                  />
+                                </div>
+                                <Button 
+                                  type="button" 
+                                  onClick={addImageUrl}
+                                  disabled={!newImageUrl.trim()}
+                                >
+                                  Add URL
+                                </Button>
+                              </div>
+                              
+                              {/* Multiple URLs textarea */}
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <Label>Add Multiple URLs (one per line)</Label>
+                                  <Button 
+                                    type="button" 
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={addMultipleUrls}
+                                    disabled={!multipleUrls.trim()}
+                                  >
+                                    Add All URLs
+                                  </Button>
+                                </div>
+                                <Textarea
+                                  placeholder="Enter multiple image URLs (one per line)"
+                                  value={multipleUrls}
+                                  onChange={(e) => setMultipleUrls(e.target.value)}
+                                  rows={4}
+                                />
+                              </div>
+                              
+                              {/* File upload */}
+                              <div className="space-y-2">
+                                <Label>Upload Images</Label>
+                                <S3FileUpload
+                                  onSuccess={handleImageUploaded}
+                                  endpoint="upload/product-image"
+                                  accept="image/*"
+                                  maxSizeMB={10}
+                                  buttonText="Upload Product Images"
+                                  multiple={true}
+                                  maxFiles={10}
+                                />
+                              </div>
+                              
+                              {/* Image gallery */}
+                              {field.value && field.value.length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <Label>{field.value.length} Additional Images</Label>
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="sm"
+                                      onClick={() => field.onChange([])}
+                                    >
+                                      Remove All
+                                    </Button>
+                                  </div>
+                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                                    {field.value.map((url, index) => (
+                                      <div key={`${url}-${index}`} className="relative group rounded-md overflow-hidden border bg-neutral-100">
+                                        <div className="aspect-square">
+                                          <img 
+                                            src={url} 
+                                            alt={`Product image ${index + 1}`} 
+                                            className="w-full h-full object-contain" 
+                                          />
+                                        </div>
+                                        <Button
+                                          type="button"
+                                          variant="destructive"
+                                          size="icon"
+                                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          onClick={() => removeImage(index)}
+                                        >
+                                          <X className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </FormControl>
+                          <FormDescription>
+                            Add additional product images. You can enter URLs one at a time,
+                            add multiple URLs at once, or upload images directly.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
 
                   <div className="flex justify-between space-x-2">
