@@ -59,6 +59,15 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [generatedVariants, setGeneratedVariants] = useState<any[]>([]);
+  const [customColor, setCustomColor] = useState('');
+  const [customSize, setCustomSize] = useState('');
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState<{
+    sellingPrice?: number | null;
+    mrp?: number | null;
+    inventoryQuantity?: number | null;
+  }>({});
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const { user } = useAuth() || {};
   const { toast } = useToast();
 
@@ -990,10 +999,68 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                                     }
                                   </Badge>
                                 ))}
-                                <Badge variant="outline" className="cursor-pointer bg-secondary">
-                                  Add Custom
-                                  <Plus className="ml-1 h-3 w-3" />
-                                </Badge>
+                                {selectedColors.map((color) => {
+                                  // Only render custom colors (not in the predefined list)
+                                  if (['Red', 'Blue', 'Green', 'Black', 'White'].includes(color)) {
+                                    return null;
+                                  }
+                                  return (
+                                    <Badge 
+                                      key={color}
+                                      variant="default"
+                                      className="cursor-pointer hover:bg-secondary"
+                                      onClick={() => {
+                                        setSelectedColors(selectedColors.filter(c => c !== color));
+                                      }}
+                                    >
+                                      {color}
+                                      <X className="ml-1 h-3 w-3" />
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                              
+                              <div className="flex items-center mt-2 mb-4">
+                                <Input
+                                  placeholder="Enter custom color and press Enter"
+                                  className="h-9 mr-2"
+                                  value={customColor}
+                                  onChange={(e) => setCustomColor(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && customColor.trim()) {
+                                      e.preventDefault();
+                                      if (!selectedColors.includes(customColor.trim())) {
+                                        setSelectedColors([...selectedColors, customColor.trim()]);
+                                        setCustomColor('');
+                                      } else {
+                                        toast({
+                                          title: "Color already added",
+                                          description: "This color is already in the list",
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (customColor.trim() && !selectedColors.includes(customColor.trim())) {
+                                      setSelectedColors([...selectedColors, customColor.trim()]);
+                                      setCustomColor('');
+                                    } else if (selectedColors.includes(customColor.trim())) {
+                                      toast({
+                                        title: "Color already added",
+                                        description: "This color is already in the list",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }}
+                                  disabled={!customColor.trim()}
+                                >
+                                  Add Color
+                                </Button>
                               </div>
                               
                               <Label className="mt-4">Sizes</Label>
@@ -1018,10 +1085,68 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                                     }
                                   </Badge>
                                 ))}
-                                <Badge variant="outline" className="cursor-pointer bg-secondary">
-                                  Add Custom
-                                  <Plus className="ml-1 h-3 w-3" />
-                                </Badge>
+                                {selectedSizes.map((size) => {
+                                  // Only render custom sizes (not in the predefined list)
+                                  if (['S', 'M', 'L', 'XL', 'XXL'].includes(size)) {
+                                    return null;
+                                  }
+                                  return (
+                                    <Badge 
+                                      key={size}
+                                      variant="default"
+                                      className="cursor-pointer hover:bg-secondary"
+                                      onClick={() => {
+                                        setSelectedSizes(selectedSizes.filter(s => s !== size));
+                                      }}
+                                    >
+                                      {size}
+                                      <X className="ml-1 h-3 w-3" />
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                              
+                              <div className="flex items-center mt-2 mb-4">
+                                <Input
+                                  placeholder="Enter custom size and press Enter"
+                                  className="h-9 mr-2"
+                                  value={customSize}
+                                  onChange={(e) => setCustomSize(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && customSize.trim()) {
+                                      e.preventDefault();
+                                      if (!selectedSizes.includes(customSize.trim())) {
+                                        setSelectedSizes([...selectedSizes, customSize.trim()]);
+                                        setCustomSize('');
+                                      } else {
+                                        toast({
+                                          title: "Size already added",
+                                          description: "This size is already in the list",
+                                          variant: "destructive"
+                                        });
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    if (customSize.trim() && !selectedSizes.includes(customSize.trim())) {
+                                      setSelectedSizes([...selectedSizes, customSize.trim()]);
+                                      setCustomSize('');
+                                    } else if (selectedSizes.includes(customSize.trim())) {
+                                      toast({
+                                        title: "Size already added",
+                                        description: "This size is already in the list",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }}
+                                  disabled={!customSize.trim()}
+                                >
+                                  Add Size
+                                </Button>
                               </div>
                             </div>
                           </div>
