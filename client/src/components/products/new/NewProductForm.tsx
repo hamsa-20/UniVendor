@@ -893,7 +893,18 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   </div>
                   
                   <div className="bg-white p-6 rounded-md border shadow-sm">
-                    <h3 className="text-lg font-medium mb-4">Shipping</h3>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-medium">Shipping</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => sectionSaveMutation.mutate('dimensions')}
+                        disabled={sectionSaveMutation.isPending}
+                      >
+                        {sectionSaveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Dimensions
+                      </Button>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <FormField
                         control={form.control}
@@ -1007,6 +1018,16 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
             
             {isSectionActive('images') && (
               <div className="p-6 bg-gray-50/50">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    type="button"
+                    onClick={() => sectionSaveMutation.mutate('media')}
+                    disabled={sectionSaveMutation.isPending}
+                  >
+                    {sectionSaveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Images
+                  </Button>
+                </div>
                 <FormField
                   control={form.control}
                   name="images"
