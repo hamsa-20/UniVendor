@@ -86,6 +86,13 @@ const MatrixVariantManager = ({
   const [selectedTab, setSelectedTab] = useState("matrix");
   const [variants, setVariants] = useState<MatrixVariant[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [bulkEditMode, setBulkEditMode] = useState(false);
+  const [bulkEditData, setBulkEditData] = useState<{
+    sellingPrice?: number | null;
+    mrp?: number | null;
+    inventoryQuantity?: number | null;
+  }>({});
+  const [selectedVariants, setSelectedVariants] = useState<string[]>([]);
   const [newAttribute, setNewAttribute] = useState({ name: '', value: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
@@ -489,16 +496,121 @@ const MatrixVariantManager = ({
         <TabsContent value="details">
           {variants.length > 0 ? (
             <div className="space-y-6">
+              {/* Bulk Edit Controls */}
+              <div className="border rounded-lg p-4 mb-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">Bulk Edit Variants</h3>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setBulkEditMode(!bulkEditMode)}
+                  >
+                    {bulkEditMode ? "Cancel Bulk Edit" : "Enable Bulk Edit"}
+                  </Button>
+                </div>
+                
+                {bulkEditMode && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="bulk-mrp">MRP</Label>
+                        <Input
+                          id="bulk-mrp"
+                          type="number"
+                          value={bulkEditData.mrp || ""}
+                          onChange={(e) => setBulkEditData({
+                            ...bulkEditData,
+                            mrp: e.target.value ? parseFloat(e.target.value) : null
+                          })}
+                          className="w-full"
+                          placeholder="Enter MRP"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="bulk-selling-price">Selling Price</Label>
+                        <Input
+                          id="bulk-selling-price"
+                          type="number"
+                          value={bulkEditData.sellingPrice || ""}
+                          onChange={(e) => setBulkEditData({
+                            ...bulkEditData,
+                            sellingPrice: e.target.value ? parseFloat(e.target.value) : null
+                          })}
+                          className="w-full"
+                          placeholder="Enter selling price"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="bulk-inventory">Stock Units</Label>
+                        <Input
+                          id="bulk-inventory"
+                          type="number"
+                          value={bulkEditData.inventoryQuantity || ""}
+                          onChange={(e) => setBulkEditData({
+                            ...bulkEditData,
+                            inventoryQuantity: e.target.value ? parseInt(e.target.value) : null
+                          })}
+                          className="w-full"
+                          placeholder="Enter stock units"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-end">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          // Apply bulk edits to selected variants or all if none selected
+                          const updatedVariants = [...variants];
+                          const variantsToUpdate = selectedVariants.length > 0 
+                            ? selectedVariants 
+                            : updatedVariants.map((_, i) => i.toString());
+                          
+                          variantsToUpdate.forEach(variantIndex => {
+                            const index = parseInt(variantIndex);
+                            
+                            if (bulkEditData.mrp !== undefined && bulkEditData.mrp !== null) {
+                              updatedVariants[index].mrp = bulkEditData.mrp.toString();
+                            }
+                            
+                            if (bulkEditData.sellingPrice !== undefined && bulkEditData.sellingPrice !== null) {
+                              updatedVariants[index].sellingPrice = bulkEditData.sellingPrice.toString();
+                            }
+                            
+                            if (bulkEditData.inventoryQuantity !== undefined && bulkEditData.inventoryQuantity !== null) {
+                              updatedVariants[index].inventoryQuantity = bulkEditData.inventoryQuantity;
+                            }
+                          });
+                          
+                          setVariants(updatedVariants);
+                          setBulkEditData({});
+                          setSelectedVariants([]);
+                          setBulkEditMode(false);
+                          
+                          toast({
+                            title: "Bulk edit applied",
+                            description: `Updated ${variantsToUpdate.length} variant${variantsToUpdate.length !== 1 ? 's' : ''}`,
+                          });
+                        }}
+                      >
+                        Apply to {selectedVariants.length > 0 ? `${selectedVariants.length} selected` : "all"} variants
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <div className="border rounded-lg">
                 <Table>
                   <TableCaption>Configure details for each variant</TableCaption>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[250px]">Variant</TableHead>
+                      <TableHead className="w-[200px]">Variant</TableHead>
                       <TableHead>SKU</TableHead>
-                      <TableHead>Price</TableHead>
                       <TableHead>MRP</TableHead>
-                      <TableHead>Stock</TableHead>
+                      <TableHead>Selling Price</TableHead>
+                      <TableHead>Stock Units</TableHead>
+                      <TableHead>Images</TableHead>
                       <TableHead>Default</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -507,13 +619,27 @@ const MatrixVariantManager = ({
                     {variants.map((variant, index) => (
                       <TableRow key={index}>
                         <TableCell className="font-medium">
-                          <div>
-                            {variant.color} {variant.size && `/ ${variant.size}`}
-                            <div className="text-xs text-muted-foreground mt-1">
-                              {Object.entries(variant.attributes || {})
-                                .filter(([key]) => key !== "Color" && key !== "Size")
-                                .map(([key, value]) => `${key}: ${value}`)
-                                .join(", ")}
+                          <div className="flex items-center gap-2">
+                            {bulkEditMode && (
+                              <Checkbox
+                                checked={selectedVariants.includes(index.toString())}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedVariants([...selectedVariants, index.toString()]);
+                                  } else {
+                                    setSelectedVariants(selectedVariants.filter(id => id !== index.toString()));
+                                  }
+                                }}
+                              />
+                            )}
+                            <div>
+                              {variant.color} {variant.size && `/ ${variant.size}`}
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {Object.entries(variant.attributes || {})
+                                  .filter(([key]) => key !== "Color" && key !== "Size")
+                                  .map(([key, value]) => `${key}: ${value}`)
+                                  .join(", ")}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
@@ -521,6 +647,14 @@ const MatrixVariantManager = ({
                           <Input
                             value={variant.sku || ""}
                             onChange={(e) => updateVariantField(index, "sku", e.target.value)}
+                            className="w-full"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            value={variant.mrp || ""}
+                            onChange={(e) => updateVariantField(index, "mrp", parseFloat(e.target.value) || 0)}
                             className="w-full"
                           />
                         </TableCell>
@@ -540,14 +674,6 @@ const MatrixVariantManager = ({
                         <TableCell>
                           <Input
                             type="number"
-                            value={variant.mrp || ""}
-                            onChange={(e) => updateVariantField(index, "mrp", parseFloat(e.target.value) || 0)}
-                            className="w-full"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            type="number"
                             value={variant.inventoryQuantity}
                             onChange={(e) => updateVariantField(index, "inventoryQuantity", parseInt(e.target.value) || 0)}
                             className="w-full"
@@ -557,6 +683,27 @@ const MatrixVariantManager = ({
                               {errors[`variant_${index}_inventory`]}
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {variant.images && variant.images.length > 0 ? (
+                              <Badge variant="outline" className="px-2 py-1 bg-muted">
+                                {variant.images.length} image{variant.images.length !== 1 ? 's' : ''}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="px-2 py-1 bg-muted-foreground/20">
+                                No images
+                              </Badge>
+                            )}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setSelectedTab("images")}
+                            >
+                              <ImageIcon className="h-4 w-4 mr-1" />
+                              Manage
+                            </Button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Checkbox
