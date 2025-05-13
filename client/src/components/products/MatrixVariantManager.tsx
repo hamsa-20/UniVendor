@@ -35,6 +35,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from "@/lib/utils";
 
 // Define types
 interface Attribute {
@@ -196,14 +197,39 @@ const MatrixVariantManager = ({
     
     const updatedAttributes = [...attributes];
     const currentValues = updatedAttributes[attrIndex].values;
+    const attrName = updatedAttributes[attrIndex].name;
     
-    // Prevent duplicate values
-    if (currentValues.includes(newAttribute.value)) {
+    // Trim the value to remove whitespace
+    const trimmedValue = newAttribute.value.trim();
+    
+    if (!trimmedValue) {
+      setErrors({...errors, attributeValue: "Value cannot be empty"});
+      return;
+    }
+    
+    // Prevent duplicate values (case-insensitive)
+    if (currentValues.some(val => val.toLowerCase() === trimmedValue.toLowerCase())) {
       setErrors({...errors, attributeValue: "Value already exists"});
       return;
     }
     
-    updatedAttributes[attrIndex].values.push(newAttribute.value);
+    // For colors, validate that it's a recognizable color name or hex code
+    if (attrName === "Color") {
+      // Simple validation for common color names or hex codes
+      const validColorPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+      const commonColors = [
+        "black", "white", "red", "green", "blue", "yellow", "purple", 
+        "pink", "orange", "brown", "gray", "cyan", "magenta", "silver", 
+        "gold", "navy", "teal", "maroon", "olive", "lime", "aqua"
+      ];
+      
+      if (!validColorPattern.test(trimmedValue) && !commonColors.includes(trimmedValue.toLowerCase())) {
+        // Still allow it, but show a warning in console - don't interrupt the flow
+        console.warn(`"${trimmedValue}" might not be a standard color name or hex code`);
+      }
+    }
+    
+    updatedAttributes[attrIndex].values.push(trimmedValue);
     setAttributes(updatedAttributes);
     setNewAttribute({...newAttribute, value: ''});
     setErrors({...errors, attributeValue: ''});
