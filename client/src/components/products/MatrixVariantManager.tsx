@@ -433,9 +433,15 @@ const MatrixVariantManager = ({
                 
                 <div className="flex gap-2">
                   <Input
-                    placeholder={`Add ${attr.name.toLowerCase()} value`}
+                    placeholder={`Add ${attr.name.toLowerCase()} value (press Enter to add)`}
                     value={attrIndex === attributes.findIndex(a => a.name === attr.name) ? newAttribute.value : ''}
                     onChange={(e) => setNewAttribute({...newAttribute, value: e.target.value})}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addAttributeValue(attrIndex);
+                      }
+                    }}
                     className="flex-1"
                   />
                   <Button 
@@ -459,9 +465,15 @@ const MatrixVariantManager = ({
                 <Label className="text-base font-semibold">Add Custom Attribute</Label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Attribute name (e.g. Material)"
+                    placeholder="Attribute name (e.g. Material, press Enter to add)"
                     value={newAttribute.name}
                     onChange={(e) => setNewAttribute({...newAttribute, name: e.target.value})}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addAttribute();
+                      }
+                    }}
                     className="flex-1"
                   />
                   <Button 
@@ -481,12 +493,18 @@ const MatrixVariantManager = ({
             </div>
             
             <div className="border-t pt-4 mt-6">
+              <div className="text-center mb-3">
+                <span className="text-sm text-muted-foreground">
+                  This will create {attributes.find(a => a.name === "Color")?.values.length || 0} × {attributes.find(a => a.name === "Size")?.values.length || 0} = {(attributes.find(a => a.name === "Color")?.values.length || 0) * (attributes.find(a => a.name === "Size")?.values.length || 0)} variant combinations
+                </span>
+              </div>
               <Button
                 onClick={generateVariantMatrix}
-                className="w-full"
+                className="w-full py-6 text-base"
+                size="lg"
               >
-                <PlusCircle className="h-4 w-4 mr-2" />
-                Generate Variants
+                <PlusCircle className="h-5 w-5 mr-2" />
+                Generate Variant Matrix
               </Button>
               
               {errors.matrix && (
