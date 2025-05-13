@@ -1,401 +1,218 @@
-import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/use-auth';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useAuth } from "@/hooks/use-auth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, Save, AlertCircle, Image as ImageIcon, X, Plus, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Image, X, Plus } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import MatrixVariantManager from './MatrixVariantManager';
-import { ProductVariant } from '@shared/schema';
-import { FileUpload } from '@/components/ui/file-upload';
-import TagInput from '@/components/ui/tag-input';
-import S3FileUpload from '@/components/common/S3FileUpload';
-
-// Validation schema for product form
 const productFormSchema = z.object({
-  name: z.string().min(2, 'Product name must be at least 2 characters'),
+  name: z.string().min(1, "Product name is required"),
   description: z.string().optional(),
-  purchasePrice: z.string().optional(), // Made optional as it might not be required for all products
-  sellingPrice: z.string().min(1, 'Selling Price is required'),
-  mrp: z.string().optional(), // Maximum Retail Price
-  gst: z.string().optional(), // GST percentage
-  sku: z.string().optional(),
-  barcode: z.string().optional(),
-  weight: z.string().optional(),
-  length: z.string().optional(),
-  width: z.string().optional(),
-  height: z.string().optional(),
-  inventoryQuantity: z.string().transform(val => val === '' ? '0' : val),
-  status: z.string().default('draft'),
-  mainCategoryId: z.string().default("0"),
-  categoryId: z.string().optional(),
-  featuredImageUrl: z.string().optional(),
-  images: z.array(z.string()).optional(),
-  tags: z.array(z.string()).optional(),
+  purchasePrice: z.number().min(0).optional().nullable(),
+  sellingPrice: z.number().min(0, "Selling price is required"),
+  mrp: z.number().min(0).optional().nullable(),
+  gst: z.number().min(0).max(100).optional().nullable(),
+  sku: z.string().optional().nullable(),
+  barcode: z.string().optional().nullable(),
+  weight: z.number().min(0).optional().nullable(),
+  dimensions: z.object({
+    length: z.number().min(0).optional().nullable(),
+    width: z.number().min(0).optional().nullable(),
+    height: z.number().min(0).optional().nullable(),
+  }).optional().nullable(),
+  inventoryQuantity: z.number().min(0).optional().nullable(),
+  status: z.string().optional().default("active"),
+  categoryId: z.number().optional().nullable(),
+  featuredImageUrl: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().default([]),
+  tags: z.array(z.string()).optional().default([]),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
-type ProductFormProps = {
-  productId?: number;
-  onSuccess?: () => void;
-};
+interface ProductFormProps {
+  product?: any;
+  isEditing?: boolean;
+}
 
-const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
+const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
+  const [activeTab, setActiveTab] = useState("basic");
+  const [tag, setTag] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth() || {};
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { user, impersonationStatus } = useAuth();
-  const [activeTab, setActiveTab] = useState('basic');
-  const [variants, setVariants] = useState<ProductVariant[]>([]);
-  
-  // Get vendor ID from user context - this is used for fetching data
-  // This works with both regular vendors and impersonated vendor users
-  const vendorId = user?.vendorId || 
-    (user?.role === 'vendor' ? user.id : undefined);
 
-  // Define extended category type with subcategory support
-  type Category = {
-    id: number;
-    name: string;
-    description?: string;
-    vendorId: number;
-    parentId?: number | null;
-    level?: number;
-    slug?: string;
-    isActive?: boolean;
-  };
-
-  // Fetch product categories
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: [`/api/vendors/${vendorId}/product-categories`],
-    enabled: !!vendorId,
-  });
-
-  // Fetch product data if editing
-  const { data: product, isLoading: isLoadingProduct } = useQuery({
-    queryKey: ['/api/products', productId],
-    enabled: !!productId,
-  });
-  
-  // Fetch product variants if editing
-  const { data: productVariants = [] } = useQuery<ProductVariant[]>({
-    queryKey: ['/api/products', productId, 'variants'],
-    enabled: !!productId,
-  });
-
-  // Initialize form
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      purchasePrice: '',
-      sellingPrice: '',
-      mrp: '',
-      gst: '',
-      sku: '',
-      barcode: '',
-      weight: '',
-      length: '',
-      width: '',
-      height: '',
-      inventoryQuantity: '0',
-      status: 'draft',
-      categoryId: '',
-      featuredImageUrl: '',
-      images: [],
-      tags: [],
+      name: product?.name || "",
+      description: product?.description || "",
+      purchasePrice: product?.purchasePrice || null,
+      sellingPrice: product?.sellingPrice || 0,
+      mrp: product?.mrp || null,
+      gst: product?.gst || null,
+      sku: product?.sku || null,
+      barcode: product?.barcode || null,
+      weight: product?.weight || null,
+      dimensions: {
+        length: product?.dimensions?.length || null,
+        width: product?.dimensions?.width || null,
+        height: product?.dimensions?.height || null,
+      },
+      inventoryQuantity: product?.inventoryQuantity || 0,
+      status: product?.status || "active",
+      categoryId: product?.categoryId || null,
+      featuredImageUrl: product?.featuredImageUrl || null,
+      images: product?.images || [],
+      tags: product?.tags || [],
     },
   });
 
-  // Update form values when product data is loaded
-  useEffect(() => {
-    if (product && productId) {
-      // Find the parent category for this product's category
-      let mainCategoryId = "0"; 
-      if (product.categoryId) {
-        // Get the subcategory object from the categories list
-        const subCategory = categories?.find(cat => cat.id === product.categoryId);
-        // If it has a parent, that's our main category
-        if (subCategory?.parentId) {
-          mainCategoryId = subCategory.parentId.toString();
-        } else {
-          // If the selected category is a main category itself, use that
-          mainCategoryId = product.categoryId.toString();
-        }
-      }
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
+    queryKey: ["/api/product-categories"],
+    queryFn: () => fetch("/api/product-categories").then(res => res.json()),
+    refetchOnWindowFocus: false,
+  });
 
-      form.reset({
-        name: product.name,
-        description: product.description || '',
-        // Use the new pricing fields
-        purchasePrice: product.purchasePrice?.toString() || '',
-        sellingPrice: product.sellingPrice?.toString() || '',
-        mrp: product.mrp?.toString() || '',
-        gst: product.gst?.toString() || '',
-        sku: product.sku || '',
-        barcode: product.barcode || '',
-        weight: product.weight?.toString() || '',
-        // Parse dimensions if it exists as a string in "LxWxH" format
-        length: product.length?.toString() || (product.dimensions ? product.dimensions.split('x')[0] || '' : ''),
-        width: product.width?.toString() || (product.dimensions ? product.dimensions.split('x')[1] || '' : ''),
-        height: product.height?.toString() || (product.dimensions ? product.dimensions.split('x')[2] || '' : ''),
-        inventoryQuantity: product.inventoryQuantity?.toString() || '0',
-        status: product.status,
-        mainCategoryId: mainCategoryId,
-        categoryId: product.categoryId?.toString() || '',
-        featuredImageUrl: product.featuredImageUrl || '',
-        images: product.images || [],
-        tags: product.tags || [],
-      });
-    }
-  }, [product, productId, form, categories]);
-  
-  // Set variants when productVariants data is loaded
-  useEffect(() => {
-    if (productVariants && productVariants.length > 0) {
-      setVariants(productVariants);
-    }
-  }, [productVariants]);
-
-  // Product mutation for create/update
-  const mutation = useMutation({
+  const createProductMutation = useMutation({
     mutationFn: async (data: ProductFormValues) => {
-      // Properly convert string fields to numbers or null to avoid DB errors
-      const numericFields = {
-        purchasePrice: data.purchasePrice ? parseFloat(data.purchasePrice) : null,
-        sellingPrice: data.sellingPrice ? parseFloat(data.sellingPrice) : 0, // Required field
-        mrp: data.mrp ? parseFloat(data.mrp) : null,
-        gst: data.gst ? parseFloat(data.gst) : null,
-        weight: data.weight ? parseFloat(data.weight) : null,
-        length: data.length ? parseFloat(data.length) : null,
-        width: data.width ? parseFloat(data.width) : null,
-        height: data.height ? parseFloat(data.height) : null,
-        inventoryQuantity: parseInt(data.inventoryQuantity || '0'),
-      };
-
-      const productData = {
-        ...data,
-        ...numericFields,
-        categoryId: data.categoryId ? parseInt(data.categoryId) : null,
-        vendorId: vendorId,
-      };
-
-      let createdProductId = productId;
-
-      if (productId) {
-        // Update existing product
-        await apiRequest('PATCH', `/api/products/${productId}`, productData);
-      } else {
-        // Create new product
-        const response = await apiRequest('POST', '/api/products', productData);
-        const responseData = await response.json();
-        createdProductId = responseData.id;
-      }
-      
-      return createdProductId;
-    },
-    onSuccess: (newProductId) => {
-      // Get the current form values to determine if this is a draft save
-      const currentStatus = form.getValues().status;
-      const isDraft = currentStatus === 'draft';
-      
-      toast({
-        title: isDraft 
-          ? (productId ? "Draft updated" : "Product saved as draft") 
-          : (productId ? "Product updated" : "Product created"),
-        description: isDraft
-          ? (productId ? "The draft has been updated successfully." : "The product has been saved as draft successfully.")
-          : (productId ? "The product has been updated successfully." : "The product has been created successfully."),
-      });
-      
-      // Save variants if we have a product ID
-      if (newProductId && variants.length > 0) {
-        variantsMutation.mutate({ productId: newProductId, variants });
-      }
-      
-      queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/products`] });
-      if (productId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
-        queryClient.invalidateQueries({ queryKey: ['/api/products', productId, 'variants'] });
-      } else if (newProductId) {
-        // Also invalidate for newly created products
-        queryClient.invalidateQueries({ queryKey: ['/api/products', newProductId] });
-        queryClient.invalidateQueries({ queryKey: ['/api/products', newProductId, 'variants'] });
-      }
-      if (onSuccess) {
-        onSuccess();
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: `Failed to ${productId ? 'update' : 'create'} product: ${error.message}`,
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Variants mutation for save/update
-  const variantsMutation = useMutation({
-    mutationFn: async ({ productId, variants }: { productId: number, variants: ProductVariant[] }) => {
-      // Make sure all variants have the correct productId
-      const preparedVariants = variants.map(variant => ({
-        ...variant,
-        productId
-      }));
-      
-      await apiRequest('POST', `/api/products/${productId}/variants`, preparedVariants);
+      const response = await apiRequest("POST", "/api/products", data);
+      return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
-        title: "Variants saved",
-        description: "Product variants have been saved successfully.",
+        title: "Product created",
+        description: "The product has been created successfully.",
       });
-      
-      // Invalidate variants query to refresh the list
-      if (productId) {
-        queryClient.invalidateQueries({ queryKey: ['/api/products', productId, 'variants'] });
-      }
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: `Failed to save product variants: ${error.message}`,
+        description: error.message || "Failed to create product",
         variant: "destructive",
       });
     },
   });
 
-  // Form submission handler
-  const onSubmit = (data: ProductFormValues) => {
-    mutation.mutate(data);
-  };
-  
-  // Save as draft handler
-  const saveAsDraft = () => {
-    // Get current form values
-    const currentValues = form.getValues();
-    // Ensure status is set to draft
-    currentValues.status = 'draft';
+  const updateProductMutation = useMutation({
+    mutationFn: async (data: ProductFormValues) => {
+      const response = await apiRequest("PUT", `/api/products/${product.id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products", product?.id] });
+      toast({
+        title: "Product updated",
+        description: "The product has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = async (values: ProductFormValues) => {
+    setIsSubmitting(true);
     
-    // Create a custom mutation function for draft saving
-    // to handle the toast message specifically
-    const saveDraftMutation = async () => {
-      try {
-        const result = await mutation.mutateAsync(currentValues);
-        
-        // Show a specific toast for draft saving
-        toast({
-          title: "Product saved as draft",
-          description: "The product has been saved as draft successfully.",
-        });
-        
-        // Explicitly save variants if needed for the draft
-        if (result && variants.length > 0) {
-          try {
-            await variantsMutation.mutateAsync({ 
-              productId: result, 
-              variants 
-            });
-            
-            // Make sure to invalidate the variants query
-            queryClient.invalidateQueries({ 
-              queryKey: ['/api/products', result, 'variants'] 
-            });
-            
-            toast({
-              title: "Variants saved",
-              description: `${variants.length} variants saved with the draft product.`,
-            });
-          } catch (variantError) {
-            console.error("Error saving variants with draft:", variantError);
-            toast({
-              title: "Warning",
-              description: "Product was saved as draft but there was an issue saving variants.",
-              variant: "destructive",
-            });
-          }
-        }
-        
-        return result;
-      } catch (error) {
-        // Re-throw the error to let the mutation's onError handle it
-        throw error;
+    try {
+      if (isEditing) {
+        await updateProductMutation.mutateAsync(values);
+      } else {
+        await createProductMutation.mutateAsync(values);
       }
-    };
-    
-    // Execute the custom draft save mutation
-    saveDraftMutation();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (isLoadingProduct && productId) {
-    return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-center p-6">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const removeImage = (url: string) => {
+    const currentImages = form.getValues("images") || [];
+    const updatedImages = currentImages.filter(image => image !== url);
+    form.setValue("images", updatedImages);
+  };
+
+  const removeFeaturedImage = () => {
+    form.setValue("featuredImageUrl", null);
+  };
+
+  const addTag = () => {
+    if (!tag) return;
+    
+    const currentTags = form.getValues("tags") || [];
+    if (currentTags.includes(tag)) {
+      setTag("");
+      return;
+    }
+    
+    form.setValue("tags", [...currentTags, tag]);
+    setTag("");
+  };
+
+  const removeTag = (index: number) => {
+    const currentTags = form.getValues("tags") || [];
+    const updatedTags = currentTags.filter((_, i) => i !== index);
+    form.setValue("tags", updatedTags);
+  };
 
   return (
-    <Card className="overflow-visible relative pb-24">
-      <CardHeader>
-        <CardTitle>{productId ? 'Edit Product' : 'Add New Product'}</CardTitle>
-      </CardHeader>
-      <CardContent className="overflow-visible pb-20">
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-visible relative">
-            <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-5 sticky top-0 z-10 bg-background">
-                <TabsTrigger value="basic">Basic Info</TabsTrigger>
-                <TabsTrigger value="pricing">Pricing & Inventory</TabsTrigger>
-                <TabsTrigger value="variants">Variants</TabsTrigger>
-                <TabsTrigger value="images">Images</TabsTrigger>
-                <TabsTrigger value="additional">Additional Info</TabsTrigger>
-              </TabsList>
-
-              <div className="mt-6">
-                {/* Basic Info Tab */}
-                <TabsContent value="basic" className="space-y-6">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid grid-cols-6 mb-6">
+              <TabsTrigger value="basic">Basic Info</TabsTrigger>
+              <TabsTrigger value="pricing">Pricing</TabsTrigger>
+              <TabsTrigger value="inventory">Inventory</TabsTrigger>
+              <TabsTrigger value="category">Categorization</TabsTrigger>
+              <TabsTrigger value="media">Media</TabsTrigger>
+              <TabsTrigger value="attributes">Attributes</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="basic" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Basic Information</CardTitle>
+                  <CardDescription>Enter the basic details of your product</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
                   <FormField
                     control={form.control}
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Product Name *</FormLabel>
+                        <FormLabel>Product Name*</FormLabel>
                         <FormControl>
                           <Input placeholder="Enter product name" {...field} />
                         </FormControl>
+                        <FormDescription>
+                          A clear, descriptive name for your product.
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
+                  
                   <FormField
                     control={form.control}
                     name="description"
@@ -404,255 +221,206 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         <FormLabel>Description</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Describe your product" 
-                            className="min-h-[120px]" 
+                            placeholder="Enter product description" 
+                            className="min-h-32"
                             {...field} 
                           />
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Status</FormLabel>
-                        <Select 
-                          onValueChange={field.onChange} 
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="archived">Archived</SelectItem>
-                          </SelectContent>
-                        </Select>
                         <FormDescription>
-                          Draft products are not visible in your store
+                          Detailed description of your product, including features and benefits.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
-                  {/* Main Category Dropdown */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between space-x-2 rounded-lg border p-4">
+                        <div className="space-y-0.5">
+                          <FormLabel className="text-base">
+                            Product Status
+                          </FormLabel>
+                          <FormDescription>
+                            Active products are visible in your store.
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value === "active"}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked ? "active" : "inactive");
+                            }}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-end">
+                <Button type="button" onClick={() => setActiveTab("pricing")}>
+                  Next: Pricing
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="pricing" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pricing Information</CardTitle>
+                  <CardDescription>Configure your product's pricing details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="mainCategoryId"
+                      name="sellingPrice"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Main Category</FormLabel>
-                          <Select 
-                            onValueChange={(value) => {
-                              field.onChange(value);
-                              // Reset subcategory when main category changes
-                              form.setValue("categoryId", "0");
-                            }} 
-                            defaultValue={field.value}
-                            value={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a main category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="0">None</SelectItem>
-                              
-                              {/* Only top-level categories */}
-                              {categories?.filter(cat => !cat.parentId)?.map((category) => (
-                                <SelectItem key={category.id} value={category.id.toString()}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>Selling Price*</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              placeholder="0.00" 
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(parseFloat(e.target.value) || 0);
+                              }}
+                            />
+                          </FormControl>
                           <FormDescription>
-                            Select the main product category
+                            The price you're selling this product for.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-
-                    {/* Subcategory Dropdown - Only appears if a main category is selected */}
+                    
                     <FormField
                       control={form.control}
-                      name="categoryId"
+                      name="mrp"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Subcategory</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                            value={field.value}
-                            disabled={!form.watch('mainCategoryId') || form.watch('mainCategoryId') === "0"}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a subcategory" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="0">None</SelectItem>
-                              
-                              {/* Filter subcategories based on the selected main category */}
-                              {categories
-                                ?.filter(subcat => 
-                                  subcat.parentId === (form.watch('mainCategoryId') ? parseInt(form.watch('mainCategoryId')) : 0)
-                                )
-                                ?.map((subcategory) => (
-                                  <SelectItem key={subcategory.id} value={subcategory.id.toString()}>
-                                    {subcategory.name}
-                                  </SelectItem>
-                                ))
-                              }
-                            </SelectContent>
-                          </Select>
+                          <FormLabel>MRP (Maximum Retail Price)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              placeholder="0.00" 
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                              }}
+                            />
+                          </FormControl>
                           <FormDescription>
-                            Select a subcategory if applicable
+                            The recommended retail price before any discounts.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="purchasePrice"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Purchase Price</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              placeholder="0.00" 
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            The price you paid to purchase or produce this item.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="gst"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>GST Percentage</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              placeholder="0" 
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                              }}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            The applicable GST percentage for this product.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-
-                  <div className="flex justify-between space-x-2">
-                    <Button type="button" variant="secondary" onClick={saveAsDraft}>
-                      Save as Draft
-                    </Button>
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
-                      Next: Pricing & Inventory
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                {/* Pricing & Inventory Tab */}
-                <TabsContent value="pricing" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="purchasePrice"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Purchase Price</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="0.01" 
-                                  placeholder="0.00" 
-                                  className="pl-7"
-                                  {...field} 
-                                />
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Price you paid to acquire the product
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="sellingPrice"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Selling Price *</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="0.01" 
-                                  placeholder="0.00" 
-                                  className="pl-7"
-                                  {...field} 
-                                />
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Price displayed to customers and used for checkout
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="mrp"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>MRP (Maximum Retail Price)</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral-500">₹</span>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  step="0.01" 
-                                  placeholder="0.00" 
-                                  className="pl-7"
-                                  {...field} 
-                                />
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Original price before discount (displayed as strikethrough)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="gst"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>GST (%)</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-neutral-500">%</span>
-                                <Input 
-                                  type="number" 
-                                  min="0" 
-                                  max="100"
-                                  step="0.01" 
-                                  placeholder="0" 
-                                  className="pr-7"
-                                  {...field} 
-                                />
-                              </div>
-                            </FormControl>
-                            <FormDescription>
-                              Goods and Services Tax percentage
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                  <Separator />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("basic")}>
+                  Previous: Basic Info
+                </Button>
+                <Button type="button" onClick={() => setActiveTab("inventory")}>
+                  Next: Inventory
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="inventory" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Inventory Management</CardTitle>
+                  <CardDescription>Configure stock and inventory details</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="inventoryQuantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Stock Quantity</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            placeholder="0" 
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              field.onChange(e.target.value ? parseInt(e.target.value) : null);
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          The number of items in stock.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="sku"
@@ -660,318 +428,15 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         <FormItem>
                           <FormLabel>SKU (Stock Keeping Unit)</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter SKU" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="barcode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Barcode (ISBN, UPC, GTIN, etc.)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter barcode" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name="inventoryQuantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inventory Quantity</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            min="0" 
-                            step="1" 
-                            placeholder="0"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex justify-between space-x-2">
-                    <div className="flex space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setActiveTab('basic')}>
-                        Back: Basic Info
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
-                        Save as Draft
-                      </Button>
-                    </div>
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('variants')}>
-                      Next: Variants
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                {/* Images Tab */}
-                <TabsContent value="images" className="space-y-6">
-                  <FormField
-                    control={form.control}
-                    name="featuredImageUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Featured Image</FormLabel>
-                        <FormControl>
-                          <div className="grid grid-cols-1 gap-4">
-                            <div className="flex flex-col gap-4">
-                              <Input 
-                                placeholder="Enter image URL" 
-                                {...field} 
-                                className="mb-2"
-                              />
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <div className="h-px flex-grow bg-border"></div>
-                                <span>OR</span>
-                                <div className="h-px flex-grow bg-border"></div>
-                              </div>
-                              <FileUpload
-                                label="Upload Product Image"
-                                accept="image/*"
-                                maxSize={5}
-                                onUploadComplete={(url) => field.onChange(url)}
-                              />
-                            </div>
-                            {field.value && (
-                              <div className="relative w-full h-64 bg-neutral-100 rounded-md overflow-hidden border">
-                                <img 
-                                  src={field.value} 
-                                  alt="Featured product" 
-                                  className="w-full h-full object-contain" 
-                                />
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="icon"
-                                  className="absolute top-2 right-2"
-                                  onClick={() => field.onChange('')}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </FormControl>
-                        <FormDescription>
-                          Enter a URL or upload an image file for the main product image
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {/* Additional Product Images section */}
-                  <FormField
-                    control={form.control}
-                    name="images"
-                    render={({ field }) => {
-                      const [newImageUrl, setNewImageUrl] = useState("");
-                      const [multipleUrls, setMultipleUrls] = useState("");
-                  
-                      const addImageUrl = () => {
-                        if (newImageUrl.trim()) {
-                          // Add a single URL
-                          field.onChange([...field.value || [], newImageUrl]);
-                          setNewImageUrl("");
-                        }
-                      };
-                    
-                      const addMultipleUrls = () => {
-                        if (multipleUrls.trim()) {
-                          // Split by newlines and filter empty lines
-                          const urls = multipleUrls
-                            .split('\n')
-                            .map(url => url.trim())
-                            .filter(url => url.length > 0);
-                          
-                          if (urls.length > 0) {
-                            field.onChange([...field.value || [], ...urls]);
-                            setMultipleUrls("");
-                            
-                            toast({
-                              title: "Images added",
-                              description: `Added ${urls.length} image URLs to the product.`
-                            });
-                          }
-                        }
-                      };
-                    
-                      const removeImage = (index: number) => {
-                        const newImages = [...field.value || []];
-                        newImages.splice(index, 1);
-                        field.onChange(newImages);
-                      };
-                    
-                      // Handle S3FileUpload success
-                      const handleImageUploaded = (fileData: any) => {
-                        if ('url' in fileData) {
-                          // Single file upload
-                          field.onChange([...field.value || [], fileData.url]);
-                          toast({
-                            title: "Image uploaded",
-                            description: "Image successfully uploaded and added to product."
-                          });
-                        } else if ('files' in fileData && Array.isArray(fileData.files)) {
-                          // Multiple files upload
-                          const urls = fileData.files.map((file: any) => file.url);
-                          field.onChange([...field.value || [], ...urls]);
-                          toast({
-                            title: "Images uploaded",
-                            description: `${urls.length} images successfully uploaded and added to product.`
-                          });
-                        }
-                      };
-                    
-                      return (
-                        <FormItem>
-                          <FormLabel>Additional Product Images</FormLabel>
-                          <FormControl>
-                            <div className="space-y-6">
-                              {/* Single URL input */}
-                              <div className="flex items-end gap-2">
-                                <div className="flex-grow">
-                                  <Input
-                                    placeholder="Enter image URL"
-                                    value={newImageUrl}
-                                    onChange={(e) => setNewImageUrl(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && addImageUrl()}
-                                  />
-                                </div>
-                                <Button 
-                                  type="button" 
-                                  onClick={addImageUrl}
-                                  disabled={!newImageUrl.trim()}
-                                >
-                                  Add URL
-                                </Button>
-                              </div>
-                              
-                              {/* Multiple URLs textarea */}
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <Label>Add Multiple URLs (one per line)</Label>
-                                  <Button 
-                                    type="button" 
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={addMultipleUrls}
-                                    disabled={!multipleUrls.trim()}
-                                  >
-                                    Add All URLs
-                                  </Button>
-                                </div>
-                                <Textarea
-                                  placeholder="Enter multiple image URLs (one per line)"
-                                  value={multipleUrls}
-                                  onChange={(e) => setMultipleUrls(e.target.value)}
-                                  rows={4}
-                                />
-                              </div>
-                              
-                              {/* File upload */}
-                              <div className="space-y-2">
-                                <Label>Upload Images</Label>
-                                <S3FileUpload
-                                  onSuccess={handleImageUploaded}
-                                  endpoint="upload/product-image"
-                                  accept="image/*"
-                                  maxSizeMB={10}
-                                  buttonText="Upload Product Images"
-                                  multiple={true}
-                                  maxFiles={10}
-                                />
-                              </div>
-                              
-                              {/* Image gallery */}
-                              {field.value && field.value.length > 0 && (
-                                <div className="space-y-2">
-                                  <div className="flex justify-between items-center">
-                                    <Label>{field.value.length} Additional Images</Label>
-                                    <Button
-                                      type="button"
-                                      variant="destructive"
-                                      size="sm"
-                                      onClick={() => field.onChange([])}
-                                    >
-                                      Remove All
-                                    </Button>
-                                  </div>
-                                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-                                    {field.value.map((url, index) => (
-                                      <div key={`${url}-${index}`} className="relative group rounded-md overflow-hidden border bg-neutral-100">
-                                        <div className="aspect-square">
-                                          <img 
-                                            src={url} 
-                                            alt={`Product image ${index + 1}`} 
-                                            className="w-full h-full object-contain" 
-                                          />
-                                        </div>
-                                        <Button
-                                          type="button"
-                                          variant="destructive"
-                                          size="icon"
-                                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                          onClick={() => removeImage(index)}
-                                        >
-                                          <X className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            <Input 
+                              placeholder="Enter SKU" 
+                              {...field}
+                              value={field.value || ""}
+                            />
                           </FormControl>
                           <FormDescription>
-                            Add additional product images. You can enter URLs one at a time,
-                            add multiple URLs at once, or upload images directly.
+                            A unique identifier for your product.
                           </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
-
-                  <div className="flex justify-between space-x-2">
-                    <div className="flex space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setActiveTab('variants')}>
-                        Back: Variants
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
-                        Save as Draft
-                      </Button>
-                    </div>
-                    <Button type="button" variant="outline" onClick={() => setActiveTab('additional')}>
-                      Next: Additional Info
-                    </Button>
-                  </div>
-                </TabsContent>
-
-                {/* Additional Info Tab */}
-                <TabsContent value="additional" className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="sku"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SKU</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter SKU" {...field} />
-                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -984,226 +449,361 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         <FormItem>
                           <FormLabel>Barcode</FormLabel>
                           <FormControl>
-                            <Input placeholder="Enter Barcode" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="weight"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Weight (kg)</FormLabel>
-                          <FormControl>
                             <Input 
-                              type="number" 
-                              min="0" 
-                              step="0.01" 
-                              placeholder="0.00"
-                              {...field} 
+                              placeholder="Enter barcode" 
+                              {...field}
+                              value={field.value || ""}
                             />
                           </FormControl>
+                          <FormDescription>
+                            The barcode number (EAN, UPC, etc.) for your product.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
                   
-                  {/* New separate dimension fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="length"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Length (cm)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              placeholder="0.0" 
-                              {...field}
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="width"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Width (cm)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              placeholder="0.0" 
-                              {...field}
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="height"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Height (cm)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number"
-                              step="0.1"
-                              min="0"
-                              placeholder="0.0" 
-                              {...field}
-                              value={field.value || ""}
-                              onChange={(e) => field.onChange(e.target.value)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
                   <FormField
                     control={form.control}
-                    name="tags"
+                    name="weight"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tags</FormLabel>
+                        <FormLabel>Weight (in grams)</FormLabel>
                         <FormControl>
-                          <TagInput
-                            placeholder="Add tag and press Enter"
-                            tags={field.value || []}
-                            setTags={(newTags) => field.onChange(newTags)}
+                          <Input 
+                            type="number"
+                            placeholder="0" 
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => {
+                              field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                            }}
                           />
                         </FormControl>
                         <FormDescription>
-                          Add tags to help customers find your product
+                          The weight of your product in grams.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
-                  <div className="flex justify-between space-x-2">
-                    <div className="flex space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setActiveTab('images')}>
-                        Back: Images
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
-                        Save as Draft
-                      </Button>
-                    </div>
-                    <Button
-                      type="submit"
-                      disabled={mutation.isPending}
-                    >
-                      {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {productId ? 'Update Product' : 'Create Product'}
-                    </Button>
-                  </div>
-                </TabsContent>
-                
-                {/* Variants Tab */}
-                <TabsContent value="variants" className="space-y-6">
-                  <div className="mb-6">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-medium">Product Variants</h3>
-                      <p className="text-muted-foreground">
-                        Add multiple variants of this product with different sizes, colors, and prices.
-                      </p>
-                    </div>
-                    
-                    {/* Matrix Variant Manager */}
-                    <MatrixVariantManager 
-                      productId={productId} 
-                      variants={variants}
-                      onChange={setVariants}
-                    />
-                  </div>
                   
-                  <div className="flex justify-between space-x-2">
-                    <div className="flex space-x-2">
-                      <Button type="button" variant="outline" onClick={() => setActiveTab('pricing')}>
-                        Back: Pricing & Inventory
-                      </Button>
-                      <Button type="button" variant="secondary" onClick={saveAsDraft}>
-                        Save as Draft
-                      </Button>
+                  <div className="space-y-2">
+                    <Label className="text-base">Dimensions (in cm)</Label>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="dimensions.length"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Length</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number"
+                                placeholder="0" 
+                                {...field}
+                                value={field.value || ""}
+                                onChange={(e) => {
+                                  field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="dimensions.width"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Width</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number"
+                                placeholder="0" 
+                                {...field}
+                                value={field.value || ""}
+                                onChange={(e) => {
+                                  field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="dimensions.height"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Height</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number"
+                                placeholder="0" 
+                                {...field}
+                                value={field.value || ""}
+                                onChange={(e) => {
+                                  field.onChange(e.target.value ? parseFloat(e.target.value) : null);
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setActiveTab('images')}
-                    >
-                      Next: Images
-                    </Button>
                   </div>
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("pricing")}>
+                  Previous: Pricing
+                </Button>
+                <Button type="button" onClick={() => setActiveTab("category")}>
+                  Next: Categorization
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="category" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Categorization</CardTitle>
+                  <CardDescription>Organize your product with categories and tags</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="categoryId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select 
+                          onValueChange={(value) => field.onChange(parseInt(value) || null)} 
+                          defaultValue={field.value ? field.value.toString() : ""}
+                          value={field.value ? field.value.toString() : ""}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="">None</SelectItem>
+                            {categories?.map((category) => (
+                              <SelectItem key={category.id} value={category.id.toString()}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Assign this product to a category to help customers find it.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   
-                  {productId && (
-                    <div className="mt-4 pt-4 border-t">
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          if (variants.length > 0) {
-                            variantsMutation.mutate({ productId, variants });
+                  <div className="space-y-2">
+                    <Label>Tags</Label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {form.watch("tags")?.map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="py-1.5">
+                          {tag}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-5 w-5 p-0 ml-1 hover:bg-transparent"
+                            onClick={() => removeTag(index)}
+                            type="button"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add a tag"
+                        value={tag}
+                        onChange={(e) => setTag(e.target.value)}
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addTag();
                           }
                         }}
-                        disabled={variantsMutation.isPending || variants.length === 0}
-                        className="w-full"
+                      />
+                      <Button 
+                        variant="outline" 
+                        onClick={addTag}
+                        type="button"
                       >
-                        {variantsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Save Variants
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add
                       </Button>
                     </div>
-                  )}
-                </TabsContent>
-              </div>
-            </Tabs>
-            
-            {/* Sticky Save Button Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-md z-20 flex justify-between">
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={saveAsDraft}
-                disabled={mutation.isPending}
-              >
-                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save as Draft
-              </Button>
+                    <p className="text-sm text-muted-foreground">
+                      Press Enter or click Add to add a tag. Tags help customers find your products.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
               
-              <Button
-                type="submit"
-                disabled={mutation.isPending}
-              >
-                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {productId ? 'Update Product' : 'Create Product'}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("inventory")}>
+                  Previous: Inventory
+                </Button>
+                <Button type="button" onClick={() => setActiveTab("media")}>
+                  Next: Media
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="media" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Media</CardTitle>
+                  <CardDescription>Add images for your product</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Featured Image</Label>
+                    <div className="border rounded-md p-4">
+                      {form.watch("featuredImageUrl") ? (
+                        <div className="relative group">
+                          <AspectRatio ratio={16 / 9}>
+                            <img
+                              src={form.watch("featuredImageUrl")}
+                              alt="Featured product image"
+                              className="rounded-md object-cover w-full h-full"
+                            />
+                          </AspectRatio>
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={removeFeaturedImage}
+                              type="button"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-md border-muted-foreground/25">
+                          <ImageIcon className="h-12 w-12 mb-2 text-muted-foreground/50" />
+                          <p className="text-muted-foreground mb-2">No featured image</p>
+                          <Button variant="outline" className="mt-2" type="button">
+                            Upload Image
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <Separator className="my-4" />
+                  
+                  <div className="space-y-2">
+                    <Label>Additional Images</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      <div className="aspect-square rounded-md border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground border-muted-foreground/25 cursor-pointer hover:border-muted-foreground/40 transition-colors">
+                        <ImageIcon className="h-8 w-8 mb-2 text-muted-foreground/50" />
+                        <span className="text-xs text-center">Add Image</span>
+                      </div>
+                      
+                      {form.watch("images")?.map((image, index) => (
+                        <div key={index} className="aspect-square relative group">
+                          <img 
+                            src={image} 
+                            alt={`Product image ${index + 1}`} 
+                            className="w-full h-full object-cover rounded-md" 
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <Button 
+                              variant="destructive" 
+                              size="sm"
+                              onClick={() => removeImage(image)}
+                              type="button"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Add up to 8 additional images to showcase your product from different angles.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("category")}>
+                  Previous: Categorization
+                </Button>
+                <Button type="button" onClick={() => setActiveTab("attributes")}>
+                  Next: Attributes
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="attributes" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Attributes</CardTitle>
+                  <CardDescription>
+                    Define product-specific attributes for better organization
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center space-y-3">
+                      <Tag className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+                      <h3 className="text-lg font-medium">No Attributes Defined</h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        You can define product-specific attributes like color, size, material, etc.
+                        in the Variants tab after saving the product.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("media")}>
+                  Previous: Media
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {isEditing ? "Update Product" : "Create Product"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </form>
+    </Form>
   );
 };
 
