@@ -494,7 +494,7 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24"> {/* Added padding at bottom for better spacing */}
       <div className="flex flex-wrap justify-between items-center mb-6">
         <div>
           <h3 className="text-lg font-medium">Existing Product Variants</h3>
@@ -676,7 +676,7 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
       
       {/* Variants Table */}
       {matrixVariants.length > 0 ? (
-        <div className="border rounded-md overflow-x-auto max-h-[70vh]">
+        <div className="border rounded-md overflow-auto max-h-[calc(100vh-400px)] min-h-[300px]">
           <Table>
             <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
