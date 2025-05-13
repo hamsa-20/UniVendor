@@ -1040,16 +1040,21 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                   <div className="bg-white p-6 rounded-md border shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-medium">Manage Variants</h3>
-                      {productId && variants.length > 0 && (
+                      {variants.length > 0 && (
                         <Button
                           type="button"
                           onClick={() => {
-                            variantsMutation.mutate({ productId, variants });
+                            if (productId) {
+                              variantsMutation.mutate({ productId, variants });
+                            } else {
+                              // For new products, save the basic info first to get a product ID
+                              sectionSaveMutation.mutate('variants');
+                            }
                           }}
-                          disabled={variantsMutation.isPending}
+                          disabled={variantsMutation.isPending || sectionSaveMutation.isPending}
                           className="ml-auto"
                         >
-                          {variantsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          {(variantsMutation.isPending || sectionSaveMutation.isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Save Variants
                         </Button>
                       )}
