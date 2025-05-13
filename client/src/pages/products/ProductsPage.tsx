@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PlusCircle, Package, Search, FolderTree } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ProductForm from '@/components/products/ProductForm';
+import NewProductForm from '@/components/products/new/NewProductForm';
 
 const ProductsPage = () => {
   const { user } = useAuth();
@@ -76,8 +76,8 @@ const ProductsPage = () => {
               Create a new product for your store
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4">
-            <ProductForm 
+          <div>
+            <NewProductForm 
               onSuccess={() => {
                 setIsAddProductOpen(false);
               }}
@@ -101,8 +101,8 @@ const ProductsPage = () => {
                 Update your product details
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4">
-              <ProductForm 
+            <div>
+              <NewProductForm 
                 productId={selectedProductId}
                 onSuccess={() => setSelectedProductId(undefined)}
               />
