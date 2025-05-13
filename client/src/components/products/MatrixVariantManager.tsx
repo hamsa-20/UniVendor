@@ -417,7 +417,25 @@ const MatrixVariantManager = ({
                 
                 <div className="flex flex-wrap gap-2 mb-3">
                   {attr.values.map((value, valueIndex) => (
-                    <Badge key={valueIndex} variant="outline" className="py-1.5">
+                    <Badge 
+                      key={valueIndex} 
+                      variant="outline" 
+                      className={cn(
+                        "py-1.5",
+                        attr.name === "Color" && "pl-1"
+                      )}
+                    >
+                      {attr.name === "Color" && (
+                        <div 
+                          className="h-4 w-4 rounded-full mr-1.5 border"
+                          style={{ 
+                            backgroundColor: value.toLowerCase(),
+                            borderColor: ['white', '#ffffff', '#fff', 'transparent'].includes(value.toLowerCase()) 
+                              ? '#e2e8f0' 
+                              : value.toLowerCase() 
+                          }}
+                        />
+                      )}
                       {value}
                       <Button
                         variant="ghost"
