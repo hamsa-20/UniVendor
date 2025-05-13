@@ -6,6 +6,7 @@ import { DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import S3FileUpload from "@/components/common/S3FileUpload";
 import {
   Tabs,
   TabsContent,
@@ -274,7 +275,7 @@ const MatrixVariantManager = ({
     // Create all combinations
     const filteredAttributes = attributes.filter(attr => attr.values.length > 0);
     
-    const generateCombinations = (attrs: Attribute[], index: number, current: Record<string, string>) => {
+    const generateCombinations = (attrs: Attribute[], index: number, current: Record<string, string>): MatrixVariant | MatrixVariant[] => {
       if (index === attrs.length) {
         // Base price for all generated variants
         const defaultPrice = product.price || product.sellingPrice || "0";
@@ -286,7 +287,7 @@ const MatrixVariantManager = ({
           size: current["Size"] || "",
           sku: `${product.sku || product.name.substring(0, 3).toUpperCase()}-${current["Color"] || ""}-${current["Size"] || ""}`.replace(/\s+/g, '-'),
           attributes: { ...current },
-          sellingPrice: parseFloat(defaultPrice),
+          sellingPrice: defaultPrice,
           mrp: parseFloat(defaultPrice),
           purchasePrice: parseFloat(defaultPrice) * 0.7, // Example: 30% margin
           gst: 18, // Default GST percentage
@@ -754,10 +755,42 @@ const MatrixVariantManager = ({
                   </h3>
                   
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                    <div className="aspect-square rounded-md border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground border-muted-foreground/25 cursor-pointer hover:border-muted-foreground/40 transition-colors">
-                      <ImageIcon className="h-8 w-8 mb-2 text-muted-foreground/50" />
-                      <span className="text-xs text-center">Add Images</span>
-                    </div>
+                    <S3FileUpload
+                      endpoint="upload/product-image"
+                      accept="image/*"
+                      maxSizeMB={5}
+                      multiple={true}
+                      maxFiles={5}
+                      buttonText="Add Images"
+                      showPreview={false}
+                      className="aspect-square"
+                      onSuccess={(data) => {
+                        if ('files' in data) {
+                          // Handle multiple files
+                          const imageUrls = data.files.map(file => file.url);
+                          const updatedVariant = {...variant};
+                          if (!updatedVariant.images) {
+                            updatedVariant.images = [];
+                          }
+                          updatedVariant.images = [...updatedVariant.images, ...imageUrls];
+                          
+                          const updatedVariants = [...variants];
+                          updatedVariants[index] = updatedVariant;
+                          setVariants(updatedVariants);
+                        } else if ('url' in data) {
+                          // Handle single file
+                          const updatedVariant = {...variant};
+                          if (!updatedVariant.images) {
+                            updatedVariant.images = [];
+                          }
+                          updatedVariant.images = [...updatedVariant.images, data.url];
+                          
+                          const updatedVariants = [...variants];
+                          updatedVariants[index] = updatedVariant;
+                          setVariants(updatedVariants);
+                        }
+                      }}
+                    />
                     
                     {variant.images && variant.images.map((image, imageIndex) => (
                       <div key={imageIndex} className="aspect-square relative group">
