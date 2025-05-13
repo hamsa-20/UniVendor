@@ -5,16 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/use-auth';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Package, Search, FolderTree } from 'lucide-react';
+import { Package, Search, FolderTree } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import NewProductForm from '@/components/products/new/NewProductForm';
 
 const ProductsPage = () => {
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<number | undefined>(undefined);
   const [_, navigate] = useLocation();
   const vendorId = user?.role === 'vendor' ? user.id : undefined;
   
@@ -42,7 +38,7 @@ const ProductsPage = () => {
   );
   
   return (
-    <DashboardLayout title="Products" subtitle="Manage your product catalog">
+    <DashboardLayout title="Products" subtitle="View your product catalog">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <div className="relative w-full max-w-sm">
@@ -61,55 +57,7 @@ const ProductsPage = () => {
             </Button>
           </Link>
         </div>
-        <Button onClick={() => setIsAddProductOpen(true)}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
       </div>
-      
-      {/* Add Product Dialog */}
-      <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>
-              Create a new product for your store
-            </DialogDescription>
-          </DialogHeader>
-          <div>
-            <NewProductForm 
-              onSuccess={() => {
-                setIsAddProductOpen(false);
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit Product Dialog */}
-      {selectedProductId && (
-        <Dialog 
-          open={!!selectedProductId} 
-          onOpenChange={(open) => {
-            if (!open) setSelectedProductId(undefined);
-          }}
-        >
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Product</DialogTitle>
-              <DialogDescription>
-                Update your product details
-              </DialogDescription>
-            </DialogHeader>
-            <div>
-              <NewProductForm 
-                productId={selectedProductId}
-                onSuccess={() => setSelectedProductId(undefined)}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
       
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -133,7 +81,6 @@ const ProductsPage = () => {
             <Card 
               key={product.id} 
               className="overflow-hidden shadow-sm hover:shadow transition-shadow cursor-pointer group"
-              onClick={() => setSelectedProductId(product.id)}
             >
               {product.imageUrl ? (
                 <div className="relative">
@@ -142,20 +89,10 @@ const ProductsPage = () => {
                     alt={product.name} 
                     className="w-full aspect-video object-cover group-hover:opacity-90 transition-opacity"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <Button size="sm" variant="secondary" className="shadow-md">
-                      Edit Product
-                    </Button>
-                  </div>
                 </div>
               ) : (
                 <div className="w-full aspect-video bg-muted flex items-center justify-center relative">
                   <Package className="h-12 w-12 text-muted-foreground/50" />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-                    <Button size="sm" variant="secondary" className="shadow-md">
-                      Edit Product
-                    </Button>
-                  </div>
                 </div>
               )}
               <CardHeader className="pb-2">
@@ -183,12 +120,8 @@ const ProductsPage = () => {
             <Package className="h-16 w-16 text-muted-foreground/30 mb-4" />
             <h3 className="text-xl font-semibold mb-2">No products yet</h3>
             <p className="text-muted-foreground text-center max-w-md mb-6">
-              Start building your product catalog by adding your first product.
+              Your product catalog appears to be empty.
             </p>
-            <Button onClick={() => setIsAddProductOpen(true)}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Your First Product
-            </Button>
           </CardContent>
         </Card>
       )}
