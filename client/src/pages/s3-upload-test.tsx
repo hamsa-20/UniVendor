@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Helmet } from 'react-helmet';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import S3FileUpload from '@/components/common/S3FileUpload';
 import { useToast } from '@/hooks/use-toast';
@@ -12,26 +11,36 @@ type UploadedFile = {
   size: number;
 };
 
+type FileUploadResult = 
+  | UploadedFile 
+  | { files: UploadedFile[] };
+
 export default function S3UploadTestPage() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadedProductImage, setUploadedProductImage] = useState<UploadedFile | null>(null);
   const [multipleUploadedFiles, setMultipleUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
 
-  const handleFileUploadSuccess = (fileData: UploadedFile) => {
-    setUploadedFiles((prev) => [...prev, fileData]);
+  const handleFileUploadSuccess = (fileData: FileUploadResult) => {
+    if ('url' in fileData) {
+      setUploadedFiles((prev) => [...prev, fileData]);
+    }
   };
 
-  const handleProductImageUploadSuccess = (fileData: UploadedFile) => {
-    setUploadedProductImage(fileData);
+  const handleProductImageUploadSuccess = (fileData: FileUploadResult) => {
+    if ('url' in fileData) {
+      setUploadedProductImage(fileData);
+    }
   };
 
-  const handleMultipleFileUploadSuccess = (data: { files: UploadedFile[] }) => {
-    setMultipleUploadedFiles((prev) => [...prev, ...data.files]);
-    toast({
-      title: 'Multiple files uploaded',
-      description: `Successfully uploaded ${data.files.length} files`,
-    });
+  const handleMultipleFileUploadSuccess = (fileData: FileUploadResult) => {
+    if ('files' in fileData) {
+      setMultipleUploadedFiles((prev) => [...prev, ...fileData.files]);
+      toast({
+        title: 'Multiple files uploaded',
+        description: `Successfully uploaded ${fileData.files.length} files`,
+      });
+    }
   };
 
   const handleUploadError = (error: Error) => {
@@ -43,7 +52,7 @@ export default function S3UploadTestPage() {
   };
 
   return (
-    <DashboardLayout title="S3 File Upload Test">
+    <div className="container mx-auto py-8 px-4">
       <Helmet>
         <title>S3 File Upload Test | Admin Dashboard</title>
       </Helmet>
@@ -214,6 +223,6 @@ export default function S3UploadTestPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }

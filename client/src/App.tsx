@@ -1,4 +1,4 @@
-import { Switch, Route, Link } from "wouter";
+import { Switch, Route, Link, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -642,11 +642,7 @@ function Router() {
         </PrivateRoute>
       </Route>
 
-      <Route path="/s3-upload-test">
-        <PrivateRoute roles={["super_admin", "vendor"]}>
-          <S3UploadTestPage />
-        </PrivateRoute>
-      </Route>
+      {/* S3 Upload test removed */}
 
       <Route path="/subscription">
         <PrivateRoute roles={["vendor"]}>
@@ -655,7 +651,13 @@ function Router() {
       </Route>
       
       {/* Fallback to 404 */}
-      <Route component={NotFound} />
+      {/* This will catch any undefined routes including /s3-upload-test */}
+      <Route>
+        {() => {
+          window.location.href = '/';
+          return null;
+        }}
+      </Route>
     </Switch>
   );
 }
