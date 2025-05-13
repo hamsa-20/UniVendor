@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, AlertCircle, Image as ImageIcon, X, Plus, Tag, Trash2 } from "lucide-react";
+import { Loader2, Save, AlertCircle, Image as ImageIcon, X, Plus, Tag, Trash2, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const productFormSchema = z.object({
@@ -180,12 +180,13 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <div className="space-y-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-6 mb-6">
+            <TabsList className="grid grid-cols-7 mb-6">
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="pricing">Pricing</TabsTrigger>
               <TabsTrigger value="inventory">Inventory</TabsTrigger>
               <TabsTrigger value="category">Categorization</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
+              <TabsTrigger value="variants">Variants</TabsTrigger>
               <TabsTrigger value="attributes">Attributes</TabsTrigger>
             </TabsList>
             
@@ -755,6 +756,45 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                 </Button>
                 <Button type="button" onClick={() => setActiveTab("attributes")}>
                   Next: Attributes
+                </Button>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="variants" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Variants</CardTitle>
+                  <CardDescription>Configure variants of this product</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center space-y-3">
+                      <Package className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+                      <h3 className="text-lg font-medium">No Variants Created Yet</h3>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        You can create variants like different sizes and colors after saving the product.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <div className="flex justify-between">
+                <Button type="button" variant="outline" onClick={() => setActiveTab("media")}>
+                  Previous: Media
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      {isEditing ? "Save Changes" : "Create Product"}
+                    </>
+                  )}
                 </Button>
               </div>
             </TabsContent>
