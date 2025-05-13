@@ -152,6 +152,22 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       setVariants(productVariants);
     }
   }, [productVariants]);
+  
+  // Listen for variants-generated event to clear validation errors
+  useEffect(() => {
+    const clearVariantsValidationErrors = (event: CustomEvent) => {
+      // If variants were created, clear any validation errors
+      if (event.detail?.count > 0) {
+        form.clearErrors();
+      }
+    };
+    
+    window.addEventListener('variants-generated', clearVariantsValidationErrors as EventListener);
+    
+    return () => {
+      window.removeEventListener('variants-generated', clearVariantsValidationErrors as EventListener);
+    };
+  }, [form]);
 
   // Toggle section visibility
   const toggleSection = (section: string) => {

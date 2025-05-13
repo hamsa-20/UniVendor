@@ -245,12 +245,22 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
       imageUrl: variant.images[0] || null
     }));
     
-    onChange(convertedVariants);
+    // Update the parent form with the new variants
+  onChange(convertedVariants);
     
-    toast({
-      title: "Variants generated",
-      description: `Created ${newMatrixVariants.length} product variants`
+  // Signal that validation errors should be cleared
+  if (typeof window !== 'undefined') {
+    // Dispatch a custom event that the NewProductForm can listen for
+    const event = new CustomEvent('variants-generated', { 
+      detail: { count: newMatrixVariants.length } 
     });
+    window.dispatchEvent(event);
+  }
+    
+  toast({
+    title: "Variants generated",
+    description: `Created ${newMatrixVariants.length} product variants`
+  });
   };
 
   // Function to add a new attribute value
