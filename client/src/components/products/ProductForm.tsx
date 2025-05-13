@@ -238,6 +238,11 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       queryClient.invalidateQueries({ queryKey: [`/api/vendors/${vendorId}/products`] });
       if (productId) {
         queryClient.invalidateQueries({ queryKey: ['/api/products', productId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/products', productId, 'variants'] });
+      } else if (newProductId) {
+        // Also invalidate for newly created products
+        queryClient.invalidateQueries({ queryKey: ['/api/products', newProductId] });
+        queryClient.invalidateQueries({ queryKey: ['/api/products', newProductId, 'variants'] });
       }
       if (onSuccess) {
         onSuccess();
@@ -306,6 +311,33 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
           title: "Product saved as draft",
           description: "The product has been saved as draft successfully.",
         });
+        
+        // Explicitly save variants if needed for the draft
+        if (result && variants.length > 0) {
+          try {
+            await variantsMutation.mutateAsync({ 
+              productId: result, 
+              variants 
+            });
+            
+            // Make sure to invalidate the variants query
+            queryClient.invalidateQueries({ 
+              queryKey: ['/api/products', result, 'variants'] 
+            });
+            
+            toast({
+              title: "Variants saved",
+              description: `${variants.length} variants saved with the draft product.`,
+            });
+          } catch (variantError) {
+            console.error("Error saving variants with draft:", variantError);
+            toast({
+              title: "Warning",
+              description: "Product was saved as draft but there was an issue saving variants.",
+              variant: "destructive",
+            });
+          }
+        }
         
         return result;
       } catch (error) {
