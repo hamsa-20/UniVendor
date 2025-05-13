@@ -9,7 +9,7 @@ import { apiRequest } from '@/lib/queryClient';
 interface ProductImagesUploaderProps {
   images: string[];
   onChange: (images: string[]) => void;
-  endpoint: string;
+  endpoint: "upload" | "upload/product-image" | "upload/multiple";
 }
 
 const ProductImagesUploader: React.FC<ProductImagesUploaderProps> = ({
@@ -75,13 +75,33 @@ const ProductImagesUploader: React.FC<ProductImagesUploaderProps> = ({
   };
 
   // Handle S3 upload success
-  const handleUploadSuccess = (url: string) => {
+  const handleUploadSuccess = (fileData: { url: string; key: string; mimetype: string; size: number; } | { files: { url: string; key: string; mimetype: string; size: number; }[] }) => {
+    // Extract URL based on response format
+    let url = '';
+    
+    if ('url' in fileData) {
+      url = fileData.url;
+    } else if ('files' in fileData && fileData.files.length > 0) {
+      url = fileData.files[0].url;
+    }
+    
+    if (!url) {
+      toast({
+        title: "Upload Error",
+        description: "Could not retrieve image URL from upload response",
+        variant: "destructive",
+      });
+      setIsUploading(false);
+      return;
+    }
+    
     if (images.includes(url)) {
       toast({
         title: "Duplicate Image",
         description: "This image is already added",
         variant: "destructive",
       });
+      setIsUploading(false);
       return;
     }
     
@@ -90,10 +110,10 @@ const ProductImagesUploader: React.FC<ProductImagesUploaderProps> = ({
   };
 
   // Handle S3 upload error
-  const handleUploadError = (error: string) => {
+  const handleUploadError = (error: Error) => {
     toast({
       title: "Upload Failed",
-      description: error,
+      description: error.message || "An unknown error occurred",
       variant: "destructive",
     });
     setIsUploading(false);
@@ -133,33 +153,17 @@ const ProductImagesUploader: React.FC<ProductImagesUploaderProps> = ({
       {/* Upload image via S3 */}
       <div className="flex justify-between items-center">
         <p className="text-sm text-muted-foreground">OR</p>
-        <S3FileUpload
-          endpoint={endpoint}
-          onSuccess={handleUploadSuccess}
-          onError={handleUploadError}
-          onUploadStart={() => setIsUploading(true)}
-          acceptedFileTypes={['image/jpeg', 'image/png', 'image/webp', 'image/gif']}
-          maxFileSize={10}
-        >
-          <Button 
-            type="button" 
-            variant="outline" 
-            disabled={isUploading}
+        <div style={{width: 200}}>
+          <S3FileUpload
+            endpoint={endpoint}
+            onSuccess={handleUploadSuccess}
+            onError={handleUploadError}
+            buttonText="Upload Image"
+            accept="image/*"
+            maxSizeMB={10}
             className="ml-auto"
-          >
-            {isUploading ? (
-              <div className="flex items-center">
-                <div className="animate-spin h-4 w-4 mr-2 border-2 border-t-transparent rounded-full" />
-                Uploading...
-              </div>
-            ) : (
-              <div className="flex items-center">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload Image
-              </div>
-            )}
-          </Button>
-        </S3FileUpload>
+          />
+        </div>
       </div>
       
       {/* No images message */}

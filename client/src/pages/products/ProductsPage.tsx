@@ -69,7 +69,7 @@ const ProductsPage = () => {
       
       {/* Add Product Dialog */}
       <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Product</DialogTitle>
             <DialogDescription>
@@ -94,7 +94,7 @@ const ProductsPage = () => {
             if (!open) setSelectedProductId(undefined);
           }}
         >
-          <DialogContent className="max-w-4xl">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
               <DialogDescription>
