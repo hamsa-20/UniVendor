@@ -696,6 +696,26 @@ const MatrixVariantManager = ({
                       <Button
                         variant="secondary"
                         onClick={() => {
+                          // Validate bulk edit data before applying
+                          const newErrors: Record<string, string> = {};
+                          
+                          if (bulkEditData.sellingPrice !== undefined && bulkEditData.sellingPrice !== null) {
+                            if (bulkEditData.sellingPrice <= 0) {
+                              newErrors.bulkSellingPrice = "Price must be greater than 0";
+                            }
+                          }
+                          
+                          if (bulkEditData.inventoryQuantity !== undefined && bulkEditData.inventoryQuantity !== null) {
+                            if (bulkEditData.inventoryQuantity < 0) {
+                              newErrors.bulkInventory = "Inventory cannot be negative";
+                            }
+                          }
+                          
+                          if (Object.keys(newErrors).length > 0) {
+                            setErrors({...errors, ...newErrors});
+                            return;
+                          }
+                          
                           // Apply bulk edits to selected variants or all if none selected
                           const updatedVariants = [...variants];
                           const variantsToUpdate = selectedVariants.length > 0 
@@ -722,6 +742,7 @@ const MatrixVariantManager = ({
                           setBulkEditData({});
                           setSelectedVariants([]);
                           setBulkEditMode(false);
+                          setErrors({}); // Clear any errors
                           
                           toast({
                             title: "Bulk edit applied",
