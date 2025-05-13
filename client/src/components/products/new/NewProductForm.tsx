@@ -187,6 +187,7 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
         featuredImageUrl: data.featuredImageUrl || null,
         barcode: data.barcode || null,
         sku: data.sku || null,
+        vendorId: vendorId // Add the vendorId to the product data
       };
       
       let createdProductId = productId;
