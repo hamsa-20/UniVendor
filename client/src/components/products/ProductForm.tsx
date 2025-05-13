@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Save, AlertCircle, Image as ImageIcon, X, Plus, Tag } from "lucide-react";
+import { Loader2, Save, AlertCircle, Image as ImageIcon, X, Plus, Tag, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 const productFormSchema = z.object({
