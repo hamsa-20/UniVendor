@@ -55,6 +55,7 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
   const [activeTab, setActiveTab] = useState("basic");
   const [tag, setTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const { user } = useAuth() || {};
   const { toast } = useToast();
 
@@ -138,9 +139,34 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
     try {
       if (isEditing) {
         await updateProductMutation.mutateAsync(values);
+        
+        toast({
+          title: activeSection ? `${activeSection} saved` : "Product updated",
+          description: activeSection 
+            ? `${activeSection} information has been saved.` 
+            : "The product has been updated successfully.",
+        });
       } else {
         await createProductMutation.mutateAsync(values);
+        
+        toast({
+          title: activeSection ? `${activeSection} saved` : "Product created",
+          description: activeSection 
+            ? `${activeSection} information has been saved.` 
+            : "The product has been created successfully.",
+        });
       }
+      
+      // Reset active section after successful save
+      setActiveSection(null);
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -383,9 +409,25 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                 <Button type="button" variant="outline" onClick={() => setActiveTab("basic")}>
                   Previous: Basic Info
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("inventory")}>
-                  Next: Inventory
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="gap-1" 
+                    onClick={form.handleSubmit((data) => {
+                      setActiveSection("Pricing");
+                      onSubmit(data);
+                    })}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button type="button" onClick={() => setActiveTab("inventory")}>
+                    Next: Inventory
+                  </Button>
+                </div>
               </div>
             </TabsContent>
             
