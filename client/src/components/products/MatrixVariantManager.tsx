@@ -73,13 +73,17 @@ interface ProductProps {
 interface MatrixVariantManagerProps {
   product: ProductProps;
   initialVariant?: MatrixVariant | null;
-  onClose: () => void;
+  onClose?: () => void;
+  variants?: MatrixVariant[];
+  onChange?: (variants: MatrixVariant[]) => void;
 }
 
 const MatrixVariantManager = ({ 
   product, 
   initialVariant = null, 
-  onClose 
+  onClose,
+  variants: externalVariants,
+  onChange: externalOnChange
 }: MatrixVariantManagerProps) => {
   const [attributes, setAttributes] = useState<Attribute[]>([
     { name: "Color", values: [] },
@@ -99,9 +103,10 @@ const MatrixVariantManager = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  // Initialize variants from initialVariant (if provided)
+  // Initialize variants from initialVariant or externalVariants (if provided)
   useEffect(() => {
     if (initialVariant) {
+      // Single variant edit mode
       setIsEditMode(true);
       setSelectedTab("details");
       
@@ -124,8 +129,33 @@ const MatrixVariantManager = ({
       
       setAttributes(attrsFromVariant);
       setVariants([initialVariant]);
+    } else if (externalVariants && externalVariants.length > 0) {
+      // Initialize from external variants (if provided by parent component)
+      setVariants(externalVariants);
+      
+      // Extract unique attribute values
+      const colorValues = new Set<string>();
+      const sizeValues = new Set<string>();
+      
+      externalVariants.forEach(variant => {
+        if (variant.color) colorValues.add(variant.color);
+        if (variant.size) sizeValues.add(variant.size);
+      });
+      
+      // Create attributes from collected values
+      const updatedAttributes: Attribute[] = [
+        { name: "Color", values: Array.from(colorValues) },
+        { name: "Size", values: Array.from(sizeValues) }
+      ];
+      
+      setAttributes(updatedAttributes);
+      
+      // If we have variants, switch to details tab
+      if (externalVariants.length > 0) {
+        setSelectedTab("details");
+      }
     }
-  }, [initialVariant]);
+  }, [initialVariant, externalVariants]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -401,7 +431,22 @@ const MatrixVariantManager = ({
   // Handle save action
   const handleSave = () => {
     if (validateBeforeSave()) {
-      saveMutation.mutate();
+      if (externalOnChange && externalVariants) {
+        // If this component is being used inline with external state management
+        externalOnChange(variants);
+        toast({
+          title: "Variants updated",
+          description: `${variants.length} variants have been updated.`,
+        });
+        
+        // If there's an onClose function, call it
+        if (onClose) {
+          onClose();
+        }
+      } else {
+        // Original behavior - save to server through API
+        saveMutation.mutate();
+      }
     }
   };
 
