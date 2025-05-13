@@ -140,8 +140,15 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
     setIsSubmitting(true);
     
     try {
+      // Include variants with the product data if we have generated variants
+      const productData = {
+        ...values,
+        hasVariants: generatedVariants.length > 0,
+        variants: generatedVariants.length > 0 ? generatedVariants : undefined
+      };
+      
       if (isEditing) {
-        await updateProductMutation.mutateAsync(values);
+        await updateProductMutation.mutateAsync(productData);
         
         toast({
           title: activeSection ? `${activeSection} saved` : "Product updated",
@@ -150,13 +157,21 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
             : "The product has been updated successfully.",
         });
       } else {
-        await createProductMutation.mutateAsync(values);
+        await createProductMutation.mutateAsync(productData);
         
         toast({
           title: activeSection ? `${activeSection} saved` : "Product created",
           description: activeSection 
             ? `${activeSection} information has been saved.` 
             : "The product has been created successfully.",
+        });
+      }
+      
+      // If we have variants, show an additional confirmation when saving the variants tab
+      if (activeSection === "Variants & Attributes" && generatedVariants.length > 0) {
+        toast({
+          title: "Variants saved",
+          description: `${generatedVariants.length} product variants have been saved`,
         });
       }
       
