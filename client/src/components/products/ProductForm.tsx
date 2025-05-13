@@ -277,8 +277,7 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
               <TabsTrigger value="inventory">Inventory</TabsTrigger>
               <TabsTrigger value="category">Categorization</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
-              <TabsTrigger value="variants">Variants</TabsTrigger>
-              <TabsTrigger value="attributes">Attributes</TabsTrigger>
+              <TabsTrigger value="variants">Variants & Attributes</TabsTrigger>
             </TabsList>
             
             <TabsContent value="basic" className="space-y-6">
