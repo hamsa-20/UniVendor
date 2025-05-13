@@ -915,9 +915,25 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                 <Button type="button" variant="outline" onClick={() => setActiveTab("category")}>
                   Previous: Categorization
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("attributes")}>
-                  Next: Attributes
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="gap-1" 
+                    onClick={form.handleSubmit((data) => {
+                      setActiveSection("Media");
+                      onSubmit(data);
+                    })}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button type="button" onClick={() => setActiveTab("attributes")}>
+                    Next: Attributes
+                  </Button>
+                </div>
               </div>
             </TabsContent>
             
@@ -944,19 +960,25 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                 <Button type="button" variant="outline" onClick={() => setActiveTab("media")}>
                   Previous: Media
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      {isEditing ? "Save Changes" : "Create Product"}
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="gap-1" 
+                    onClick={form.handleSubmit((data) => {
+                      setActiveSection("Variants");
+                      onSubmit(data);
+                    })}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button type="button" onClick={() => setActiveTab("attributes")}>
+                    Next: Attributes
+                  </Button>
+                </div>
               </div>
             </TabsContent>
             
@@ -983,22 +1005,38 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
               </Card>
               
               <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={() => setActiveTab("media")}>
-                  Previous: Media
+                <Button type="button" variant="outline" onClick={() => setActiveTab("variants")}>
+                  Previous: Variants
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      {isEditing ? "Update Product" : "Create Product"}
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="gap-1" 
+                    onClick={form.handleSubmit((data) => {
+                      setActiveSection("Attributes");
+                      onSubmit(data);
+                    })}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        {isEditing ? "Update Product" : "Create Product"}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
