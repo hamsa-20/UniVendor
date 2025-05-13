@@ -903,11 +903,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Product not found" });
       }
       
+      // Verify the vendor exists (important for product variants creation)
+      const vendor = await storage.getVendor(product.vendorId);
+      if (!vendor) {
+        return res.status(404).json({ message: "Vendor not found" });
+      }
+      
       // If this is an impersonated session, verify the product belongs to the impersonated vendor
       if (req.isAuthenticated() && req.user && req.user.isImpersonated) {
         // Find the vendor for this user
-        const vendor = await storage.getVendorByUserId(req.user.id);
-        if (vendor && product.vendorId !== vendor.id) {
+        const userVendor = await storage.getVendorByUserId(req.user.id);
+        if (userVendor && product.vendorId !== userVendor.id) {
           return res.status(403).json({ message: "You don't have permission to update variants for this product" });
         }
       }
@@ -924,12 +930,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
               productId
             };
             
-            // Validate the variant data with the schema
-            insertProductVariantSchema.parse(variantData);
+            // Make sure temporary client-side IDs (negative numbers or UUIDs) are handled properly
+            const variantId = typeof variant.id === 'number' && variant.id > 0 ? variant.id : null;
             
-            const updatedVariant = await storage.updateProductVariant(variant.id, variantData);
-            if (updatedVariant) {
-              processedVariants.push(updatedVariant);
+            if (variantId) {
+              // Validate the variant data with the schema
+              insertProductVariantSchema.parse(variantData);
+              
+              const updatedVariant = await storage.updateProductVariant(variantId, variantData);
+              if (updatedVariant) {
+                processedVariants.push(updatedVariant);
+              }
+            } else {
+              // If the ID is temporary, treat it as a new variant
+              const newVariantData = {
+                ...variant,
+                productId
+              };
+              delete newVariantData.id; // Remove temporary ID
+              
+              // Validate the variant data with the schema
+              insertProductVariantSchema.parse(newVariantData);
+              
+              const newVariant = await storage.createProductVariant(newVariantData);
+              processedVariants.push(newVariant);
             }
           } 
           // For new variants, create them
