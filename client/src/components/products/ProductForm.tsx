@@ -181,6 +181,71 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
   const removeFeaturedImage = () => {
     form.setValue("featuredImageUrl", null);
   };
+  
+  const uploadFeaturedImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const response = await fetch('/api/s3/upload/product-image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const data = await response.json();
+      form.setValue("featuredImageUrl", data.url);
+      toast({
+        title: "Image uploaded",
+        description: "Featured image has been uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const uploadAdditionalImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('image', file);
+    
+    try {
+      const response = await fetch('/api/s3/upload/product-image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const data = await response.json();
+      const currentImages = form.getValues("images") || [];
+      form.setValue("images", [...currentImages, data.url]);
+      toast({
+        title: "Image uploaded",
+        description: "Additional image has been uploaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const addTag = () => {
     if (!tag) return;
@@ -779,7 +844,19 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                         <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed rounded-md border-muted-foreground/25">
                           <ImageIcon className="h-12 w-12 mb-2 text-muted-foreground/50" />
                           <p className="text-muted-foreground mb-2">No featured image</p>
-                          <Button variant="outline" className="mt-2" type="button">
+                          <input
+                            type="file"
+                            id="featuredImage"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={uploadFeaturedImage}
+                          />
+                          <Button 
+                            variant="outline" 
+                            className="mt-2" 
+                            type="button"
+                            onClick={() => document.getElementById('featuredImage')?.click()}
+                          >
                             Upload Image
                           </Button>
                         </div>
@@ -792,7 +869,17 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                   <div className="space-y-2">
                     <Label>Additional Images</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                      <div className="aspect-square rounded-md border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground border-muted-foreground/25 cursor-pointer hover:border-muted-foreground/40 transition-colors">
+                      <div 
+                        className="aspect-square rounded-md border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground border-muted-foreground/25 cursor-pointer hover:border-muted-foreground/40 transition-colors"
+                        onClick={() => document.getElementById('additionalImage')?.click()}
+                      >
+                        <input
+                          type="file"
+                          id="additionalImage"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={uploadAdditionalImage}
+                        />
                         <ImageIcon className="h-8 w-8 mb-2 text-muted-foreground/50" />
                         <span className="text-xs text-center">Add Image</span>
                       </div>
