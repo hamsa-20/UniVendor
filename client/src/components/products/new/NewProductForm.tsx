@@ -635,51 +635,6 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                         </FormItem>
                       )}
                     />
-                    
-                    <FormField
-                      control={form.control}
-                      name="tags"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-base font-medium">Tags</FormLabel>
-                          <div className="flex flex-wrap gap-2 p-4 border rounded-md bg-white">
-                            {field.value?.map((tag, index) => (
-                              <Badge key={index} variant="secondary" className="py-2 px-3 gap-2">
-                                <Tag className="h-3 w-3" />
-                                {tag}
-                                <XCircle 
-                                  className="h-4 w-4 ml-1 cursor-pointer text-muted-foreground hover:text-destructive"
-                                  onClick={() => {
-                                    const updatedTags = [...field.value];
-                                    updatedTags.splice(index, 1);
-                                    field.onChange(updatedTags);
-                                  }}
-                                />
-                              </Badge>
-                            ))}
-                            <Input
-                              className="flex-1 min-w-[200px] border-0 focus-visible:ring-0 p-0 text-base"
-                              placeholder="Add a tag and press Enter"
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  const input = e.currentTarget as HTMLInputElement;
-                                  const value = input.value.trim();
-                                  if (value && !field.value?.includes(value)) {
-                                    field.onChange([...field.value || [], value]);
-                                    input.value = '';
-                                  }
-                                }
-                              }}
-                            />
-                          </div>
-                          <FormDescription>
-                            Press Enter to add a tag. Tags help customers find your product.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
                 </div>
               </div>
@@ -1112,6 +1067,86 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                       onChange={setVariants}
                     />
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* SEO Information Card */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div 
+              className="flex items-center justify-between p-6 cursor-pointer border-b"
+              onClick={() => toggleSection('seo')}
+            >
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-semibold">SEO Information</h2>
+              </div>
+              {isSectionActive('seo') ? (
+                <ChevronDown className="h-6 w-6 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-6 w-6 text-gray-500" />
+              )}
+            </div>
+            
+            {isSectionActive('seo') && (
+              <div className="p-6 bg-gray-50/50">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    type="button"
+                    onClick={() => sectionSaveMutation.mutate('seo')}
+                    disabled={sectionSaveMutation.isPending}
+                  >
+                    {sectionSaveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save SEO Info
+                  </Button>
+                </div>
+                <div className="bg-white p-6 rounded-md border shadow-sm">
+                  <FormField
+                    control={form.control}
+                    name="tags"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-base font-medium">Tags</FormLabel>
+                        <div className="flex flex-wrap gap-2 p-4 border rounded-md bg-white">
+                          {field.value?.map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="py-2 px-3 gap-2">
+                              <Tag className="h-3 w-3" />
+                              {tag}
+                              <XCircle 
+                                className="h-3 w-3 ml-1 cursor-pointer" 
+                                onClick={() => {
+                                  const newTags = [...field.value || []];
+                                  newTags.splice(index, 1);
+                                  field.onChange(newTags);
+                                }}
+                              />
+                            </Badge>
+                          ))}
+                          <div className="flex-1 min-w-[200px]">
+                            <Input
+                              placeholder="Add a tag and press Enter"
+                              className="border-0 focus-visible:ring-0 text-base py-2"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const input = e.currentTarget;
+                                  const value = input.value.trim();
+                                  if (value && (!field.value || !field.value.includes(value))) {
+                                    field.onChange([...field.value || [], value]);
+                                    input.value = '';
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <FormDescription>
+                          Add tags to improve product discoverability in search. Press Enter to add a tag.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
               </div>
             )}
