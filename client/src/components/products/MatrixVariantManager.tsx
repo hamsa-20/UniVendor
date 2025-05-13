@@ -62,6 +62,7 @@ interface MatrixVariant {
   attributes: Record<string, string>;
   images: string[];
   position: number | null;
+  updatedAt?: Date | null; // Make this optional for compatibility
 }
 
 interface ProductProps {
@@ -380,7 +381,7 @@ const MatrixVariantManager = ({
           barcode: null,
           position: null,
           createdAt: null,
-          updatedAt: null,
+          updatedAt: null, // Required for compatibility with DB
           images: [],
           imageUrl: null,
         }];
