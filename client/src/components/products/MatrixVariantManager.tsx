@@ -62,7 +62,6 @@ interface MatrixVariant {
   attributes: Record<string, string>;
   images: string[];
   position: number | null;
-  updatedAt?: Date | null; // Make this optional for compatibility
 }
 
 interface ProductProps {
@@ -74,17 +73,13 @@ interface ProductProps {
 interface MatrixVariantManagerProps {
   product: ProductProps;
   initialVariant?: MatrixVariant | null;
-  onClose?: () => void;
-  variants?: MatrixVariant[];
-  onChange?: (variants: MatrixVariant[]) => void;
+  onClose: () => void;
 }
 
 const MatrixVariantManager = ({ 
   product, 
   initialVariant = null, 
-  onClose,
-  variants: externalVariants,
-  onChange: externalOnChange
+  onClose 
 }: MatrixVariantManagerProps) => {
   const [attributes, setAttributes] = useState<Attribute[]>([
     { name: "Color", values: [] },
@@ -104,34 +99,9 @@ const MatrixVariantManager = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  // Convert database variant to matrix variant format (ensuring all required fields)
-  const convertToMatrixVariant = (dbVariant: any): MatrixVariant => {
-    return {
-      id: dbVariant.id,
-      createdAt: dbVariant.createdAt || null,
-      color: dbVariant.color || '',
-      size: dbVariant.size || '',
-      purchasePrice: dbVariant.purchasePrice,
-      sellingPrice: dbVariant.sellingPrice,
-      mrp: dbVariant.mrp,
-      gst: dbVariant.gst,
-      sku: dbVariant.sku,
-      barcode: dbVariant.barcode,
-      weight: dbVariant.weight,
-      inventoryQuantity: dbVariant.inventoryQuantity || 0,
-      isDefault: Boolean(dbVariant.isDefault),
-      productId: dbVariant.productId || product.id,
-      imageUrl: dbVariant.imageUrl,
-      attributes: dbVariant.attributes || { Color: dbVariant.color, Size: dbVariant.size },
-      images: dbVariant.images || [],
-      position: dbVariant.position || 0
-    };
-  };
-
-  // Initialize variants from initialVariant or externalVariants (if provided)
+  // Initialize variants from initialVariant (if provided)
   useEffect(() => {
     if (initialVariant) {
-      // Single variant edit mode
       setIsEditMode(true);
       setSelectedTab("details");
       
@@ -154,34 +124,8 @@ const MatrixVariantManager = ({
       
       setAttributes(attrsFromVariant);
       setVariants([initialVariant]);
-    } else if (externalVariants && externalVariants.length > 0) {
-      // Initialize from external variants - converting to ensure all required fields exist
-      const convertedVariants = externalVariants.map(convertToMatrixVariant);
-      setVariants(convertedVariants);
-      
-      // Extract unique attribute values
-      const colorValues = new Set<string>();
-      const sizeValues = new Set<string>();
-      
-      externalVariants.forEach(variant => {
-        if (variant.color) colorValues.add(variant.color);
-        if (variant.size) sizeValues.add(variant.size);
-      });
-      
-      // Create attributes from collected values
-      const updatedAttributes: Attribute[] = [
-        { name: "Color", values: Array.from(colorValues) },
-        { name: "Size", values: Array.from(sizeValues) }
-      ];
-      
-      setAttributes(updatedAttributes);
-      
-      // If we have variants, switch to details tab
-      if (externalVariants.length > 0) {
-        setSelectedTab("details");
-      }
     }
-  }, [initialVariant, externalVariants, product.id]);
+  }, [initialVariant]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -236,9 +180,7 @@ const MatrixVariantManager = ({
           ? "The variant has been updated successfully."
           : "New variants have been created successfully.",
       });
-      if (onClose) {
-        onClose();
-      }
+      onClose();
     },
     onError: (error) => {
       toast({
@@ -381,7 +323,6 @@ const MatrixVariantManager = ({
           barcode: null,
           position: null,
           createdAt: null,
-          updatedAt: null, // Required for compatibility with DB
           images: [],
           imageUrl: null,
         }];
@@ -457,40 +398,10 @@ const MatrixVariantManager = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Convert matrix variant to the format expected by the parent component
-  const convertFromMatrixVariant = (variant: MatrixVariant): any => {
-    // Keep attributes field but also extract color and size for backward compatibility
-    return {
-      ...variant,
-      // Ensure these fields are present and have the expected format
-      color: variant.color,
-      size: variant.size,
-      inventoryQuantity: typeof variant.inventoryQuantity === 'number' ? variant.inventoryQuantity : 0,
-      updatedAt: variant.createdAt || new Date(),
-    };
-  };
-
   // Handle save action
   const handleSave = () => {
     if (validateBeforeSave()) {
-      if (externalOnChange && externalVariants) {
-        // If this component is being used inline with external state management
-        // Convert variants to the format expected by the parent component
-        const convertedVariants = variants.map(convertFromMatrixVariant);
-        externalOnChange(convertedVariants);
-        toast({
-          title: "Variants updated",
-          description: `${variants.length} variants have been updated.`,
-        });
-        
-        // If there's an onClose function, call it
-        if (onClose) {
-          onClose();
-        }
-      } else {
-        // Original behavior - save to server through API
-        saveMutation.mutate();
-      }
+      saveMutation.mutate();
     }
   };
 

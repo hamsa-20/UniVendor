@@ -1117,10 +1117,7 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                     </div>
                     
                     <MatrixVariantManager 
-                      product={{
-                        id: productId || 0,
-                        name: form.getValues('name') || 'New Product'
-                      }}
+                      productId={productId}
                       variants={variants}
                       onChange={setVariants}
                     />
