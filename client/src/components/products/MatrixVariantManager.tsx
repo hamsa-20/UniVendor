@@ -585,13 +585,36 @@ const MatrixVariantManager = ({
                           id="bulk-mrp"
                           type="number"
                           value={bulkEditData.mrp || ""}
-                          onChange={(e) => setBulkEditData({
-                            ...bulkEditData,
-                            mrp: e.target.value ? parseFloat(e.target.value) : null
-                          })}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || value === null) {
+                              setBulkEditData({
+                                ...bulkEditData,
+                                mrp: null
+                              });
+                              return;
+                            }
+                            const numValue = parseFloat(value);
+                            if (numValue < 0) {
+                              setErrors({...errors, bulkMrp: "MRP cannot be negative"});
+                              return;
+                            }
+                            setErrors({...errors, bulkMrp: ""});
+                            setBulkEditData({
+                              ...bulkEditData,
+                              mrp: numValue
+                            });
+                          }}
+                          min="0"
+                          step="0.01"
                           className="w-full"
                           placeholder="Enter MRP"
                         />
+                        {errors.bulkMrp && (
+                          <div className="text-xs text-destructive mt-1">
+                            {errors.bulkMrp}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="bulk-selling-price">Selling Price</Label>
@@ -599,13 +622,36 @@ const MatrixVariantManager = ({
                           id="bulk-selling-price"
                           type="number"
                           value={bulkEditData.sellingPrice || ""}
-                          onChange={(e) => setBulkEditData({
-                            ...bulkEditData,
-                            sellingPrice: e.target.value ? parseFloat(e.target.value) : null
-                          })}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || value === null) {
+                              setBulkEditData({
+                                ...bulkEditData,
+                                sellingPrice: null
+                              });
+                              return;
+                            }
+                            const numValue = parseFloat(value);
+                            if (numValue < 0) {
+                              setErrors({...errors, bulkSellingPrice: "Price cannot be negative"});
+                              return;
+                            }
+                            setErrors({...errors, bulkSellingPrice: ""});
+                            setBulkEditData({
+                              ...bulkEditData,
+                              sellingPrice: numValue
+                            });
+                          }}
+                          min="0"
+                          step="0.01"
                           className="w-full"
                           placeholder="Enter selling price"
                         />
+                        {errors.bulkSellingPrice && (
+                          <div className="text-xs text-destructive mt-1">
+                            {errors.bulkSellingPrice}
+                          </div>
+                        )}
                       </div>
                       <div>
                         <Label htmlFor="bulk-inventory">Stock Units</Label>
@@ -613,13 +659,36 @@ const MatrixVariantManager = ({
                           id="bulk-inventory"
                           type="number"
                           value={bulkEditData.inventoryQuantity || ""}
-                          onChange={(e) => setBulkEditData({
-                            ...bulkEditData,
-                            inventoryQuantity: e.target.value ? parseInt(e.target.value) : null
-                          })}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "" || value === null) {
+                              setBulkEditData({
+                                ...bulkEditData,
+                                inventoryQuantity: null
+                              });
+                              return;
+                            }
+                            const numValue = parseInt(value);
+                            if (numValue < 0) {
+                              setErrors({...errors, bulkInventory: "Inventory cannot be negative"});
+                              return;
+                            }
+                            setErrors({...errors, bulkInventory: ""});
+                            setBulkEditData({
+                              ...bulkEditData,
+                              inventoryQuantity: numValue
+                            });
+                          }}
+                          min="0"
+                          step="1"
                           className="w-full"
                           placeholder="Enter stock units"
                         />
+                        {errors.bulkInventory && (
+                          <div className="text-xs text-destructive mt-1">
+                            {errors.bulkInventory}
+                          </div>
+                        )}
                       </div>
                     </div>
                     
@@ -721,15 +790,51 @@ const MatrixVariantManager = ({
                           <Input
                             type="number"
                             value={variant.mrp || ""}
-                            onChange={(e) => updateVariantField(index, "mrp", parseFloat(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                updateVariantField(index, "mrp", null);
+                                return;
+                              }
+                              const numValue = parseFloat(value);
+                              if (numValue < 0) {
+                                setErrors({...errors, [`variant_${index}_mrp`]: "MRP cannot be negative"});
+                                return;
+                              }
+                              setErrors({...errors, [`variant_${index}_mrp`]: ""});
+                              updateVariantField(index, "mrp", numValue);
+                            }}
+                            min="0"
+                            step="0.01"
                             className="w-full"
                           />
+                          {errors[`variant_${index}_mrp`] && (
+                            <div className="text-xs text-destructive mt-1">
+                              {errors[`variant_${index}_mrp`]}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Input
                             type="number"
                             value={variant.sellingPrice}
-                            onChange={(e) => updateVariantField(index, "sellingPrice", parseFloat(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                // Selling price is required, so set an error
+                                setErrors({...errors, [`variant_${index}_price`]: "Selling price is required"});
+                                return;
+                              }
+                              const numValue = parseFloat(value);
+                              if (numValue < 0) {
+                                setErrors({...errors, [`variant_${index}_price`]: "Price cannot be negative"});
+                                return;
+                              }
+                              setErrors({...errors, [`variant_${index}_price`]: ""});
+                              updateVariantField(index, "sellingPrice", numValue.toString());
+                            }}
+                            min="0"
+                            step="0.01"
                             className="w-full"
                           />
                           {errors[`variant_${index}_price`] && (
@@ -742,7 +847,23 @@ const MatrixVariantManager = ({
                           <Input
                             type="number"
                             value={variant.inventoryQuantity}
-                            onChange={(e) => updateVariantField(index, "inventoryQuantity", parseInt(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value === "" || value === null) {
+                                // Inventory is required, so set default to 0
+                                updateVariantField(index, "inventoryQuantity", 0);
+                                return;
+                              }
+                              const numValue = parseInt(value);
+                              if (numValue < 0) {
+                                setErrors({...errors, [`variant_${index}_inventory`]: "Inventory cannot be negative"});
+                                return;
+                              }
+                              setErrors({...errors, [`variant_${index}_inventory`]: ""});
+                              updateVariantField(index, "inventoryQuantity", numValue);
+                            }}
+                            min="0"
+                            step="1"
                             className="w-full"
                           />
                           {errors[`variant_${index}_inventory`] && (
