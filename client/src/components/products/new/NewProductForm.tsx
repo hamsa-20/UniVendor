@@ -358,7 +358,39 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
           };
           break;
         case 'variants':
-          // Variants are handled by the variantsMutation
+          // For variants, we need to first save the basic product if it doesn't exist yet
+          if (!productId) {
+            // Create a basic product first
+            const basicData = {
+              ...formData,
+              name: formData.name || "Untitled Product",
+              description: formData.description || "",
+              status: 'draft',
+              vendorId: vendorId,
+              sellingPrice: formData.sellingPrice ? parseFloat(formData.sellingPrice) : 0,
+              categoryId: formData.categoryId || null
+            };
+            
+            // Create the product
+            const response = await apiRequest('POST', '/api/products', basicData);
+            const newProduct = await response.json();
+            const newProductId = newProduct.id;
+            
+            // If we have variants, save them to the new product
+            if (variants.length > 0) {
+              // Ensure all variants have the correct productId
+              const preparedVariants = variants.map(variant => ({
+                ...variant,
+                productId: newProductId
+              }));
+              
+              await apiRequest('POST', `/api/products/${newProductId}/variants`, preparedVariants);
+            }
+            
+            return { productId: newProductId, section };
+          }
+          
+          // If product already exists, just return (variants will be saved separately)
           return { productId, section };
         case 'seo':
           sectionData = {
