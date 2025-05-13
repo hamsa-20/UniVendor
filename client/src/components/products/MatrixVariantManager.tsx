@@ -657,9 +657,9 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
       
       {/* Variants Table */}
       {matrixVariants.length > 0 ? (
-        <div className="border rounded-md overflow-x-auto">
+        <div className="border rounded-md overflow-x-auto max-h-[70vh]">
           <Table>
-            <TableHeader>
+            <TableHeader className="sticky top-0 bg-background z-10">
               <TableRow>
                 <TableHead className="w-12 text-center">Use</TableHead>
                 {attributes.map((attr, index) => (

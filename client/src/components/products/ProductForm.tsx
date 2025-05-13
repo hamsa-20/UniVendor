@@ -331,15 +331,15 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   }
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <CardHeader>
         <CardTitle>{productId ? 'Edit Product' : 'Add New Product'}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="overflow-visible">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-visible">
             <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-5 sticky top-0 z-10 bg-background">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
                 <TabsTrigger value="pricing">Pricing & Inventory</TabsTrigger>
                 <TabsTrigger value="variants">Variants</TabsTrigger>
