@@ -51,6 +51,7 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   const { user, impersonationStatus } = useAuth();
   const [activeSection, setActiveSection] = useState<string[]>(['basic', 'pricing', 'images']);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [lastSavedSection, setLastSavedSection] = useState<string>('');
   
   // Get vendor ID from user context
   const vendorId = user?.vendorId || 
@@ -276,6 +277,124 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
       });
     },
   });
+  
+  // Section save mutation - for saving individual sections
+  const sectionSaveMutation = useMutation({
+    mutationFn: async (section: string) => {
+      if (!productId) {
+        // Create a new product if this is a new product
+        const formData = form.getValues();
+        
+        // Convert string fields to numbers or null
+        const numericFields = {
+          purchasePrice: formData.purchasePrice ? parseFloat(formData.purchasePrice) : null,
+          sellingPrice: formData.sellingPrice ? parseFloat(formData.sellingPrice) : 0,
+          mrp: formData.mrp ? parseFloat(formData.mrp) : null,
+          gst: formData.gst ? parseFloat(formData.gst) : null,
+          weight: formData.weight ? parseFloat(formData.weight) : null,
+          length: formData.length ? parseFloat(formData.length) : null,
+          width: formData.width ? parseFloat(formData.width) : null,
+          height: formData.height ? parseFloat(formData.height) : null,
+          inventoryQuantity: parseInt(formData.inventoryQuantity || '0'),
+        };
+        
+        const productData = {
+          ...formData,
+          ...numericFields,
+          categoryId: formData.categoryId || null,
+          featuredImageUrl: formData.featuredImageUrl || null,
+          barcode: formData.barcode || null,
+          sku: formData.sku || null,
+          vendorId: vendorId, // Add the vendorId to the product data
+          status: 'draft'
+        };
+        
+        // Create the new product first
+        const response = await apiRequest('POST', '/api/products', productData);
+        const newProduct = await response.json();
+        return { productId: newProduct.id, section };
+      }
+      
+      // If editing existing product, only update the relevant section
+      const formData = form.getValues();
+      let sectionData: any = { vendorId };
+      
+      switch(section) {
+        case 'basic':
+          sectionData = {
+            ...sectionData,
+            name: formData.name,
+            description: formData.description,
+            status: formData.status,
+            categoryId: formData.categoryId || null,
+          };
+          break;
+        case 'pricing':
+          sectionData = {
+            ...sectionData,
+            purchasePrice: formData.purchasePrice ? parseFloat(formData.purchasePrice) : null,
+            sellingPrice: formData.sellingPrice ? parseFloat(formData.sellingPrice) : 0,
+            mrp: formData.mrp ? parseFloat(formData.mrp) : null,
+            gst: formData.gst ? parseFloat(formData.gst) : null,
+            sku: formData.sku,
+            barcode: formData.barcode,
+            inventoryQuantity: parseInt(formData.inventoryQuantity || '0'),
+          };
+          break;
+        case 'dimensions':
+          sectionData = {
+            ...sectionData,
+            weight: formData.weight ? parseFloat(formData.weight) : null,
+            length: formData.length ? parseFloat(formData.length) : null,
+            width: formData.width ? parseFloat(formData.width) : null,
+            height: formData.height ? parseFloat(formData.height) : null,
+          };
+          break;
+        case 'media':
+          sectionData = {
+            ...sectionData,
+            featuredImageUrl: formData.featuredImageUrl,
+            images: formData.images,
+          };
+          break;
+        case 'variants':
+          // Variants are handled by the variantsMutation
+          return { productId, section };
+        case 'seo':
+          sectionData = {
+            ...sectionData,
+            tags: formData.tags,
+          };
+          break;
+      }
+      
+      // Update the product with section data
+      await apiRequest('PATCH', `/api/products/${productId}`, sectionData);
+      return { productId, section };
+    },
+    onSuccess: (data) => {
+      const { section, productId: savedProductId } = data;
+      
+      // Update UI with feedback
+      toast({
+        title: `${section.charAt(0).toUpperCase() + section.slice(1)} section saved`,
+        description: "Your changes have been saved.",
+      });
+      
+      // Set the last saved section
+      setLastSavedSection(section);
+      
+      // Invalidate cached product data
+      queryClient.invalidateQueries({ queryKey: ['/api/products', savedProductId] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error saving section",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   // Form submission handler
   const onSubmit = (data: ProductFormValues) => {
@@ -384,6 +503,16 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
             
             {isSectionActive('basic') && (
               <div className="p-6 bg-gray-50/50">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    type="button"
+                    onClick={() => sectionSaveMutation.mutate('basic')}
+                    disabled={sectionSaveMutation.isPending}
+                  >
+                    {sectionSaveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Basic Info
+                  </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <FormField
@@ -578,6 +707,16 @@ const NewProductForm = ({ productId, onSuccess }: ProductFormProps) => {
             
             {isSectionActive('pricing') && (
               <div className="p-6 bg-gray-50/50">
+                <div className="flex justify-end mb-4">
+                  <Button
+                    type="button"
+                    onClick={() => sectionSaveMutation.mutate('pricing')}
+                    disabled={sectionSaveMutation.isPending}
+                  >
+                    {sectionSaveMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Save Pricing & Inventory
+                  </Button>
+                </div>
                 <div className="space-y-8">
                   <div className="bg-white p-6 rounded-md border shadow-sm">
                     <h3 className="text-lg font-medium mb-4">Pricing</h3>
