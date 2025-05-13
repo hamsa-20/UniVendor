@@ -822,6 +822,12 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                         value={newAttributeValue}
                         onChange={(e) => setNewAttributeValue(e.target.value)}
                         placeholder={`Add new ${attr.name.toLowerCase()}...`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault(); // Prevent form submission
+                            addAttributeValue();
+                          }
+                        }}
                       />
                       <Button 
                         onClick={addAttributeValue} 
@@ -924,6 +930,12 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                     placeholder="Enter image URL..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addImageUrl();
+                      }
+                    }}
                   />
                   <Button onClick={addImageUrl} type="button">
                     Add
