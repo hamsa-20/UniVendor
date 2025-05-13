@@ -43,7 +43,7 @@ interface Attribute {
 }
 
 interface MatrixVariant {
-  id: number;
+  id: string | number;
   createdAt: Date | null;
   color: string;
   size: string;
@@ -275,12 +275,12 @@ const MatrixVariantManager = ({
     // Create all combinations
     const filteredAttributes = attributes.filter(attr => attr.values.length > 0);
     
-    const generateCombinations = (attrs: Attribute[], index: number, current: Record<string, string>): MatrixVariant | MatrixVariant[] => {
+    const generateCombinations = (attrs: Attribute[], index: number, current: Record<string, string>): MatrixVariant[] => {
       if (index === attrs.length) {
         // Base price for all generated variants
         const defaultPrice = product.price || product.sellingPrice || "0";
         
-        return {
+        return [{
           id: uuidv4(),
           productId: product.id,
           color: current["Color"] || "",
@@ -288,13 +288,18 @@ const MatrixVariantManager = ({
           sku: `${product.sku || product.name.substring(0, 3).toUpperCase()}-${current["Color"] || ""}-${current["Size"] || ""}`.replace(/\s+/g, '-'),
           attributes: { ...current },
           sellingPrice: defaultPrice,
-          mrp: parseFloat(defaultPrice),
-          purchasePrice: parseFloat(defaultPrice) * 0.7, // Example: 30% margin
-          gst: 18, // Default GST percentage
+          mrp: defaultPrice,
+          purchasePrice: (parseFloat(defaultPrice) * 0.7).toString(), // Example: 30% margin
+          gst: "18", // Default GST percentage
           inventoryQuantity: 10, // Default inventory
+          isDefault: false,
+          weight: null,
+          barcode: null,
+          position: null,
+          createdAt: null,
           images: [],
           imageUrl: null,
-        };
+        }];
       }
       
       const attr = attrs[index];
@@ -355,7 +360,7 @@ const MatrixVariantManager = ({
     
     // Check for missing required fields in variants
     variants.forEach((variant, index) => {
-      if (variant.sellingPrice <= 0) {
+      if (Number(variant.sellingPrice) <= 0) {
         newErrors[`variant_${index}_price`] = "Price must be greater than 0";
       }
       
