@@ -24,7 +24,6 @@ import AnalyticsPage from "@/pages/analytics/AnalyticsPage";
 import VendorAnalyticsPage from "@/pages/analytics/VendorAnalyticsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import ProductsPage from "./pages/products/ProductsPage";
-import ProductDetails from "./pages/products/ProductDetails";
 import ProductCategoriesPage from "./pages/products/ProductCategoriesPage";
 import ProductSubcategoriesPage from "./pages/products/ProductSubcategoriesPage";
 import OrdersPage from "./pages/orders/OrdersPage";
@@ -596,13 +595,7 @@ function Router() {
           <ProductSubcategoriesPage />
         </PrivateRoute>
       </Route>
-      <Route path="/products/:id">
-        {params => (
-          <PrivateRoute roles={["vendor"]}>
-            <ProductDetails id={params.id} />
-          </PrivateRoute>
-        )}
-      </Route>
+      {/* Product detail route has been removed */}
       <Route path="/orders">
         <PrivateRoute roles={["vendor"]}>
           <OrdersPage />
