@@ -609,9 +609,25 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                 <Button type="button" variant="outline" onClick={() => setActiveTab("pricing")}>
                   Previous: Pricing
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("category")}>
-                  Next: Categorization
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="gap-1" 
+                    onClick={form.handleSubmit((data) => {
+                      setActiveSection("Inventory");
+                      onSubmit(data);
+                    })}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button type="button" onClick={() => setActiveTab("category")}>
+                    Next: Categorization
+                  </Button>
+                </div>
               </div>
             </TabsContent>
             
@@ -639,7 +655,7 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="">None</SelectItem>
+                            <SelectItem value="0">None</SelectItem>
                             {categories?.map((category) => (
                               <SelectItem key={category.id} value={category.id.toString()}>
                                 {category.name}
@@ -706,9 +722,25 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                 <Button type="button" variant="outline" onClick={() => setActiveTab("inventory")}>
                   Previous: Inventory
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("media")}>
-                  Next: Media
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    className="gap-1" 
+                    onClick={form.handleSubmit((data) => {
+                      setActiveSection("Categorization");
+                      onSubmit(data);
+                    })}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                    <Save className="h-4 w-4 mr-1" />
+                    Save
+                  </Button>
+                  <Button type="button" onClick={() => setActiveTab("media")}>
+                    Next: Media
+                  </Button>
+                </div>
               </div>
             </TabsContent>
             
