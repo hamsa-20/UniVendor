@@ -303,19 +303,18 @@ const MatrixVariantManager = ({
       }
       
       const attr = attrs[index];
-      const results = [];
+      const results: MatrixVariant[] = [];
       
       for (const value of attr.values) {
-        results.push(
-          generateCombinations(
-            attrs, 
-            index + 1, 
-            { ...current, [attr.name]: value }
-          )
+        const combinations = generateCombinations(
+          attrs, 
+          index + 1, 
+          { ...current, [attr.name]: value }
         );
+        results.push(...combinations);
       }
       
-      return results.flat();
+      return results;
     };
     
     const newVariants = generateCombinations(filteredAttributes, 0, {});
@@ -364,7 +363,7 @@ const MatrixVariantManager = ({
         newErrors[`variant_${index}_price`] = "Price must be greater than 0";
       }
       
-      if (variant.inventoryQuantity < 0) {
+      if (Number(variant.inventoryQuantity) < 0) {
         newErrors[`variant_${index}_inventory`] = "Inventory cannot be negative";
       }
     });
