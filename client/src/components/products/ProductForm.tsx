@@ -939,19 +939,100 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
             <TabsContent value="variants" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Product Variants</CardTitle>
-                  <CardDescription>Configure variants of this product</CardDescription>
+                  <CardTitle>Product Variants & Attributes</CardTitle>
+                  <CardDescription>Define attributes and generate product variants using a matrix approach</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center space-y-3">
-                      <Package className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-                      <h3 className="text-lg font-medium">No Variants Created Yet</h3>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        You can create variants like different sizes and colors after saving the product.
-                      </p>
+                  {isEditing ? (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                          <h3 className="text-md font-medium mb-4">Step 1: Define Attributes</h3>
+                          <div className="space-y-4 border rounded-md p-4">
+                            <div className="space-y-2">
+                              <Label>Colors</Label>
+                              <div className="flex flex-wrap gap-2 mb-2">
+                                {['Red', 'Blue', 'Green', 'Black', 'White'].map((color) => (
+                                  <Badge 
+                                    key={color}
+                                    variant="outline"
+                                    className="cursor-pointer hover:bg-secondary"
+                                  >
+                                    {color}
+                                    <span className="ml-1 text-xs">+</span>
+                                  </Badge>
+                                ))}
+                                <Badge variant="outline" className="cursor-pointer bg-secondary">
+                                  Add Custom
+                                  <Plus className="ml-1 h-3 w-3" />
+                                </Badge>
+                              </div>
+                              
+                              <Label className="mt-4">Sizes</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {['S', 'M', 'L', 'XL', 'XXL'].map((size) => (
+                                  <Badge 
+                                    key={size}
+                                    variant="outline"
+                                    className="cursor-pointer hover:bg-secondary"
+                                  >
+                                    {size}
+                                    <span className="ml-1 text-xs">+</span>
+                                  </Badge>
+                                ))}
+                                <Badge variant="outline" className="cursor-pointer bg-secondary">
+                                  Add Custom
+                                  <Plus className="ml-1 h-3 w-3" />
+                                </Badge>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 className="text-md font-medium mb-4">Step 2: Generate Variants</h3>
+                          <div className="border rounded-md p-4 h-full flex flex-col justify-between">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-4">
+                                Generate all possible combinations of colors and sizes as product variants.
+                              </p>
+                              <div className="flex items-center space-x-2 mb-4">
+                                <Button type="button" className="w-full">
+                                  Generate Variant Matrix
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            <div className="text-sm text-muted-foreground">
+                              <p>Example: If you select 3 colors and 5 sizes, you'll get 15 variants.</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-md font-medium mb-4">Step 3: Manage Generated Variants</h3>
+                        <div className="border rounded-md p-4">
+                          <div className="text-center py-6">
+                            <Package className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">
+                              No variants generated yet. Use the "Generate Variant Matrix" button above to create variants.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center space-y-3">
+                        <Package className="h-12 w-12 text-muted-foreground/40 mx-auto" />
+                        <h3 className="text-lg font-medium">Matrix-Based Variant Generation</h3>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                          You'll be able to create variants using a matrix of colors and sizes after saving the product.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -965,7 +1046,7 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                     variant="outline" 
                     className="gap-1" 
                     onClick={form.handleSubmit((data) => {
-                      setActiveSection("Variants");
+                      setActiveSection("Variants & Attributes");
                       onSubmit(data);
                     })}
                     disabled={isSubmitting}
@@ -974,8 +1055,15 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                     <Save className="h-4 w-4 mr-1" />
                     Save
                   </Button>
-                  <Button type="button" onClick={() => setActiveTab("attributes")}>
-                    Next: Attributes
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Product"
+                    )}
                   </Button>
                 </div>
               </div>
