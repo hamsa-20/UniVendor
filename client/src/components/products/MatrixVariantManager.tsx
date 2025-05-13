@@ -454,24 +454,43 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
   };
 
   // Function to handle S3 image upload success
-  const handleImageUploadSuccess = (fileData: { url: string }) => {
-    setCurrentImages([...currentImages, fileData.url]);
-    
-    toast({
-      title: "Image uploaded",
-      description: "Image has been uploaded successfully"
-    });
+  const handleImageUploadSuccess = (fileData: { url: string; key: string; mimetype: string; size: number }) => {
+    // Check if fileData contains the url property
+    if (fileData && fileData.url) {
+      setCurrentImages([...currentImages, fileData.url]);
+      
+      toast({
+        title: "Image uploaded",
+        description: "Image has been uploaded successfully"
+      });
+    } else {
+      console.error('Upload response missing URL:', fileData);
+      toast({
+        title: "Upload error",
+        description: "The uploaded image URL was not received correctly",
+        variant: "destructive"
+      });
+    }
   };
 
   // Function to handle S3 multiple images upload success
-  const handleMultipleImagesUploadSuccess = (data: { files: { url: string }[] }) => {
-    const newUrls = data.files.map(file => file.url);
-    setCurrentImages([...currentImages, ...newUrls]);
-    
-    toast({
-      title: "Images uploaded",
-      description: `${newUrls.length} images have been uploaded successfully`
-    });
+  const handleMultipleImagesUploadSuccess = (data: { files: { url: string; key: string; mimetype: string; size: number }[] }) => {
+    if (data && data.files && Array.isArray(data.files)) {
+      const newUrls = data.files.map(file => file.url);
+      setCurrentImages([...currentImages, ...newUrls]);
+      
+      toast({
+        title: "Images uploaded",
+        description: `${newUrls.length} images have been uploaded successfully`
+      });
+    } else {
+      console.error('Multiple upload response missing files array:', data);
+      toast({
+        title: "Upload error",
+        description: "The uploaded images were not received correctly",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -900,7 +919,19 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
               
               <TabsContent value="upload" className="mt-4">
                 <S3FileUpload
-                  onSuccess={handleImageUploadSuccess}
+                  onSuccess={(fileData) => {
+                    // Type guard to ensure we have the right structure
+                    if ('url' in fileData && typeof fileData.url === 'string') {
+                      handleImageUploadSuccess(fileData as any);
+                    } else {
+                      console.error('Unexpected fileData structure:', fileData);
+                      toast({
+                        title: "Upload error",
+                        description: "The upload response was in an unexpected format",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
                   endpoint="upload/product-image"
                   accept="image/*"
                   buttonText="Upload Image"
@@ -914,7 +945,19 @@ export const MatrixVariantManager: React.FC<MatrixVariantManagerProps> = ({
                   </p>
                   
                   <S3FileUpload
-                    onSuccess={handleMultipleImagesUploadSuccess}
+                    onSuccess={(fileData) => {
+                      // Type guard to ensure we have the right structure
+                      if ('files' in fileData && Array.isArray(fileData.files)) {
+                        handleMultipleImagesUploadSuccess(fileData as any);
+                      } else {
+                        console.error('Unexpected fileData structure for multiple upload:', fileData);
+                        toast({
+                          title: "Upload error",
+                          description: "The multiple upload response was in an unexpected format",
+                          variant: "destructive"
+                        });
+                      }
+                    }}
                     endpoint="upload/multiple"
                     accept="image/*"
                     buttonText="Upload Multiple Images"
