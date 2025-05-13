@@ -56,6 +56,9 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
   const [tag, setTag] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [generatedVariants, setGeneratedVariants] = useState<any[]>([]);
   const { user } = useAuth() || {};
   const { toast } = useToast();
 
@@ -1069,63 +1072,7 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
               </div>
             </TabsContent>
             
-            <TabsContent value="attributes" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Product Attributes</CardTitle>
-                  <CardDescription>
-                    Define product-specific attributes for better organization
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center space-y-3">
-                      <Tag className="h-12 w-12 text-muted-foreground/40 mx-auto" />
-                      <h3 className="text-lg font-medium">No Attributes Defined</h3>
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        You can define product-specific attributes like color, size, material, etc.
-                        in the Variants tab after saving the product.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <div className="flex justify-between">
-                <Button type="button" variant="outline" onClick={() => setActiveTab("variants")}>
-                  Previous: Variants
-                </Button>
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    className="gap-1" 
-                    onClick={form.handleSubmit((data) => {
-                      setActiveSection("Attributes");
-                      onSubmit(data);
-                    })}
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    <Save className="h-4 w-4 mr-1" />
-                    Save
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        {isEditing ? "Update Product" : "Create Product"}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </TabsContent>
+
           </Tabs>
         </div>
       </form>
