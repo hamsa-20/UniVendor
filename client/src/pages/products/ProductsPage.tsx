@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Package, Search, FolderTree, PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import ProductForm from '@/components/products/ProductForm';
 
 const ProductsPage = () => {
   const { user } = useAuth();
@@ -75,7 +76,7 @@ const ProductsPage = () => {
               Create a new product for your store
             </DialogDescription>
           </DialogHeader>
-          {/* We'll import and use our new product form component here */}
+          <ProductForm isEditing={false} />
         </DialogContent>
       </Dialog>
       
@@ -94,7 +95,10 @@ const ProductsPage = () => {
                 Update your product details
               </DialogDescription>
             </DialogHeader>
-            {/* We'll use our product edit form component here */}
+            <ProductForm 
+              product={products?.find(p => p.id === selectedProductId)} 
+              isEditing={true} 
+            />
           </DialogContent>
         </Dialog>
       )}
