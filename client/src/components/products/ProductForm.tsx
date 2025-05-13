@@ -958,11 +958,21 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                                 {['Red', 'Blue', 'Green', 'Black', 'White'].map((color) => (
                                   <Badge 
                                     key={color}
-                                    variant="outline"
+                                    variant={selectedColors.includes(color) ? "default" : "outline"}
                                     className="cursor-pointer hover:bg-secondary"
+                                    onClick={() => {
+                                      if (selectedColors.includes(color)) {
+                                        setSelectedColors(selectedColors.filter(c => c !== color));
+                                      } else {
+                                        setSelectedColors([...selectedColors, color]);
+                                      }
+                                    }}
                                   >
                                     {color}
-                                    <span className="ml-1 text-xs">+</span>
+                                    {selectedColors.includes(color) ? 
+                                      <X className="ml-1 h-3 w-3" /> : 
+                                      <Plus className="ml-1 h-3 w-3" />
+                                    }
                                   </Badge>
                                 ))}
                                 <Badge variant="outline" className="cursor-pointer bg-secondary">
@@ -976,11 +986,21 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                                 {['S', 'M', 'L', 'XL', 'XXL'].map((size) => (
                                   <Badge 
                                     key={size}
-                                    variant="outline"
+                                    variant={selectedSizes.includes(size) ? "default" : "outline"}
                                     className="cursor-pointer hover:bg-secondary"
+                                    onClick={() => {
+                                      if (selectedSizes.includes(size)) {
+                                        setSelectedSizes(selectedSizes.filter(s => s !== size));
+                                      } else {
+                                        setSelectedSizes([...selectedSizes, size]);
+                                      }
+                                    }}
                                   >
                                     {size}
-                                    <span className="ml-1 text-xs">+</span>
+                                    {selectedSizes.includes(size) ? 
+                                      <X className="ml-1 h-3 w-3" /> : 
+                                      <Plus className="ml-1 h-3 w-3" />
+                                    }
                                   </Badge>
                                 ))}
                                 <Badge variant="outline" className="cursor-pointer bg-secondary">
@@ -1000,7 +1020,53 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                                 Generate all possible combinations of colors and sizes as product variants.
                               </p>
                               <div className="flex items-center space-x-2 mb-4">
-                                <Button type="button" className="w-full">
+                                <Button 
+                                  type="button" 
+                                  className="w-full"
+                                  onClick={() => {
+                                    if (selectedColors.length === 0 || selectedSizes.length === 0) {
+                                      toast({
+                                        title: "Cannot generate variants",
+                                        description: "Please select at least one color and one size",
+                                        variant: "destructive"
+                                      });
+                                      return;
+                                    }
+                                    
+                                    // Generate all combinations of colors and sizes
+                                    const variants = [];
+                                    const basePrice = form.getValues("sellingPrice") || 0;
+                                    const baseSku = form.getValues("sku") || 
+                                      (form.getValues("name") ? form.getValues("name").substring(0, 3).toUpperCase() : "PRD");
+                                      
+                                    for (const color of selectedColors) {
+                                      for (const size of selectedSizes) {
+                                        const variant = {
+                                          id: Math.random().toString(36).substring(2, 9), // Temporary ID
+                                          color: color,
+                                          size: size,
+                                          sku: `${baseSku}-${color.substring(0, 1)}${size}`,
+                                          sellingPrice: basePrice,
+                                          mrp: basePrice * 1.2, // Example markup
+                                          purchasePrice: basePrice * 0.7, // Example cost
+                                          gst: 18, // Default GST
+                                          inventoryQuantity: 10, // Default inventory
+                                          images: [],
+                                          imageUrl: null
+                                        };
+                                        variants.push(variant);
+                                      }
+                                    }
+                                    
+                                    setGeneratedVariants(variants);
+                                    
+                                    toast({
+                                      title: "Variants generated",
+                                      description: `Created ${variants.length} variants from your selection`
+                                    });
+                                  }}
+                                  disabled={selectedColors.length === 0 || selectedSizes.length === 0}
+                                >
                                   Generate Variant Matrix
                                 </Button>
                               </div>
@@ -1016,12 +1082,81 @@ const ProductForm = ({ product, isEditing = false }: ProductFormProps) => {
                       <div>
                         <h3 className="text-md font-medium mb-4">Step 3: Manage Generated Variants</h3>
                         <div className="border rounded-md p-4">
-                          <div className="text-center py-6">
-                            <Package className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                            <p className="text-sm text-muted-foreground">
-                              No variants generated yet. Use the "Generate Variant Matrix" button above to create variants.
-                            </p>
-                          </div>
+                          {generatedVariants.length > 0 ? (
+                            <div className="space-y-4">
+                              <div className="flex justify-between mb-2">
+                                <h4 className="text-sm font-medium">
+                                  {generatedVariants.length} Variants Generated
+                                </h4>
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => setGeneratedVariants([])}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Clear All
+                                </Button>
+                              </div>
+                              
+                              <div className="border rounded-md overflow-auto max-h-64">
+                                <table className="w-full min-w-[600px]">
+                                  <thead>
+                                    <tr className="bg-muted">
+                                      <th className="text-left p-2 text-xs font-medium">Color</th>
+                                      <th className="text-left p-2 text-xs font-medium">Size</th>
+                                      <th className="text-left p-2 text-xs font-medium">SKU</th>
+                                      <th className="text-right p-2 text-xs font-medium">Price</th>
+                                      <th className="text-right p-2 text-xs font-medium">Inventory</th>
+                                      <th className="text-center p-2 text-xs font-medium">Actions</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {generatedVariants.map((variant, index) => (
+                                      <tr key={variant.id} className={index % 2 === 0 ? "bg-white" : "bg-muted/20"}>
+                                        <td className="p-2 text-sm">
+                                          <Badge variant="outline" className="bg-white">
+                                            {variant.color}
+                                          </Badge>
+                                        </td>
+                                        <td className="p-2 text-sm">
+                                          <Badge variant="outline" className="bg-white">
+                                            {variant.size}
+                                          </Badge>
+                                        </td>
+                                        <td className="p-2 text-sm font-mono text-xs">{variant.sku}</td>
+                                        <td className="p-2 text-sm text-right">${variant.sellingPrice.toFixed(2)}</td>
+                                        <td className="p-2 text-sm text-right">{variant.inventoryQuantity}</td>
+                                        <td className="p-2 text-sm text-center">
+                                          <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            className="h-8 w-8"
+                                            onClick={() => {
+                                              setGeneratedVariants(generatedVariants.filter(v => v.id !== variant.id));
+                                              toast({
+                                                title: "Variant removed",
+                                                description: `${variant.color} / ${variant.size} has been removed`
+                                              });
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-center py-6">
+                              <Package className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
+                              <p className="text-sm text-muted-foreground">
+                                No variants generated yet. Use the "Generate Variant Matrix" button above to create variants.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
