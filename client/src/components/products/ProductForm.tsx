@@ -363,13 +363,13 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
   }
 
   return (
-    <Card className="overflow-visible">
+    <Card className="overflow-visible relative pb-24">
       <CardHeader>
         <CardTitle>{productId ? 'Edit Product' : 'Add New Product'}</CardTitle>
       </CardHeader>
-      <CardContent className="overflow-visible">
+      <CardContent className="overflow-visible pb-20">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-visible">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 overflow-visible relative">
             <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-5 sticky top-0 z-10 bg-background">
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
@@ -1179,6 +1179,27 @@ const ProductForm = ({ productId, onSuccess }: ProductFormProps) => {
                 </TabsContent>
               </div>
             </Tabs>
+            
+            {/* Sticky Save Button Footer */}
+            <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 shadow-md z-20 flex justify-between">
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={saveAsDraft}
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save as Draft
+              </Button>
+              
+              <Button
+                type="submit"
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {productId ? 'Update Product' : 'Create Product'}
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
