@@ -1150,6 +1150,10 @@ export default function EnhancedProductForm({
                               sellingPrice: form.watch("sellingPrice") || "0",
                               gst: form.watch("gst") || undefined
                             }}
+                            initialAttributes={{
+                              colors: selectedColors,
+                              sizes: selectedSizes
+                            }}
                             onClose={() => {
                               setShowVariantManager(false);
                               // Refresh variants data when the manager is closed

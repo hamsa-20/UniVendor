@@ -64,15 +64,22 @@ interface ProductProps {
   [key: string]: any;
 }
 
+interface InitialAttributes {
+  colors?: string[];
+  sizes?: string[];
+}
+
 interface EnhancedVariantManagerProps {
   product: ProductProps;
   initialVariant?: MatrixVariant | null;
+  initialAttributes?: InitialAttributes;
   onClose: () => void;
 }
 
 const EnhancedVariantManager = ({
   product,
   initialVariant = null,
+  initialAttributes,
   onClose
 }: EnhancedVariantManagerProps) => {
   const [attributes, setAttributes] = useState<Attribute[]>([]);
@@ -90,7 +97,7 @@ const EnhancedVariantManager = ({
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Initialize with initialVariant if provided (editing mode)
+  // Initialize with initialVariant if provided (editing mode) or initialAttributes if provided
   useEffect(() => {
     if (initialVariant) {
       setIsEditMode(true);
@@ -121,8 +128,37 @@ const EnhancedVariantManager = ({
       
       setAttributes(attributesFromVariant);
       setVariants([initialVariant]);
+    } else if (initialAttributes) {
+      // If we have preselected colors/sizes from the product form
+      const attributesFromSelection: Attribute[] = [];
+      
+      // Add colors if provided
+      if (initialAttributes.colors && initialAttributes.colors.length > 0) {
+        attributesFromSelection.push({
+          name: "Color",
+          values: initialAttributes.colors,
+          isColor: true
+        });
+      }
+      
+      // Add sizes if provided
+      if (initialAttributes.sizes && initialAttributes.sizes.length > 0) {
+        attributesFromSelection.push({
+          name: "Size",
+          values: initialAttributes.sizes
+        });
+      }
+      
+      if (attributesFromSelection.length > 0) {
+        setAttributes(attributesFromSelection);
+        
+        // Auto-switch to the matrix tab if both attributes are set
+        if (initialAttributes.colors?.length && initialAttributes.sizes?.length) {
+          setActiveTab("matrix");
+        }
+      }
     }
-  }, [initialVariant]);
+  }, [initialVariant, initialAttributes]);
 
   // Save mutation
   const saveMutation = useMutation({
