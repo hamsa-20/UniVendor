@@ -636,16 +636,27 @@ const EnhancedVariantManager = ({
                   </div>
                 </div>
                 
-                <div className="rounded-md p-3 bg-blue-50 border border-blue-100 text-blue-800 text-sm">
-                  <p>
-                    <strong>Note:</strong> After generating variants, you'll be able to:
-                  </p>
-                  <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>Edit each variant individually</li>
-                    <li>Bulk edit multiple variants at once</li>
-                    <li>Upload images for each variant</li>
-                    <li>Set default variant for product page</li>
-                  </ul>
+                <div className="flex flex-col gap-4">
+                  <Button 
+                    className="w-full py-6 text-lg font-medium"
+                    onClick={generateVariants}
+                    disabled={!attributes.some(a => a.name === "Color" && a.values.length > 0) || 
+                             !attributes.some(a => a.name === "Size" && a.values.length > 0)}
+                  >
+                    Generate {attributes.find(a => a.name === "Color")?.values.length || 0} × {attributes.find(a => a.name === "Size")?.values.length || 0} Variants
+                  </Button>
+                  
+                  <div className="rounded-md p-3 bg-blue-50 border border-blue-100 text-blue-800 text-sm">
+                    <p>
+                      <strong>Note:</strong> After generating variants, you'll be able to:
+                    </p>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>Edit each variant individually</li>
+                      <li>Bulk edit multiple variants at once</li>
+                      <li>Upload images for each variant</li>
+                      <li>Set default variant for product page</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
