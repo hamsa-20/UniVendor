@@ -41,7 +41,7 @@ import ProductImageUploader from "./ProductImageUploader";
 import ProductTagsInput from "./ProductTagsInput";
 import ProductFormStepNav from "./ProductFormStepNav";
 import ProductFormStepSummary, { defaultProductFormSteps } from "./ProductFormStepSummary";
-import MatrixVariantManager from "../MatrixVariantManager";
+import EnhancedVariantManager from "./EnhancedVariantManager";
 
 interface EnhancedProductFormProps {
   productId?: number;
