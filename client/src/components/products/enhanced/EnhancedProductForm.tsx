@@ -205,7 +205,7 @@ export default function EnhancedProductForm({
         onSuccess();
       } else if (!isEditing) {
         // Navigate to the edit page for the newly created product
-        navigate(`/products/${result.id}`);
+        setLocation(`/products/${result.id}`);
       }
     },
     onError: (error) => {
