@@ -7,8 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Package, Search, FolderTree, PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import ProductForm from '@/components/products/ProductForm';
+import EnhancedProductDialog from '@/components/products/enhanced/EnhancedProductDialog';
 
 const ProductsPage = () => {
   const { user } = useAuth();
@@ -68,39 +67,22 @@ const ProductsPage = () => {
       </div>
       
       {/* Add Product Dialog */}
-      <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
-            <DialogDescription>
-              Create a new product for your store
-            </DialogDescription>
-          </DialogHeader>
-          <ProductForm isEditing={false} />
-        </DialogContent>
-      </Dialog>
+      <EnhancedProductDialog
+        open={isAddProductOpen}
+        onOpenChange={setIsAddProductOpen}
+        title="Add New Product"
+      />
       
       {/* Edit Product Dialog */}
       {selectedProductId && (
-        <Dialog 
-          open={!!selectedProductId} 
+        <EnhancedProductDialog
+          open={!!selectedProductId}
           onOpenChange={(open) => {
             if (!open) setSelectedProductId(undefined);
           }}
-        >
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Edit Product</DialogTitle>
-              <DialogDescription>
-                Update your product details
-              </DialogDescription>
-            </DialogHeader>
-            <ProductForm 
-              product={products?.find(p => p.id === selectedProductId)} 
-              isEditing={true} 
-            />
-          </DialogContent>
-        </Dialog>
+          productId={selectedProductId}
+          title="Edit Product"
+        />
       )}
       
       {isLoading ? (

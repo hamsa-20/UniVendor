@@ -32,8 +32,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Helmet } from "react-helmet";
-import ProductForm from "@/components/products/ProductForm";
 import ProductVariantsTab from "@/components/products/ProductVariantsTab";
+import EnhancedProductForm from "@/components/products/enhanced/EnhancedProductForm";
 
 interface ProductDetailsProps {
   id: string;
@@ -160,7 +160,12 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
         </TabsList>
         
         <TabsContent value="general" className="space-y-6">
-          <ProductForm product={product} isEditing={true} />
+          <EnhancedProductForm productId={parseInt(id)} onSuccess={() => {
+            toast({
+              title: "Success",
+              description: "Product updated successfully",
+            });
+          }} />
         </TabsContent>
         
         <TabsContent value="variants" className="space-y-6">

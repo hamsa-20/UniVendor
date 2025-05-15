@@ -59,7 +59,7 @@ export default function EnhancedProductForm({
   const [variants, setVariants] = useState<any[]>([]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [_, navigate] = useNavigate();
+  const [, setLocation] = useLocation();
   const { user } = useAuth();
   
   const isEditing = !!productId;
