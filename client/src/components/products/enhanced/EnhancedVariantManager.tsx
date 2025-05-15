@@ -23,7 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Save, X, AlertCircle } from "lucide-react";
+import { Loader2, Save, X, AlertCircle, ImagePlus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { 
   Table, 
@@ -385,8 +385,28 @@ const EnhancedVariantManager = ({
           updated.mrp = bulkEditData.mrp || null;
         }
         
+        if (bulkEditData.gst !== undefined) {
+          updated.gst = bulkEditData.gst || null;
+        }
+        
+        if (bulkEditData.purchasePrice !== undefined) {
+          updated.purchasePrice = bulkEditData.purchasePrice || null;
+        }
+        
         if (bulkEditData.inventoryQuantity !== undefined) {
           updated.inventoryQuantity = bulkEditData.inventoryQuantity || 0;
+        }
+        
+        if (bulkEditData.sku !== undefined) {
+          updated.sku = bulkEditData.sku || null;
+        }
+        
+        if (bulkEditData.barcode !== undefined) {
+          updated.barcode = bulkEditData.barcode || null;
+        }
+        
+        if (bulkEditData.weight !== undefined) {
+          updated.weight = bulkEditData.weight || null;
         }
         
         return updated;
@@ -700,6 +720,34 @@ const EnhancedVariantManager = ({
                       />
                     </div>
                     <div>
+                      <Label htmlFor="bulk-purchase-price">Purchase Price</Label>
+                      <Input
+                        id="bulk-purchase-price"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="e.g. 12.99"
+                        value={bulkEditData.purchasePrice || ""}
+                        onChange={(e) => setBulkEditData({
+                          ...bulkEditData,
+                          purchasePrice: e.target.value
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="bulk-gst">GST %</Label>
+                      <Input
+                        id="bulk-gst"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="e.g. 18"
+                        value={bulkEditData.gst || ""}
+                        onChange={(e) => setBulkEditData({
+                          ...bulkEditData,
+                          gst: e.target.value
+                        })}
+                      />
+                    </div>
+                    <div>
                       <Label htmlFor="bulk-inventory">Inventory</Label>
                       <Input
                         id="bulk-inventory"
@@ -709,6 +757,18 @@ const EnhancedVariantManager = ({
                         onChange={(e) => setBulkEditData({
                           ...bulkEditData,
                           inventoryQuantity: parseInt(e.target.value) || 0
+                        })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="bulk-sku">SKU</Label>
+                      <Input
+                        id="bulk-sku"
+                        placeholder="e.g. PRODUCT-001"
+                        value={bulkEditData.sku || ""}
+                        onChange={(e) => setBulkEditData({
+                          ...bulkEditData,
+                          sku: e.target.value
                         })}
                       />
                     </div>
