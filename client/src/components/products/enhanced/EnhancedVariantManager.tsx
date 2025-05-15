@@ -34,6 +34,7 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import VariantAttributesManager, { Attribute } from "./VariantAttributesManager";
+import MatrixVariantGenerator from "./MatrixVariantGenerator";
 
 interface MatrixVariant {
   id: string | number;
@@ -407,9 +408,30 @@ const EnhancedVariantManager = ({
           
           {/* Attributes Tab */}
           <TabsContent value="attributes">
-            <VariantAttributesManager 
-              attributes={attributes}
-              onChange={setAttributes}
+            {/* Use our modern matrix variant generator */}
+            <MatrixVariantGenerator
+              colorValues={(attributes.find(a => a.name === "Color")?.values || [])}
+              sizeValues={(attributes.find(a => a.name === "Size")?.values || [])}
+              onColorValuesChange={(values) => {
+                const updatedAttributes = [...attributes];
+                const colorIndex = updatedAttributes.findIndex(a => a.name === "Color");
+                if (colorIndex >= 0) {
+                  updatedAttributes[colorIndex].values = values;
+                } else {
+                  updatedAttributes.push({ name: "Color", values, isColor: true });
+                }
+                setAttributes(updatedAttributes);
+              }}
+              onSizeValuesChange={(values) => {
+                const updatedAttributes = [...attributes];
+                const sizeIndex = updatedAttributes.findIndex(a => a.name === "Size");
+                if (sizeIndex >= 0) {
+                  updatedAttributes[sizeIndex].values = values;
+                } else {
+                  updatedAttributes.push({ name: "Size", values });
+                }
+                setAttributes(updatedAttributes);
+              }}
               onGenerateVariants={generateVariants}
             />
             
