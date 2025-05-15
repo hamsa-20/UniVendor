@@ -9,6 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
+// Helper function to format currency
+const formatCurrency = (value: string | number) => {
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(numValue)) return '₹0.00';
+  return `₹${numValue.toFixed(2)}`;
+};
+
 // UI Components
 import {
   Form,
@@ -899,6 +906,7 @@ export default function EnhancedProductForm({
                     
                     {watchHasVariants ? (
                       <div className="space-y-4">
+                        {/* Guide Box */}
                         <div className="rounded-md bg-primary/5 p-4 border border-primary/10">
                           <div className="flex items-start gap-3">
                             <Info className="w-5 h-5 text-primary mt-0.5" />
@@ -920,92 +928,90 @@ export default function EnhancedProductForm({
                             </div>
                           </div>
                         </div>
-                        {productId && (
-                          <div>
-                            {variants.length > 0 ? (
-                              <div className="space-y-4">
-                                <div className="rounded-md bg-muted p-3">
-                                  <div className="font-medium mb-1">Current Variants</div>
-                                  <p className="text-sm text-muted-foreground">
-                                    You have {variants.length} variant{variants.length !== 1 ? 's' : ''} defined for this product.
-                                  </p>
-                                </div>
-                                
-                                <div className="border rounded-md overflow-hidden">
-                                  <table className="w-full">
-                                    <thead className="bg-muted">
-                                      <tr>
-                                        <th className="px-4 py-2 text-left text-sm font-medium">Variant</th>
-                                        <th className="px-4 py-2 text-left text-sm font-medium">Price</th>
-                                        <th className="px-4 py-2 text-left text-sm font-medium">Stock</th>
-                                        <th className="px-4 py-2 text-left text-sm font-medium">SKU</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {variants.slice(0, 5).map((variant: any, index: number) => (
-                                        <tr key={index} className="border-t">
-                                          <td className="px-4 py-2">
-                                            <div className="flex items-center gap-2">
-                                              {variant.imageUrl && (
-                                                <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
-                                                  <img 
-                                                    src={variant.imageUrl} 
-                                                    alt={`${variant.color} ${variant.size}`}
-                                                    className="w-full h-full object-cover"
-                                                  />
-                                                </div>
-                                              )}
-                                              <span>
-                                                {variant.color}, {variant.size}
-                                              </span>
-                                            </div>
-                                          </td>
-                                          <td className="px-4 py-2">₹{variant.sellingPrice}</td>
-                                          <td className="px-4 py-2">{variant.inventoryQuantity}</td>
-                                          <td className="px-4 py-2">{variant.sku || '-'}</td>
-                                        </tr>
-                                      ))}
-                                      {variants.length > 5 && (
-                                        <tr className="border-t">
-                                          <td colSpan={4} className="px-4 py-2 text-center text-sm text-muted-foreground">
-                                            +{variants.length - 5} more variants
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() => setShowVariantManager(true)}
-                                >
-                                  Manage Variants
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center justify-center p-8 border rounded-md border-dashed">
-                                <Package className="h-12 w-12 text-muted-foreground/40 mb-4" />
-                                <p className="text-muted-foreground mb-4">No variants have been created yet</p>
-                                <Button 
-                                  type="button"
-                                  onClick={() => setShowVariantManager(true)}
-                                >
-                                  Create Variants
-                                </Button>
-                              </div>
-                            )}
-                            
-                            {/* Variant Manager Dialog */}
-                            {showVariantManager && productId && (
-                              <EnhancedVariantManager
-                                product={{ id: productId, name: form.watch("name") }}
-                                onClose={() => setShowVariantManager(false)}
-                              />
-                            )}
-                          </div>
+                        
+                        {/* Variant Manager Dialog */}
+                        {showVariantManager && productId && (
+                          <EnhancedVariantManager
+                            product={{ id: productId, name: form.watch("name") }}
+                            onClose={() => setShowVariantManager(false)}
+                          />
                         )}
+                        
+                        {/* Show variants summary if available */}
+                        {productId && variants.length > 0 ? (
+                          <div className="space-y-4">
+                            <div className="rounded-md bg-muted p-3">
+                              <div className="font-medium mb-1">Current Variants</div>
+                              <p className="text-sm text-muted-foreground">
+                                You have {variants.length} variant{variants.length !== 1 ? 's' : ''} defined for this product.
+                              </p>
+                            </div>
+                            
+                            <div className="border rounded-md overflow-hidden">
+                              <table className="w-full">
+                                <thead className="bg-muted">
+                                  <tr>
+                                    <th className="px-4 py-2 text-left text-sm font-medium">Variant</th>
+                                    <th className="px-4 py-2 text-left text-sm font-medium">Price</th>
+                                    <th className="px-4 py-2 text-left text-sm font-medium">Stock</th>
+                                    <th className="px-4 py-2 text-left text-sm font-medium">SKU</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {variants.slice(0, 5).map((variant: any, index: number) => (
+                                    <tr key={index} className="border-t">
+                                      <td className="px-4 py-2">
+                                        <div className="flex items-center gap-2">
+                                          {variant.imageUrl && (
+                                            <div className="w-8 h-8 rounded-md overflow-hidden flex-shrink-0">
+                                              <img 
+                                                src={variant.imageUrl} 
+                                                alt={`${variant.color} ${variant.size}`}
+                                                className="w-full h-full object-cover"
+                                              />
+                                            </div>
+                                          )}
+                                          <span>
+                                            {variant.color}, {variant.size}
+                                          </span>
+                                        </div>
+                                      </td>
+                                      <td className="px-4 py-2">{formatCurrency(variant.sellingPrice)}</td>
+                                      <td className="px-4 py-2">{variant.inventoryQuantity}</td>
+                                      <td className="px-4 py-2">{variant.sku || '-'}</td>
+                                    </tr>
+                                  ))}
+                                  {variants.length > 5 && (
+                                    <tr className="border-t">
+                                      <td colSpan={4} className="px-4 py-2 text-center text-sm text-muted-foreground">
+                                        +{variants.length - 5} more variants
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                            
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setShowVariantManager(true)}
+                            >
+                              Manage Variants
+                            </Button>
+                          </div>
+                        ) : productId ? (
+                          <div className="flex flex-col items-center justify-center p-8 border rounded-md border-dashed">
+                            <Package className="h-12 w-12 text-muted-foreground/40 mb-4" />
+                            <p className="text-muted-foreground mb-4">No variants have been created yet</p>
+                            <Button 
+                              type="button"
+                              onClick={() => setShowVariantManager(true)}
+                            >
+                              Create Variants
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="rounded-md bg-muted p-4">
