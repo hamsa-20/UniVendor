@@ -914,7 +914,7 @@ export default function EnhancedProductForm({
                               <p className="text-sm text-muted-foreground">
                                 {!productId 
                                   ? "Save this product first, then you can create variants with different colors, sizes, and other attributes."
-                                  : "Click the button below to create or manage variants with different colors, sizes, and other attributes."
+                                  : "Click the button below to create variants using our matrix generator. You can add multiple colors and sizes to automatically create all combinations."
                                 }
                               </p>
                               <Button 
@@ -923,7 +923,7 @@ export default function EnhancedProductForm({
                                 onClick={() => setShowVariantManager(true)}
                                 disabled={!productId}
                               >
-                                {!productId ? "Save Product First" : "Manage Variants"}
+                                {!productId ? "Save Product First" : "Create Variant Matrix"}
                               </Button>
                             </div>
                           </div>
@@ -932,8 +932,18 @@ export default function EnhancedProductForm({
                         {/* Variant Manager Dialog */}
                         {showVariantManager && productId && (
                           <EnhancedVariantManager
-                            product={{ id: productId, name: form.watch("name") }}
-                            onClose={() => setShowVariantManager(false)}
+                            product={{ 
+                              id: productId, 
+                              name: form.watch("name"),
+                              sku: form.watch("sku") || undefined,
+                              sellingPrice: form.watch("sellingPrice") || "0",
+                              gst: form.watch("gst") || undefined
+                            }}
+                            onClose={() => {
+                              setShowVariantManager(false);
+                              // Refresh variants data when the manager is closed
+                              queryClient.invalidateQueries({ queryKey: ['/api/products', productId, 'variants'] });
+                            }}
                           />
                         )}
                         

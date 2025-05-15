@@ -209,8 +209,39 @@ const EnhancedVariantManager = ({
     // Create the product variants matrix
     const generatedVariants: MatrixVariant[] = [];
     
+    // Create a base SKU from product information
+    const baseSkuParts = [];
+    if (product.sku) {
+      baseSkuParts.push(product.sku);
+    } else if (product.name) {
+      // Create an abbreviation from product name (first letter of each word, max 3 chars)
+      const nameAbbrev = product.name
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .join('')
+        .substring(0, 3);
+      baseSkuParts.push(nameAbbrev);
+    } else {
+      baseSkuParts.push("PROD");
+    }
+    
+    const baseSku = baseSkuParts.join('-');
+    
+    // Use product's selling price as default if available
+    const defaultSellingPrice = product.sellingPrice || "0";
+    const defaultGst = product.gst || "18";
+    
+    let isFirstVariant = true;
+    
     for (const color of colorAttr.values) {
       for (const size of sizeAttr.values) {
+        // Create color and size codes for SKU generation
+        const colorCode = color.substring(0, 3).toUpperCase();
+        const sizeCode = size.toUpperCase();
+        
+        // Generate SKU in format: BASE-COLOR-SIZE (e.g., TSH-RED-XL)
+        const sku = `${baseSku}-${colorCode}-${sizeCode}`.replace(/\s+/g, '-');
+        
         // Prepare the attributes record
         const variantAttributes: Record<string, string> = { 
           "Color": color,
@@ -234,14 +265,14 @@ const EnhancedVariantManager = ({
           color,
           size,
           purchasePrice: null,
-          sellingPrice: "0",
+          sellingPrice: defaultSellingPrice,
           mrp: null,
-          gst: "18",
-          sku: `${product.sku || product.name?.substring(0, 3).toUpperCase() || "PROD"}-${color}-${size}`.replace(/\s+/g, '-'),
+          gst: defaultGst,
+          sku: sku,
           barcode: null,
           weight: null,
           inventoryQuantity: 10,
-          isDefault: false,
+          isDefault: isFirstVariant, // Set first variant as default
           productId: product.id,
           imageUrl: null,
           attributes: variantAttributes,
@@ -249,6 +280,8 @@ const EnhancedVariantManager = ({
           position: null,
           updatedAt: null
         });
+        
+        isFirstVariant = false;
       }
     }
     
