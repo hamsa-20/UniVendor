@@ -899,25 +899,28 @@ export default function EnhancedProductForm({
                     
                     {watchHasVariants ? (
                       <div className="space-y-4">
-                        {!productId && !showVariantManager ? (
-                          <div className="rounded-md bg-primary/5 p-4 border border-primary/10">
-                            <div className="flex items-start gap-3">
-                              <Info className="w-5 h-5 text-primary mt-0.5" />
-                              <div>
-                                <p className="text-sm text-muted-foreground">
-                                  To create variants, you need to save the product first. Click "Generate Variants" below to continue.
-                                </p>
-                                <Button 
-                                  type="button" 
-                                  className="mt-3"
-                                  onClick={() => setShowVariantManager(true)}
-                                >
-                                  Generate Variants
-                                </Button>
-                              </div>
+                        <div className="rounded-md bg-primary/5 p-4 border border-primary/10">
+                          <div className="flex items-start gap-3">
+                            <Info className="w-5 h-5 text-primary mt-0.5" />
+                            <div>
+                              <p className="text-sm text-muted-foreground">
+                                {!productId 
+                                  ? "Save this product first, then you can create variants with different colors, sizes, and other attributes."
+                                  : "Click the button below to create or manage variants with different colors, sizes, and other attributes."
+                                }
+                              </p>
+                              <Button 
+                                type="button" 
+                                className="mt-3"
+                                onClick={() => setShowVariantManager(true)}
+                                disabled={!productId}
+                              >
+                                {!productId ? "Save Product First" : "Manage Variants"}
+                              </Button>
                             </div>
                           </div>
-                        ) : (
+                        </div>
+                        {productId && (
                           <div>
                             {variants.length > 0 ? (
                               <div className="space-y-4">
