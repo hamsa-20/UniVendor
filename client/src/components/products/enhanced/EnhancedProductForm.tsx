@@ -996,7 +996,7 @@ export default function EnhancedProductForm({
                             
                             {/* Variant Manager Dialog */}
                             {showVariantManager && productId && (
-                              <MatrixVariantManager
+                              <EnhancedVariantManager
                                 product={{ id: productId, name: form.watch("name") }}
                                 onClose={() => setShowVariantManager(false)}
                               />

@@ -1,46 +1,11 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Plus, X, CheckCircle2 } from "lucide-react";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-// Predefined color options with hex values
-const PREDEFINED_COLORS = [
-  { name: "Red", value: "#FF0000" },
-  { name: "Blue", value: "#0000FF" },
-  { name: "Green", value: "#008000" },
-  { name: "Yellow", value: "#FFFF00" },
-  { name: "Black", value: "#000000" },
-  { name: "White", value: "#FFFFFF" },
-  { name: "Gray", value: "#808080" },
-  { name: "Purple", value: "#800080" },
-  { name: "Orange", value: "#FFA500" },
-  { name: "Pink", value: "#FFC0CB" },
-  { name: "Brown", value: "#A52A2A" },
-];
-
-// Predefined size options
-const PREDEFINED_SIZES = [
-  "XS", "S", "M", "L", "XL", "XXL", "XXXL", 
-  "2", "4", "6", "8", "10", "12", "14", "16"
-];
+import { AlertCircle, Plus, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type Attribute = {
   name: string;
@@ -59,10 +24,9 @@ const VariantAttributesManager = ({
   onChange,
   onGenerateVariants
 }: VariantAttributesManagerProps) => {
-  const [newAttributeName, setNewAttributeName] = useState("");
-  const [newAttributeValue, setNewAttributeValue] = useState("");
-  const [selectedAttributeIndex, setSelectedAttributeIndex] = useState<number | null>(null);
-  const [customValueInput, setCustomValueInput] = useState("");
+  const [newValue, setNewValue] = useState("");
+  const [newCustomAttr, setNewCustomAttr] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Initialize with default attributes if none provided
   useEffect(() => {
@@ -72,255 +36,352 @@ const VariantAttributesManager = ({
         { name: "Size", values: [] }
       ]);
     }
-  }, []);
+  }, [attributes, onChange]);
 
-  const addAttribute = () => {
-    if (!newAttributeName.trim()) return;
-    
-    // Check if attribute already exists
-    if (attributes.some(attr => attr.name.toLowerCase() === newAttributeName.toLowerCase())) {
+  const colorAttr = attributes.find(attr => attr.name === "Color") || { values: [] };
+  const sizeAttr = attributes.find(attr => attr.name === "Size") || { values: [] };
+
+  // Helper to get other custom attributes
+  const customAttributes = attributes.filter(attr => 
+    attr.name !== "Color" && attr.name !== "Size"
+  );
+
+  // Add a value to an attribute
+  const addAttributeValue = (attributeName: string, value: string) => {
+    if (!value.trim()) {
+      setErrors({ ...errors, [attributeName]: "Value cannot be empty" });
       return;
     }
-    
-    const isColor = newAttributeName.toLowerCase() === "color";
-    onChange([...attributes, { name: newAttributeName, values: [], isColor }]);
-    setNewAttributeName("");
-  };
 
-  const removeAttribute = (index: number) => {
-    const newAttributes = [...attributes];
-    newAttributes.splice(index, 1);
-    onChange(newAttributes);
-    
-    if (selectedAttributeIndex === index) {
-      setSelectedAttributeIndex(null);
+    // Find the attribute in the current attributes
+    const attrIndex = attributes.findIndex(attr => attr.name === attributeName);
+    if (attrIndex === -1) return;
+
+    // Check for duplicates (case-insensitive)
+    const trimmedValue = value.trim();
+    if (attributes[attrIndex].values.some(v => 
+      v.toLowerCase() === trimmedValue.toLowerCase()
+    )) {
+      setErrors({ ...errors, [attributeName]: "Value already exists" });
+      return;
     }
+
+    // Update the attribute values
+    const updatedAttributes = [...attributes];
+    updatedAttributes[attrIndex].values.push(trimmedValue);
+    onChange(updatedAttributes);
+    setNewValue("");
+    setErrors({ ...errors, [attributeName]: "" });
   };
 
-  const addValueToAttribute = (attrIndex: number, value: string) => {
-    if (!value.trim()) return;
-    
-    const newAttributes = [...attributes];
-    if (!newAttributes[attrIndex].values.includes(value)) {
-      newAttributes[attrIndex].values.push(value);
-      onChange(newAttributes);
+  // Remove a value from an attribute
+  const removeAttributeValue = (attributeName: string, valueIndex: number) => {
+    const attrIndex = attributes.findIndex(attr => attr.name === attributeName);
+    if (attrIndex === -1) return;
+
+    const updatedAttributes = [...attributes];
+    updatedAttributes[attrIndex].values.splice(valueIndex, 1);
+    onChange(updatedAttributes);
+  };
+
+  // Add a new custom attribute
+  const addCustomAttribute = (name: string) => {
+    if (!name.trim()) {
+      setErrors({ ...errors, customAttr: "Attribute name cannot be empty" });
+      return;
     }
-  };
 
-  const removeValueFromAttribute = (attrIndex: number, valueIndex: number) => {
-    const newAttributes = [...attributes];
-    newAttributes[attrIndex].values.splice(valueIndex, 1);
-    onChange(newAttributes);
-  };
-
-  const handleAddPredefinedValue = (value: string) => {
-    if (selectedAttributeIndex !== null) {
-      addValueToAttribute(selectedAttributeIndex, value);
-      setCustomValueInput("");
+    // Check if attribute already exists
+    if (attributes.some(attr => 
+      attr.name.toLowerCase() === name.trim().toLowerCase()
+    )) {
+      setErrors({ ...errors, customAttr: "Attribute already exists" });
+      return;
     }
+
+    onChange([...attributes, { name: name.trim(), values: [] }]);
+    setNewCustomAttr("");
+    setErrors({ ...errors, customAttr: "" });
   };
 
-  const handleAddCustomValue = () => {
-    if (selectedAttributeIndex !== null && customValueInput.trim()) {
-      addValueToAttribute(selectedAttributeIndex, customValueInput);
-      setCustomValueInput("");
-    }
+  // Remove a custom attribute
+  const removeCustomAttribute = (attributeName: string) => {
+    onChange(attributes.filter(attr => attr.name !== attributeName));
   };
 
-  const toggleColorAttribute = (index: number) => {
-    const newAttributes = [...attributes];
-    newAttributes[index].isColor = !newAttributes[index].isColor;
-    onChange(newAttributes);
+  // Helpers for rendering color swatches
+  const isColorValue = (value: string) => {
+    // Check if it's a valid hex color
+    const hexColorRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    return hexColorRegex.test(value);
   };
 
-  const hasDefinedAttributes = attributes.length > 0 && 
-    attributes.some(attr => attr.values.length > 0);
+  // Determine if we have enough values to generate variants
+  const canGenerateVariants = 
+    colorAttr.values.length > 0 && 
+    sizeAttr.values.length > 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col space-y-4">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-medium">Variant Attributes</h3>
-          <div className="flex-1" />
-          {hasDefinedAttributes && (
-            <Button onClick={onGenerateVariants}>
-              Generate Variants
-            </Button>
-          )}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Define Variant Attributes</h3>
+        <p className="text-sm text-muted-foreground">
+          Add possible values for each attribute to generate all variant combinations.
+        </p>
+      </div>
+      
+      {/* Color Attribute Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-medium">Colors</Label>
+          <Badge variant="outline">{colorAttr.values.length} colors</Badge>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Left column: Attribute list */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Attributes</CardTitle>
-              <CardDescription>
-                Define the attributes for your product variants
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                {attributes.map((attr, index) => (
-                  <div key={index} className="flex items-center justify-between gap-2 p-2 border rounded-md">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{attr.name}</span>
-                      <Badge variant="outline">{attr.values.length} values</Badge>
-                      {attr.isColor && <Badge variant="secondary">Color</Badge>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {attr.name.toLowerCase() === "color" && (
-                        <div className="flex items-center gap-2">
-                          <Label htmlFor={`color-switch-${index}`} className="text-xs">
-                            Use color picker
-                          </Label>
-                          <Switch 
-                            id={`color-switch-${index}`}
-                            checked={!!attr.isColor}
-                            onCheckedChange={() => toggleColorAttribute(index)}
-                          />
-                        </div>
-                      )}
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => setSelectedAttributeIndex(index)}
-                      >
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => removeAttribute(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <Input
-                  placeholder="New attribute name"
-                  value={newAttributeName}
-                  onChange={(e) => setNewAttributeName(e.target.value)}
+        <div className="flex gap-2 flex-wrap mb-2">
+          {colorAttr.values.map((value, index) => (
+            <div 
+              key={`color-${index}`} 
+              className="flex items-center border rounded-md pl-2 pr-1 py-1 group hover:bg-muted/50"
+            >
+              {isColorValue(value) ? (
+                <div 
+                  className="w-4 h-4 rounded-full mr-1.5" 
+                  style={{ backgroundColor: value }}
                 />
-                <Button onClick={addAttribute} size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Add
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Right column: Values for selected attribute */}
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {selectedAttributeIndex !== null 
-                  ? `${attributes[selectedAttributeIndex].name} Values` 
-                  : "Attribute Values"}
-              </CardTitle>
-              <CardDescription>
-                {selectedAttributeIndex !== null 
-                  ? `Add values for the ${attributes[selectedAttributeIndex].name} attribute` 
-                  : "Select an attribute to add values"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {selectedAttributeIndex === null ? (
-                <div className="flex items-center justify-center h-32 border rounded-md border-dashed">
-                  <p className="text-muted-foreground">Select an attribute from the left</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Display current values */}
-                  <div className="flex flex-wrap gap-2">
-                    {attributes[selectedAttributeIndex].values.map((value, valueIndex) => (
-                      <Badge key={valueIndex} variant="secondary" className="flex items-center gap-1">
-                        {attributes[selectedAttributeIndex].isColor && (
-                          <div 
-                            className="w-3 h-3 rounded-full inline-block mr-1" 
-                            style={{ 
-                              backgroundColor: value.startsWith('#') ? value : undefined,
-                              border: "1px solid rgba(0,0,0,0.1)"
-                            }} 
-                          />
-                        )}
-                        {value}
-                        <button 
-                          onClick={() => removeValueFromAttribute(selectedAttributeIndex, valueIndex)}
-                          className="ml-1 text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-
-                  {/* Add value input */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={`Add ${attributes[selectedAttributeIndex].name.toLowerCase()} value`}
-                      value={customValueInput}
-                      onChange={(e) => setCustomValueInput(e.target.value)}
-                    />
-                    <Button onClick={handleAddCustomValue} size="sm">
-                      <Plus className="h-4 w-4 mr-1" /> Add
-                    </Button>
-                  </div>
-
-                  {/* Predefined values */}
-                  {attributes[selectedAttributeIndex].name.toLowerCase() === "color" ? (
-                    <div className="mt-4">
-                      <Label className="mb-2 block">Predefined Colors</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {PREDEFINED_COLORS.map((color) => (
-                          <button
-                            key={color.value}
-                            type="button"
-                            onClick={() => handleAddPredefinedValue(
-                              attributes[selectedAttributeIndex].isColor ? color.value : color.name
-                            )}
-                            className="w-8 h-8 rounded-full border flex items-center justify-center hover:ring-2 ring-primary transition-all"
-                            style={{ backgroundColor: color.value }}
-                            title={color.name}
-                          >
-                            {attributes[selectedAttributeIndex].values.includes(
-                              attributes[selectedAttributeIndex].isColor ? color.value : color.name
-                            ) && (
-                              <CheckCircle2 className="h-4 w-4 text-white drop-shadow-md" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : attributes[selectedAttributeIndex].name.toLowerCase() === "size" && (
-                    <div className="mt-4">
-                      <Label className="mb-2 block">Common Sizes</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {PREDEFINED_SIZES.map((size) => (
-                          <Button 
-                            key={size} 
-                            variant="outline" 
-                            size="sm"
-                            className={
-                              attributes[selectedAttributeIndex].values.includes(size) 
-                                ? "bg-primary text-primary-foreground" 
-                                : ""
-                            }
-                            onClick={() => handleAddPredefinedValue(size)}
-                          >
-                            {size}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              ) : null}
+              <span className="text-sm">{value}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 ml-1 opacity-50 group-hover:opacity-100"
+                onClick={() => removeAttributeValue("Color", index)}
+              >
+                <X className="h-3 w-3" />
+                <span className="sr-only">Remove</span>
+              </Button>
+            </div>
+          ))}
         </div>
+        
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Input
+              placeholder="Enter a color (e.g., 'Red' or '#FF0000')"
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addAttributeValue("Color", newValue);
+                }
+              }}
+              className={cn(
+                errors.Color && "border-destructive"
+              )}
+            />
+            {errors.Color && (
+              <p className="text-sm text-destructive mt-1">{errors.Color}</p>
+            )}
+          </div>
+          <Button 
+            type="button" 
+            onClick={() => addAttributeValue("Color", newValue)}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+      
+      <Separator />
+      
+      {/* Size Attribute Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-base font-medium">Sizes</Label>
+          <Badge variant="outline">{sizeAttr.values.length} sizes</Badge>
+        </div>
+        
+        <div className="flex gap-2 flex-wrap mb-2">
+          {sizeAttr.values.map((value, index) => (
+            <div 
+              key={`size-${index}`} 
+              className="flex items-center border rounded-md pl-2 pr-1 py-1 group hover:bg-muted/50"
+            >
+              <span className="text-sm">{value}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5 ml-1 opacity-50 group-hover:opacity-100"
+                onClick={() => removeAttributeValue("Size", index)}
+              >
+                <X className="h-3 w-3" />
+                <span className="sr-only">Remove</span>
+              </Button>
+            </div>
+          ))}
+        </div>
+        
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Input
+              placeholder="Enter a size (e.g., 'S', 'M', 'L', 'XL')"
+              value={newValue}
+              onChange={(e) => setNewValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addAttributeValue("Size", newValue);
+                }
+              }}
+              className={cn(
+                errors.Size && "border-destructive"
+              )}
+            />
+            {errors.Size && (
+              <p className="text-sm text-destructive mt-1">{errors.Size}</p>
+            )}
+          </div>
+          <Button 
+            type="button" 
+            onClick={() => addAttributeValue("Size", newValue)}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+      
+      {/* Custom Attributes Section */}
+      {customAttributes.length > 0 && (
+        <>
+          <Separator />
+          <div className="space-y-4">
+            <h4 className="text-base font-medium">Custom Attributes</h4>
+            
+            {customAttributes.map((attr, attrIndex) => (
+              <div key={`custom-attr-${attrIndex}`} className="space-y-3 pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Label>{attr.name}</Label>
+                    <Badge variant="outline">{attr.values.length} values</Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeCustomAttribute(attr.name)}
+                  >
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Remove</span>
+                  </Button>
+                </div>
+                
+                <div className="flex gap-2 flex-wrap mb-2">
+                  {attr.values.map((value, valueIndex) => (
+                    <div 
+                      key={`${attr.name}-${valueIndex}`} 
+                      className="flex items-center border rounded-md pl-2 pr-1 py-1 group hover:bg-muted/50"
+                    >
+                      <span className="text-sm">{value}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 ml-1 opacity-50 group-hover:opacity-100"
+                        onClick={() => removeAttributeValue(attr.name, valueIndex)}
+                      >
+                        <X className="h-3 w-3" />
+                        <span className="sr-only">Remove</span>
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder={`Enter a ${attr.name.toLowerCase()} value`}
+                      value={newValue}
+                      onChange={(e) => setNewValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addAttributeValue(attr.name, newValue);
+                        }
+                      }}
+                      className={cn(
+                        errors[attr.name] && "border-destructive"
+                      )}
+                    />
+                    {errors[attr.name] && (
+                      <p className="text-sm text-destructive mt-1">{errors[attr.name]}</p>
+                    )}
+                  </div>
+                  <Button 
+                    type="button" 
+                    onClick={() => addAttributeValue(attr.name, newValue)}
+                  >
+                    Add
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      
+      {/* Add Custom Attribute Section */}
+      <div>
+        <Separator className="my-4" />
+        <div className="mb-2">
+          <Label className="text-base font-medium">Add Custom Attribute</Label>
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Input
+              placeholder="Enter a custom attribute name"
+              value={newCustomAttr}
+              onChange={(e) => setNewCustomAttr(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addCustomAttribute(newCustomAttr);
+                }
+              }}
+              className={cn(
+                errors.customAttr && "border-destructive"
+              )}
+            />
+            {errors.customAttr && (
+              <p className="text-sm text-destructive mt-1">{errors.customAttr}</p>
+            )}
+          </div>
+          <Button 
+            type="button"
+            variant="outline"
+            onClick={() => addCustomAttribute(newCustomAttr)}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add
+          </Button>
+        </div>
+      </div>
+      
+      {/* Generate Variants Button */}
+      <Separator className="my-6" />
+      <div className="flex justify-between items-center">
+        <div>
+          {!canGenerateVariants && (
+            <div className="flex items-center text-sm text-amber-600">
+              <AlertCircle className="h-4 w-4 mr-1" />
+              Add at least one color and size to generate variants
+            </div>
+          )}
+        </div>
+        <Button
+          onClick={onGenerateVariants}
+          disabled={!canGenerateVariants}
+          size="lg"
+        >
+          Generate Variants
+        </Button>
       </div>
     </div>
   );
