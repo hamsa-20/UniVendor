@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Save, Info, ArrowLeft, Package, AlertCircle } from "lucide-react";
@@ -64,6 +65,10 @@ export default function EnhancedProductForm({
   const [step, setStep] = useState(1);
   const [showVariantManager, setShowVariantManager] = useState(false);
   const [variants, setVariants] = useState<any[]>([]);
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [newColorInput, setNewColorInput] = useState('');
+  const [newSizeInput, setNewSizeInput] = useState('');
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -906,6 +911,212 @@ export default function EnhancedProductForm({
                     
                     {watchHasVariants ? (
                       <div className="space-y-4">
+                        {/* Attribute Setup Box */}
+                        <div className="rounded-lg border p-4">
+                          <h3 className="text-base font-medium mb-2">Product Variant Attributes</h3>
+                          
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label>Available Colors</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {['Red', 'Blue', 'Green', 'Black', 'White', 'Yellow', 'Purple'].map(color => (
+                                  <Button 
+                                    key={color} 
+                                    type="button" 
+                                    variant={selectedColors.includes(color) ? "default" : "outline"}
+                                    size="sm"
+                                    className="flex items-center gap-1"
+                                    onClick={() => {
+                                      if (selectedColors.includes(color)) {
+                                        setSelectedColors(selectedColors.filter(c => c !== color));
+                                      } else {
+                                        setSelectedColors([...selectedColors, color]);
+                                      }
+                                    }}
+                                  >
+                                    <span className="w-3 h-3 rounded-full" 
+                                      style={{ backgroundColor: 
+                                        color === 'Red' ? '#e53935' : 
+                                        color === 'Blue' ? '#1e88e5' : 
+                                        color === 'Green' ? '#43a047' :
+                                        color === 'Black' ? '#212121' :
+                                        color === 'White' ? '#f5f5f5' :
+                                        color === 'Yellow' ? '#fdd835' :
+                                        color === 'Purple' ? '#8e24aa' : '#9e9e9e'
+                                      }} 
+                                    />
+                                    {color}
+                                  </Button>
+                                ))}
+                              </div>
+                              <div className="flex items-center mt-2">
+                                <Input 
+                                  placeholder="Add custom color..." 
+                                  className="h-8 rounded-r-none"
+                                  value={newColorInput}
+                                  onChange={(e) => setNewColorInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newColorInput.trim()) {
+                                      e.preventDefault();
+                                      if (!selectedColors.includes(newColorInput.trim())) {
+                                        setSelectedColors([...selectedColors, newColorInput.trim()]);
+                                        setNewColorInput('');
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Button 
+                                  type="button" 
+                                  size="sm" 
+                                  className="h-8 rounded-l-none"
+                                  onClick={() => {
+                                    if (newColorInput.trim() && !selectedColors.includes(newColorInput.trim())) {
+                                      setSelectedColors([...selectedColors, newColorInput.trim()]);
+                                      setNewColorInput('');
+                                    }
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label>Available Sizes</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {['XS', 'S', 'M', 'L', 'XL', 'XXL'].map(size => (
+                                  <Button 
+                                    key={size} 
+                                    type="button" 
+                                    variant={selectedSizes.includes(size) ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => {
+                                      if (selectedSizes.includes(size)) {
+                                        setSelectedSizes(selectedSizes.filter(s => s !== size));
+                                      } else {
+                                        setSelectedSizes([...selectedSizes, size]);
+                                      }
+                                    }}
+                                  >
+                                    {size}
+                                  </Button>
+                                ))}
+                              </div>
+                              <div className="flex items-center mt-2">
+                                <Input 
+                                  placeholder="Add custom size..." 
+                                  className="h-8 rounded-r-none"
+                                  value={newSizeInput}
+                                  onChange={(e) => setNewSizeInput(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && newSizeInput.trim()) {
+                                      e.preventDefault();
+                                      if (!selectedSizes.includes(newSizeInput.trim())) {
+                                        setSelectedSizes([...selectedSizes, newSizeInput.trim()]);
+                                        setNewSizeInput('');
+                                      }
+                                    }
+                                  }}
+                                />
+                                <Button 
+                                  type="button" 
+                                  size="sm" 
+                                  className="h-8 rounded-l-none"
+                                  onClick={() => {
+                                    if (newSizeInput.trim() && !selectedSizes.includes(newSizeInput.trim())) {
+                                      setSelectedSizes([...selectedSizes, newSizeInput.trim()]);
+                                      setNewSizeInput('');
+                                    }
+                                  }}
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4">
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Preview: {selectedColors.length} colors × {selectedSizes.length} sizes = {selectedColors.length * selectedSizes.length} possible variants
+                            </p>
+                            
+                            {selectedColors.length > 0 && selectedSizes.length > 0 ? (
+                              <div className="border rounded-md overflow-hidden max-h-36 overflow-y-auto">
+                                <table className="w-full text-sm">
+                                  <thead>
+                                    <tr className="bg-muted/50 sticky top-0">
+                                      <th className="px-2 py-1 text-left font-medium">Color / Size</th>
+                                      {selectedSizes.map(size => (
+                                        <th key={size} className="px-2 py-1 text-center font-medium">{size}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {selectedColors.map((color, index) => (
+                                      <tr key={color} className={index % 2 === 0 ? '' : 'bg-muted/20'}>
+                                        <td className="px-2 py-1 flex items-center gap-1">
+                                          <span className="w-2 h-2 rounded-full" 
+                                            style={{ backgroundColor: 
+                                              color === 'Red' ? '#e53935' : 
+                                              color === 'Blue' ? '#1e88e5' : 
+                                              color === 'Green' ? '#43a047' :
+                                              color === 'Black' ? '#212121' :
+                                              color === 'White' ? '#f5f5f5' :
+                                              color === 'Yellow' ? '#fdd835' :
+                                              color === 'Purple' ? '#8e24aa' : '#9e9e9e'
+                                            }} 
+                                          />
+                                          {color}
+                                        </td>
+                                        {selectedSizes.map(size => (
+                                          <td key={`${color}-${size}`} className="px-2 py-1 text-center">
+                                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary/10 text-xs text-primary">
+                                              ✓
+                                            </span>
+                                          </td>
+                                        ))}
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <div className="border rounded-md p-4 text-center text-muted-foreground">
+                                {!selectedColors.length && !selectedSizes.length ? (
+                                  <p>Select at least one color and one size to preview variants</p>
+                                ) : !selectedColors.length ? (
+                                  <p>Select at least one color to preview variants</p>
+                                ) : (
+                                  <p>Select at least one size to preview variants</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {!productId ? (
+                            <div className="mt-4">
+                              <div className="rounded-md bg-blue-50 p-3 border border-blue-200">
+                                <div className="flex items-start gap-3">
+                                  <Info className="w-4 h-4 text-blue-500 mt-0.5" />
+                                  <p className="text-sm text-blue-700">
+                                    Save this product first to generate all variants. 
+                                    Your variant selections will be preserved.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-4 flex justify-end">
+                              <Button 
+                                type="button" 
+                                onClick={() => setShowVariantManager(true)}
+                              >
+                                Generate Variants
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        
                         {/* Guide Box */}
                         <div className="rounded-md bg-primary/5 p-4 border border-primary/10">
                           <div className="flex items-start gap-3">
@@ -914,7 +1125,7 @@ export default function EnhancedProductForm({
                               <p className="text-sm text-muted-foreground">
                                 {!productId 
                                   ? "Save this product first, then you can create variants with different colors, sizes, and other attributes."
-                                  : "Click the button below to create variants using our matrix generator. You can add multiple colors and sizes to automatically create all combinations."
+                                  : "Click the button above to generate variants using our matrix generator. The system will automatically create all combinations of colors and sizes."
                                 }
                               </p>
                               <Button 
@@ -923,7 +1134,7 @@ export default function EnhancedProductForm({
                                 onClick={() => setShowVariantManager(true)}
                                 disabled={!productId}
                               >
-                                {!productId ? "Save Product First" : "Create Variant Matrix"}
+                                {!productId ? "Save Product First" : "Advanced Variant Options"}
                               </Button>
                             </div>
                           </div>
