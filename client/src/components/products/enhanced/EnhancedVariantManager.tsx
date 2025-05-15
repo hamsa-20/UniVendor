@@ -466,12 +466,19 @@ const EnhancedVariantManager = ({
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">
-            <TabsTrigger value="attributes">Define Attributes</TabsTrigger>
+            <TabsTrigger value="attributes">1. Define Attributes</TabsTrigger>
+            <TabsTrigger 
+              value="matrix" 
+              disabled={!attributes.some(a => a.name === "Color" && a.values.length > 0) || 
+                        !attributes.some(a => a.name === "Size" && a.values.length > 0)}
+            >
+              2. Matrix Preview
+            </TabsTrigger>
             <TabsTrigger 
               value="details" 
               disabled={variants.length === 0}
             >
-              Variant Details
+              3. Variant Details
             </TabsTrigger>
           </TabsList>
           
@@ -510,6 +517,118 @@ const EnhancedVariantManager = ({
                 {errors.generate}
               </div>
             )}
+          </TabsContent>
+          
+          {/* Matrix Preview Tab */}
+          <TabsContent value="matrix">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Variant Matrix Preview</h3>
+                <Button 
+                  onClick={generateVariants}
+                  disabled={!attributes.some(a => a.name === "Color" && a.values.length > 0) || 
+                           !attributes.some(a => a.name === "Size" && a.values.length > 0)}
+                >
+                  Generate {attributes.find(a => a.name === "Color")?.values.length || 0} × {attributes.find(a => a.name === "Size")?.values.length || 0} Variants
+                </Button>
+              </div>
+              
+              <div className="border rounded-md overflow-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/50">
+                      <th className="px-3 py-2 text-left">Color / Size</th>
+                      {attributes.find(a => a.name === "Size")?.values.map(size => (
+                        <th key={size} className="px-3 py-2 text-center">{size}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attributes.find(a => a.name === "Color")?.values.map((color, rowIndex) => (
+                      <tr key={color} className={rowIndex % 2 === 0 ? '' : 'bg-muted/20'}>
+                        <td className="px-3 py-2 flex items-center gap-1">
+                          <span 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ 
+                              backgroundColor: 
+                                color === 'Red' ? '#e53935' : 
+                                color === 'Blue' ? '#1e88e5' : 
+                                color === 'Green' ? '#43a047' :
+                                color === 'Black' ? '#212121' :
+                                color === 'White' ? '#f5f5f5' :
+                                color === 'Yellow' ? '#fdd835' :
+                                color === 'Purple' ? '#8e24aa' : 
+                                (color.startsWith('#') ? color : '#9e9e9e')
+                            }} 
+                          />
+                          {color}
+                        </td>
+                        {attributes.find(a => a.name === "Size")?.values.map(size => (
+                          <td key={`${color}-${size}`} className="px-3 py-2 text-center">
+                            <div className="p-1 rounded border border-primary/20 bg-primary/5 text-primary text-xs font-medium">
+                              ✓ Will be created
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="flex flex-col gap-4 mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="default-price">Default Selling Price</Label>
+                    <Input
+                      id="default-price"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 19.99"
+                      value={product.sellingPrice || ""}
+                      onChange={(e) => {
+                        // This only affects new variants, existing ones won't be changed
+                        // Set a global state if needed
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Applied to all new variants</p>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="default-inventory">Default Inventory</Label>
+                    <Input
+                      id="default-inventory"
+                      type="number"
+                      placeholder="e.g. 10"
+                      defaultValue="10"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Initial stock for each variant</p>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="default-sku">SKU Prefix</Label>
+                    <Input
+                      id="default-sku"
+                      placeholder="e.g. SHIRT-"
+                      defaultValue={product.sku || ""}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">Will be combined with variant attributes</p>
+                  </div>
+                </div>
+                
+                <div className="rounded-md p-3 bg-blue-50 border border-blue-100 text-blue-800 text-sm">
+                  <p>
+                    <strong>Note:</strong> After generating variants, you'll be able to:
+                  </p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>Edit each variant individually</li>
+                    <li>Bulk edit multiple variants at once</li>
+                    <li>Upload images for each variant</li>
+                    <li>Set default variant for product page</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
           </TabsContent>
           
           {/* Variant Details Tab */}
@@ -619,8 +738,10 @@ const EnhancedVariantManager = ({
                       )}
                       <TableHead>Colors & Size</TableHead>
                       <TableHead>Price</TableHead>
+                      <TableHead>MRP</TableHead>
                       <TableHead>Inventory</TableHead>
                       <TableHead>SKU</TableHead>
+                      <TableHead>Images</TableHead>
                       <TableHead style={{ width: 100 }}>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -668,6 +789,15 @@ const EnhancedVariantManager = ({
                         </TableCell>
                         <TableCell>
                           <Input
+                            type="text"
+                            inputMode="decimal"
+                            className="w-24"
+                            value={variant.mrp || ""}
+                            onChange={(e) => updateVariantField(index, "mrp", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
                             type="number"
                             className="w-20"
                             value={variant.inventoryQuantity}
@@ -690,6 +820,31 @@ const EnhancedVariantManager = ({
                             value={variant.sku || ""}
                             onChange={(e) => updateVariantField(index, "sku", e.target.value)}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {variant.images && variant.images.length > 0 ? (
+                              <div className="flex items-center gap-1">
+                                <img 
+                                  src={variant.images[0]} 
+                                  alt={`${variant.color} ${variant.size}`}
+                                  className="w-8 h-8 object-cover rounded border"
+                                />
+                                {variant.images.length > 1 && (
+                                  <Badge variant="outline">+{variant.images.length - 1}</Badge>
+                                )}
+                              </div>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2"
+                              >
+                                <ImagePlus className="h-3.5 w-3.5 mr-1" />
+                                Upload
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-1">
