@@ -713,7 +713,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/products/:id", async (req, res) => {
     try {
+      // Special case for "new" as a parameter - return empty object for new product form
+      if (req.params.id === "new") {
+        return res.status(200).json({ id: null, isNew: true });
+      }
+      
       const id = parseInt(req.params.id);
+      // Check for valid numeric ID
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid product ID" });
+      }
+      
       const product = await storage.getProduct(id);
       
       if (!product) {

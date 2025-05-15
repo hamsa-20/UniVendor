@@ -103,9 +103,9 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
   }
 
   return (
-    <DashboardLayout title={`${product.name} | Product Details`}>
+    <DashboardLayout title={product ? `${product.name} | Product Details` : "Product Details"}>
       <Helmet>
-        <title>{product.name} | Product Details</title>
+        <title>{product ? `${product.name} | Product Details` : "Product Details"}</title>
       </Helmet>
       
       <div className="flex justify-between items-center mb-6">
