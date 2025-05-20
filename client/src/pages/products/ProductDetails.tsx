@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -15,7 +15,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
-  Save,
   Loader2,
   Trash2,
   AlertTriangle,
@@ -32,27 +31,46 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Helmet } from "react-helmet";
-import ProductVariantsTab from "@/components/products/ProductVariantsTab";
 import EnhancedProductForm from "@/components/products/enhanced/EnhancedProductForm";
+
+// Import your auth hook here
+import { useAuth } from "@/hooks/use-auth";
 
 interface ProductDetailsProps {
   id: string;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  colors: { id: number; name: string; hex: string; imageUrl?: string }[];
+  defaultImage: string;
+  // Add other product fields as needed
 }
 
 const ProductDetails = ({ id }: ProductDetailsProps) => {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("general");
   const { toast } = useToast();
-  
+  const { user } = useAuth(); // Get current logged in user
+
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+
   const {
     data: product,
     isLoading,
     error,
-  } = useQuery({
+  } = useQuery<Product>({
     queryKey: ["/api/products", parseInt(id)],
     queryFn: () => fetch(`/api/products/${id}`).then((res) => res.json()),
     refetchOnWindowFocus: false,
   });
+
+  useEffect(() => {
+    if (product?.colors?.length && !selectedColor) {
+      setSelectedColor(product.colors[0].hex);
+    }
+  }, [product, selectedColor]);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -66,7 +84,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
       });
       setLocation("/products");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Error",
         description: error.message || "Failed to delete product",
@@ -102,12 +120,104 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
     );
   }
 
+  const getImageForColor = (colorHex: string | null) => {
+    if (!colorHex) return product.defaultImage;
+    const colorObj = product.colors.find((c) => c.hex === colorHex);
+    return colorObj?.imageUrl || product.defaultImage;
+  };
+
+  // Add to Cart handler
+  const handleAddToCart = () => {
+    if (!user) {
+      toast({
+        title: "Not Signed In",
+        description: "Please sign in to add products to your cart.",
+        variant: "destructive",
+      });
+      setLocation("/signin"); // redirect to sign-in page
+      return;
+    }
+    // Add to cart logic here
+    toast({ title: "Added to Cart", description: "Product added to cart." });
+  };
+
+  // Buy Now handler
+  const handleBuyNow = () => {
+    if (!user) {
+      toast({
+        title: "Not Signed In",
+        description: "Please sign in to purchase products.",
+        variant: "destructive",
+      });
+      setLocation("/signin"); // redirect to sign-in page
+      return;
+    }
+    // Buy now logic here
+    toast({ title: "Purchase Started", description: "Proceeding to checkout." });
+  };
+
+  // Product variants tab component
+  const ProductVariantsTab = ({
+    product,
+    selectedColor,
+    onColorChange,
+    user,
+  }: {
+    product: Product;
+    selectedColor: string | null;
+    onColorChange: (color: string) => void;
+    user: any;
+  }) => {
+    return (
+      <div className="space-y-4">
+        <div className="flex gap-4">
+          {product.colors.map((color) => (
+            <button
+              key={color.id}
+              aria-label={`Select color ${color.name}`}
+              style={{
+                backgroundColor: color.hex,
+                border:
+                  selectedColor === color.hex ? "3px solid #000" : "1px solid #ccc",
+              }}
+              className="w-8 h-8 rounded-full"
+              onClick={() => onColorChange(color.hex)}
+            />
+          ))}
+        </div>
+
+        <div>
+          <img
+            src={getImageForColor(selectedColor)}
+            alt={`Product in selected color`}
+            className="w-64 h-64 object-contain border"
+          />
+        </div>
+
+        <div className="flex gap-4">
+          <Button disabled={!user} onClick={handleAddToCart}>
+            Add to Cart
+          </Button>
+          <Button disabled={!user} onClick={handleBuyNow}>
+            Buy Now
+          </Button>
+        </div>
+
+        {!user && (
+          <p className="text-red-600 text-sm mt-2">
+            Please sign in to add to cart or buy this product.
+          </p>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <DashboardLayout title={product ? `${product.name} | Product Details` : "Product Details"}>
+    <DashboardLayout title={`${product.name} | Product Details`}>
       <Helmet>
-        <title>{product ? `${product.name} | Product Details` : "Product Details"}</title>
+        <title>{`${product.name} | Product Details`}</title>
       </Helmet>
-      
+
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-3">
           <Button
@@ -119,7 +229,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
           </Button>
           <h1 className="text-2xl font-bold">{product.name}</h1>
         </div>
-        
+
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="destructive">
@@ -141,7 +251,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
                 onClick={() => deleteMutation.mutate()}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deleteMutation.isPending ? (
+                {deleteMutation.isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   "Delete"
@@ -158,20 +268,30 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
           <TabsTrigger value="variants">Variants</TabsTrigger>
           <TabsTrigger value="seo">SEO & Meta</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="general" className="space-y-6">
-          <EnhancedProductForm productId={parseInt(id)} onSuccess={() => {
-            toast({
-              title: "Success",
-              description: "Product updated successfully",
-            });
-          }} />
+          <EnhancedProductForm
+            productId={parseInt(id)}
+            selectedColor={selectedColor}
+            onColorChange={setSelectedColor}
+            onSuccess={() => {
+              toast({
+                title: "Success",
+                description: "Product updated successfully",
+              });
+            }}
+          />
         </TabsContent>
-        
+
         <TabsContent value="variants" className="space-y-6">
-          <ProductVariantsTab product={product} />
+          <ProductVariantsTab
+            product={product}
+            selectedColor={selectedColor}
+            onColorChange={setSelectedColor}
+            user={user}
+          />
         </TabsContent>
-        
+
         <TabsContent value="seo" className="space-y-6">
           <Card>
             <CardHeader>
