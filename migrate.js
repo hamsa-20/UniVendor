@@ -7,7 +7,7 @@ neonConfig.webSocketConstructor = ws;
 
 // Configure for Neon serverless
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: process.env.DATABASE_URL || "postgresql://postgres:divyesh@127.0.0.1:5432/univendor",
   connectionTimeoutMillis: 5000
 });
 

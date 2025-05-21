@@ -29,7 +29,7 @@ const formatCurrency = (amount: string | number, currency = "INR") => {
 };
 
 const CheckoutPage = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/vendors/:vendorId/checkout");
@@ -60,6 +60,23 @@ const CheckoutPage = () => {
     queryKey: ["/api/vendors", vendorId],
     enabled: !!vendorId,
   });
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to proceed with checkout",
+        variant: "destructive",
+      });
+      setLocation(`/login?redirect=/vendors/${vendorId}/checkout`);
+    }
+  }, [isAuthenticated, vendorId, setLocation, toast]);
+  
+  // If not authenticated, don't render the page
+  if (!isAuthenticated) {
+    return null;
+  }
   
   // Determine payment processor when payment method changes
   useEffect(() => {

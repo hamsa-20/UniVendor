@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
 import { formatCurrency } from "@/lib/formatCurrency";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 type CartProps = {
   vendorId: number;
@@ -23,14 +25,26 @@ export function CartComponent({ vendorId, onCheckout }: CartProps) {
     isUpdatingQuantity
   } = useCart();
   const [_, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const { subtotal, tax, total, itemCount } = getCartSummary();
 
   const handleCheckout = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to proceed with checkout",
+        variant: "destructive",
+      });
+      setLocation(`/login?redirect=/vendors/${vendorId}/checkout`);
+      return;
+    }
+
     if (onCheckout) {
       onCheckout();
     } else {
-      setLocation(`/checkout?vendorId=${vendorId}`);
+      setLocation(`/vendors/${vendorId}/checkout`);
     }
   };
 
