@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { Switch, Route, Link, Redirect } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,6 +8,7 @@ import NotFound from "@/pages/not-found";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { VendorStoreProvider, useVendorStore } from "@/contexts/VendorStoreContext";
+import { CartProvider } from "@/contexts/CartContext";
 import CategoryNav from "@/components/store/CategoryNav";
 import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import LoginPage from "@/pages/auth/LoginPage";
@@ -38,9 +40,26 @@ import MarketingPage from "./pages/marketing/MarketingPage";
 import ReportsPage from "./pages/reports/ReportsPage";
 import SubscriptionPage from "./pages/vendor/SubscriptionPage";
 import S3UploadTestPage from "./pages/s3-upload-test";
+import TestCartPage from "./pages/test-cart";
+import SimpleTestPage from "./pages/simple-test";
+import IndependentCartPage from "./pages/independent-cart";
 import PrivateRoute from "@/components/PrivateRoute";
 
-function Router() {
+interface NewsletterProps {
+  newsletterEmail: string;
+  setNewsletterEmail: React.Dispatch<React.SetStateAction<string>>;
+  newsletterStatus: null | "success" | "error";
+  newsletterLoading: boolean;
+  handleNewsletterSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+}
+
+function Router({
+  newsletterEmail,
+  setNewsletterEmail,
+  newsletterStatus,
+  newsletterLoading,
+  handleNewsletterSubmit
+}: NewsletterProps) {
   const { isVendorStore } = useVendorStore();
 
   // If this is a vendor's custom domain, show the StorefrontPage
@@ -66,9 +85,18 @@ function Router() {
   // Otherwise show the platform's routes
   return (
     <Switch>
-      {/* Test Route - only for development */}
+      {/* Test Routes - only for development */}
       <Route path="/test-store">
         {process.env.NODE_ENV === 'development' && <TestStorePage />}
+      </Route>
+      <Route path="/test-cart">
+        {process.env.NODE_ENV === 'development' && <TestCartPage />}
+      </Route>
+      <Route path="/simple-test">
+        <SimpleTestPage />
+      </Route>
+      <Route path="/independent-cart">
+        <IndependentCartPage />
       </Route>
       
       {/* Welcome Route */}
@@ -173,10 +201,11 @@ function Router() {
                       Sale
                     </Link>
                   </nav>
-                ) : vendor ? (
+                ) : (
                   // Dynamic categories from database for vendor stores
-                  <CategoryNav vendorId={vendor.id} className="flex-1" />
-                ) : null}
+                  // <CategoryNav vendorId={vendor.id} className="flex-1" />
+                  <div className="flex-1"></div>
+                )}
               </div>
             </div>
           </header>
@@ -423,17 +452,26 @@ function Router() {
             <div className="container mx-auto px-4 text-center">
               <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">Sign Up for Our Newsletter</h2>
               <p className="text-indigo-100 mb-6 max-w-2xl mx-auto">Get the latest updates on new products, sales, and special offers delivered right to your inbox.</p>
-              <form className="max-w-md mx-auto flex flex-col sm:flex-row gap-3">
+              <form className="max-w-md mx-auto flex flex-col sm:flex-row gap-3" onSubmit={handleNewsletterSubmit}>
                 <input 
                   type="email" 
                   placeholder="Your email address" 
                   className="flex-grow px-4 py-3 rounded-lg focus:outline-none"
                   required
+                  value={newsletterEmail}
+                  onChange={e => setNewsletterEmail(e.target.value)}
+                  disabled={newsletterLoading}
                 />
-                <button type="submit" className="bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-3 rounded-lg font-medium">
-                  Subscribe
+                <button type="submit" className="bg-white text-indigo-600 hover:bg-indigo-50 px-6 py-3 rounded-lg font-medium" disabled={newsletterLoading}>
+                  {newsletterLoading ? "Subscribing..." : "Subscribe"}
                 </button>
               </form>
+              {newsletterStatus === "success" && (
+                <div className="mt-3 text-green-100 font-medium">Subscribed! 🎉</div>
+              )}
+              {newsletterStatus === "error" && (
+                <div className="mt-3 text-red-200 font-medium">Load Failed. Please enter a valid email.</div>
+              )}
             </div>
           </section>
 
@@ -653,30 +691,60 @@ function Router() {
       {/* Fallback to 404 */}
       {/* This will catch any undefined routes including /s3-upload-test */}
       <Route>
-        {() => {
-          window.location.href = '/';
-          return null;
-        }}
+        {/* Fallback: just return null to avoid runtime errors */}
+        {() => null}
       </Route>
     </Switch>
   );
 }
 
 function App() {
+  // Newsletter state and handler
+  const [newsletterEmail, setNewsletterEmail] = React.useState("");
+  const [newsletterStatus, setNewsletterStatus] = React.useState<null | "success" | "error">(null);
+  const [newsletterLoading, setNewsletterLoading] = React.useState(false);
+
+  const handleNewsletterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setNewsletterStatus(null);
+    setNewsletterLoading(true);
+    try {
+      // Simulate API call (replace with real API if available)
+      await new Promise(res => setTimeout(res, 800));
+      if (!newsletterEmail || !newsletterEmail.includes("@")) {
+        throw new Error("Invalid email");
+      }
+      setNewsletterStatus("success");
+      setNewsletterEmail("");
+    } catch {
+      setNewsletterStatus("error");
+    } finally {
+      setNewsletterLoading(false);
+    }
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <VendorStoreProvider>
-          <ThemeProvider>
-            <TooltipProvider>
-              <Toaster />
-              {/* Force light theme as per user requirement */}
-              <div className="light">
-                <ImpersonationBanner />
-                <Router />
-              </div>
-            </TooltipProvider>
-          </ThemeProvider>
+          <CartProvider>
+            <ThemeProvider>
+              <TooltipProvider>
+                <Toaster />
+                {/* Force light theme as per user requirement */}
+                <div className="light">
+                  <ImpersonationBanner />
+                  <Router
+                    newsletterEmail={newsletterEmail}
+                    setNewsletterEmail={setNewsletterEmail}
+                    newsletterStatus={newsletterStatus}
+                    newsletterLoading={newsletterLoading}
+                    handleNewsletterSubmit={handleNewsletterSubmit}
+                  />
+                </div>
+              </TooltipProvider>
+            </ThemeProvider>
+          </CartProvider>
         </VendorStoreProvider>
       </AuthProvider>
     </QueryClientProvider>

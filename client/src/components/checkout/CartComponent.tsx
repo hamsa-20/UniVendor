@@ -1,4 +1,3 @@
-import { useCart } from "@/hooks/useCart";
 import { Loader2, MinusCircle, PlusCircle, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
 import { formatCurrency } from "@/lib/formatCurrency";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCartContext } from "@/contexts/CartContext";
 import { useToast } from "@/hooks/use-toast";
 
 type CartProps = {
@@ -23,7 +23,7 @@ export function CartComponent({ vendorId, onCheckout }: CartProps) {
     clearCart, 
     getCartSummary,
     isUpdatingQuantity
-  } = useCart();
+  } = useCartContext();
   const [_, setLocation] = useLocation();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();

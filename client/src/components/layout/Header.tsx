@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Menu, Bell, Search, ChevronDown } from "lucide-react";
+import { Menu, Bell, Search, ChevronDown, ShoppingCart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCartContext } from "@/contexts/CartContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +20,11 @@ type HeaderProps = {
 
 const Header = ({ onToggleSidebar, title, subtitle }: HeaderProps) => {
   const { user, logoutMutation } = useAuth();
+  const { getCartSummary } = useCartContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [, setLocation] = useLocation();
+  
+  const { itemCount } = getCartSummary();
 
   return (
     <header className="bg-white shadow-sm z-10 relative">
@@ -64,6 +68,21 @@ const Header = ({ onToggleSidebar, title, subtitle }: HeaderProps) => {
             <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center text-white text-xs">
               3
             </span>
+          </button>
+
+          {/* Cart */}
+          <button
+            type="button"
+            className="p-1 rounded-full text-gray-500 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary relative"
+            onClick={() => setLocation("/cart")}
+          >
+            <span className="sr-only">View cart</span>
+            <ShoppingCart className="h-6 w-6" />
+            {itemCount > 0 && (
+              <span className="absolute top-0 right-0 h-4 w-4 rounded-full bg-primary flex items-center justify-center text-white text-xs">
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            )}
           </button>
 
           {/* User dropdown */}

@@ -5,6 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCartContext } from "@/contexts/CartContext";
 import {
   Card,
   CardContent,
@@ -33,9 +35,6 @@ import {
 import { Helmet } from "react-helmet";
 import EnhancedProductForm from "@/components/products/enhanced/EnhancedProductForm";
 
-// Import your auth hook here
-import { useAuth } from "@/hooks/use-auth";
-
 interface ProductDetailsProps {
   id: string;
 }
@@ -45,6 +44,8 @@ interface Product {
   name: string;
   colors: { id: number; name: string; hex: string; imageUrl?: string }[];
   defaultImage: string;
+  price?: string;
+  vendorId?: number;
   // Add other product fields as needed
 }
 
@@ -55,6 +56,8 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
   const { user } = useAuth(); // Get current logged in user
 
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [hoveredColor, setHoveredColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
 
   const {
     data: product,
@@ -126,19 +129,43 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
     return colorObj?.imageUrl || product.defaultImage;
   };
 
+  // Get the current display image based on hover or selection
+  const getCurrentDisplayImage = () => {
+    if (hoveredColor) {
+      return getImageForColor(hoveredColor);
+    }
+    return getImageForColor(selectedColor);
+  };
+
+  // Get cart context
+  const cartContext = useCartContext();
+
   // Add to Cart handler
   const handleAddToCart = () => {
-    if (!user) {
+    if (!selectedColor || !selectedSize) {
       toast({
-        title: "Not Signed In",
-        description: "Please sign in to add products to your cart.",
+        title: "Selection Required",
+        description: "Please select both color and size before adding to cart.",
         variant: "destructive",
       });
-      setLocation("/signin"); // redirect to sign-in page
       return;
     }
-    // Add to cart logic here
-    toast({ title: "Added to Cart", description: "Product added to cart." });
+
+    // Create cart item from product details
+    const cartItem = {
+      productId: product.id,
+      name: product.name,
+      price: product.price || "0.00", // Assuming product has a price field
+      quantity: 1,
+      imageUrl: getImageForColor(selectedColor),
+      variant: `${selectedSize} / ${product.colors.find(c => c.hex === selectedColor)?.name || selectedColor}`,
+      colorHex: selectedColor,
+      size: selectedSize,
+      vendorId: product.vendorId || 1 // Assuming product has a vendorId field
+    };
+
+    // Add to cart through context (works for both guest and authenticated users)
+    cartContext.addToCart(cartItem);
   };
 
   // Buy Now handler
@@ -168,6 +195,8 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
     onColorChange: (color: string) => void;
     user: any;
   }) => {
+    const sizes = ["S", "M", "L", "XL", "XXL"]; // Example sizes, typically from product data
+    
     return (
       <div className="space-y-4">
         <div className="flex gap-4">
@@ -182,20 +211,41 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
               }}
               className="w-8 h-8 rounded-full"
               onClick={() => onColorChange(color.hex)}
+              onMouseEnter={() => setHoveredColor(color.hex)}
+              onMouseLeave={() => setHoveredColor(null)}
             />
           ))}
+        </div>
+        
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Size:</label>
+          <div className="flex gap-2">
+            {sizes.map((size) => (
+              <button
+                key={size}
+                className={`px-3 py-1 border rounded-md ${
+                  selectedSize === size 
+                    ? "border-black bg-black text-white" 
+                    : "border-gray-300 hover:border-gray-500"
+                }`}
+                onClick={() => setSelectedSize(size)}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div>
           <img
-            src={getImageForColor(selectedColor)}
+            src={getCurrentDisplayImage()}
             alt={`Product in selected color`}
             className="w-64 h-64 object-contain border"
           />
         </div>
 
         <div className="flex gap-4">
-          <Button disabled={!user} onClick={handleAddToCart}>
+          <Button onClick={handleAddToCart}>
             Add to Cart
           </Button>
           <Button disabled={!user} onClick={handleBuyNow}>
@@ -205,7 +255,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
 
         {!user && (
           <p className="text-red-600 text-sm mt-2">
-            Please sign in to add to cart or buy this product.
+            Please sign in to buy this product.
           </p>
         )}
       </div>
@@ -251,7 +301,7 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
                 onClick={() => deleteMutation.mutate()}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                {deleteMutation.isLoading ? (
+                {deleteMutation.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   "Delete"
@@ -272,8 +322,6 @@ const ProductDetails = ({ id }: ProductDetailsProps) => {
         <TabsContent value="general" className="space-y-6">
           <EnhancedProductForm
             productId={parseInt(id)}
-            selectedColor={selectedColor}
-            onColorChange={setSelectedColor}
             onSuccess={() => {
               toast({
                 title: "Success",
