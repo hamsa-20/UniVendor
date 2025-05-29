@@ -70,4 +70,8 @@ The application includes several test pages to verify functionality:
 
 ## License
 
+<<<<<<< HEAD
 [MIT](LICENSE)
+=======
+[MIT](LICENSE)
+>>>>>>> 6202d0ccbbba347f8487050b48a60e84b1bb9cd5
