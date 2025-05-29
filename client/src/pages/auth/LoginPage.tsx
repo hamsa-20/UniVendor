@@ -39,7 +39,11 @@ const LoginPage = () => {
   const [currentStep, setCurrentStep] = useState<'email' | 'otp'>('email');
   const [currentEmail, setCurrentEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { requestOtpMutation, verifyOtpMutation, user, isAuthenticated } = useAuth();
+  const auth = useAuth();
+  const { user, isAuthenticated } = auth;
+  // If your AuthContext does not provide these mutations, you need to implement them or adjust usage below.
+  const requestOtpMutation = auth.requestOtpMutation;
+  const verifyOtpMutation = auth.verifyOtpMutation;
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const redirectTo = new URLSearchParams(location.split('?')[1] || '').get('redirect');

@@ -8,13 +8,33 @@ import { generateOtp, sendOtpEmail } from "./emailService";
 
 declare global {
   namespace Express {
-    interface User extends User {
+    interface User {
+      id: number;
+      email: string;
+      role: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      phone?: string | null;
+      avatarUrl?: string | null;
+      isProfileComplete?: boolean | null;
+      createdAt?: Date | null;
       originalUserId?: number; // Used for impersonation
+      // Add any other properties from your shared User type as needed
     }
-    
-    interface Session {
-      originalUser?: User; // Store the original user when impersonating
+
+    interface Request {
+      login(user: User, done: (err: any) => void): void;
+      logout(done: (err: any) => void): void;
+      isAuthenticated(): boolean;
+      user?: User;
     }
+  }
+}
+
+declare module "express-session" {
+  interface SessionData {
+    originalUser?: User;
+    user?: User;
   }
 }
 
@@ -245,12 +265,24 @@ export function setupAuth(app: Express) {
       }
       
       // Store original user in session
-      req.session.originalUser = req.user;
+      req.session.originalUser = req.user
+        ? {
+            id: req.user.id,
+            email: req.user.email,
+            firstName: req.user.firstName ?? null,
+            lastName: req.user.lastName ?? null,
+            phone: req.user.phone ?? null,
+            role: req.user.role,
+            avatarUrl: req.user.avatarUrl ?? null,
+            isProfileComplete: req.user.isProfileComplete ?? null,
+            createdAt: req.user.createdAt ?? null
+          }
+        : undefined;
       
       // Add impersonation flags to target user
       const impersonatedUser = {
         ...targetUser,
-        originalUserId: req.user.id,
+        originalUserId: req.user?.id,
         isImpersonated: true
       };
       
@@ -280,7 +312,7 @@ export function setupAuth(app: Express) {
     
     return res.status(200).json({
       isImpersonating,
-      originalUser: isImpersonating ? {
+      originalUser: isImpersonating && originalUser ? {
         id: originalUser.id,
         email: originalUser.email,
         role: originalUser.role,
@@ -306,7 +338,6 @@ export function setupAuth(app: Express) {
         email,
         firstName,
         lastName,
-        password,
         role: role || 'vendor',
         isProfileComplete: true
       });
@@ -344,7 +375,7 @@ export function hasRole(roles: string[]) {
       return res.status(401).json({ message: "Authentication required" });
     }
     
-    if (roles.length > 0 && !roles.includes(req.user.role)) {
+    if (roles.length > 0 && (!req.user || !roles.includes(req.user.role))) {
       return res.status(403).json({ message: "Insufficient permissions" });
     }
     

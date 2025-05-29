@@ -52,9 +52,10 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Create new address
-  app.post('/api/addresses', isAuthenticated, async (req: AuthRequest, res: Response) => {
+  app.post('/api/addresses', isAuthenticated, async (req: Request, res: Response) => {
+    const authReq = req as unknown as AuthRequest;
     try {
-      const userId = req.user?.id;
+      const userId = authReq.user?.id;
       const vendorId = parseInt(req.body.vendorId as string);
       
       if (!vendorId) {
@@ -72,10 +73,10 @@ export default function registerAddressRoutes(app: Express) {
       if (!customer) {
         // Create a new customer profile for this vendor
         customer = await storage.createCustomer({
-          email: req.user?.email || '',
-          firstName: req.user?.firstName || null,
-          lastName: req.user?.lastName || null,
-          phone: req.user?.phone || null,
+          email: authReq.user?.email || '',
+          firstName: authReq.user?.firstName || null,
+          lastName: authReq.user?.lastName || null,
+          phone: authReq.user?.phone || null,
           vendorId: vendorId,
           totalOrders: 0,
           totalSpent: "0.00"
@@ -110,7 +111,9 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Update address
-  app.put('/api/addresses/:id', isAuthenticated, async (req: AuthRequest, res: Response) => {
+  app.put('/api/addresses/:id', isAuthenticated, async (req: Request, res: Response) => {
+    // Cast req to AuthRequest to access user property
+    const authReq = req as unknown as AuthRequest;
     try {
       const addressId = parseInt(req.params.id);
       if (isNaN(addressId)) {
@@ -124,7 +127,7 @@ export default function registerAddressRoutes(app: Express) {
       }
       
       // Get customer to verify ownership
-      const customer = await storage.getCustomerByUserId(req.user?.id, req.body.vendorId);
+      const customer = await storage.getCustomerByUserId(authReq.user?.id, req.body.vendorId);
       if (!customer || address.customerId !== customer.id) {
         return res.status(403).json({ message: "Not authorized to update this address" });
       }
@@ -156,7 +159,8 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Delete address
-  app.delete('/api/addresses/:id', isAuthenticated, async (req: AuthRequest, res: Response) => {
+  app.delete('/api/addresses/:id', isAuthenticated, async (req: Request, res: Response) => {
+    const authReq = req as unknown as AuthRequest;
     try {
       const addressId = parseInt(req.params.id);
       if (isNaN(addressId)) {
@@ -175,7 +179,7 @@ export default function registerAddressRoutes(app: Express) {
         return res.status(400).json({ message: "Vendor ID is required" });
       }
       
-      const customer = await storage.getCustomerByUserId(req.user?.id, vendorId);
+      const customer = await storage.getCustomerByUserId(authReq.user?.id, vendorId);
       if (!customer || address.customerId !== customer.id) {
         return res.status(403).json({ message: "Not authorized to delete this address" });
       }
@@ -200,7 +204,9 @@ export default function registerAddressRoutes(app: Express) {
   });
   
   // Set address as default
-  app.post('/api/addresses/:id/set-default', isAuthenticated, async (req: AuthRequest, res: Response) => {
+  app.post('/api/addresses/:id/set-default', isAuthenticated, async (req: Request, res: Response) => {
+    // Cast req to AuthRequest to access user property
+    const authReq = req as unknown as AuthRequest;
     try {
       const addressId = parseInt(req.params.id);
       if (isNaN(addressId)) {
@@ -219,7 +225,7 @@ export default function registerAddressRoutes(app: Express) {
         return res.status(400).json({ message: "Vendor ID is required" });
       }
       
-      const customer = await storage.getCustomerByUserId(req.user?.id, vendorId);
+      const customer = await storage.getCustomerByUserId(authReq.user?.id, vendorId);
       if (!customer || address.customerId !== customer.id) {
         return res.status(403).json({ message: "Not authorized to update this address" });
       }

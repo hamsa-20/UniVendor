@@ -637,7 +637,7 @@ function Router({
       <Route path="/products/:id">
         {params => (
           <PrivateRoute roles={["vendor"]}>
-            <ProductDetails id={params.id} />
+            <ProductDetails product={params.id} />
           </PrivateRoute>
         )}
       </Route>

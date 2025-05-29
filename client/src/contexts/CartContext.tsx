@@ -1,367 +1,235 @@
-import React, { createContext, useContext, ReactNode, useEffect, useState } from 'react';
-import { useCart } from '@/hooks/useCart';
-import { useLocalCart, LocalCartItem, LocalCart } from '@/hooks/useLocalCart';
-import { useAuth } from '@/contexts/AuthContext';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { localToServerCartItem } from '@/utils/cartUtils';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
-// Interface for server cart hook return type
-interface ServerCartHook {
-  cart: {
-    id?: number;
-    userId?: number | null;
-    sessionId?: string | null;
-    vendorId?: number;
-    items: Array<{
-      id: number;
-      productId: number;
-      name: string;
-      price: string;
-      quantity: number;
-      imageUrl: string | null;
-      variant: string | null;
-    }>;
-    subtotal: string;
-    tax: string;
-    total: string;
-  } | null;
-  isLoading: boolean;
-  error: Error | null;
-  addToCart: (item: any) => void;
-  updateQuantity: (itemId: number, quantity: number) => void;
-  removeItem: (itemId: number) => void;
-  clearCart: () => void;
-  getCartSummary: () => {
-    subtotal: string;
-    tax: string;
-    total: string;
-    itemCount: number;
-  };
-  isAddingToCart: boolean;
-  isUpdatingQuantity: boolean;
-  isRemovingItem: boolean;
-  isClearingCart: boolean;
-  refetchCart: () => void;
-}
-
-// Interface for local cart hook return type
-interface LocalCartHook {
-  cart: LocalCart;
-  isLoading: boolean;
-  addToCart: (item: Omit<LocalCartItem, 'id'>) => void;
-  updateQuantity: (itemId: string, quantity: number) => void;
-  removeItem: (itemId: string) => void;
-  clearCart: () => void;
-  getCartSummary: () => {
-    subtotal: string;
-    tax: string;
-    total: string;
-    itemCount: number;
-  };
-  getFullCart: () => LocalCart;
-}
-
-// Define unified cart item type that works for both local and server contexts
-export type UnifiedCartItem = {
-  id: string | number;
-  productId: number;
+// Types
+export interface CartItem {
+  id: string;
   name: string;
-  price: string;
+  price: number;
   quantity: number;
-  imageUrl: string | null;
-  variant: string | null;
-  colorHex?: string | null;
-  size?: string | null;
-  vendorId: number;
-};
+  image?: string;
+  [key: string]: any;
+}
 
-// Define unified cart type
-export type UnifiedCart = {
-  items: UnifiedCartItem[];
-  subtotal: string;
-  tax: string;
-  total: string;
-};
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  image?: string;
+  [key: string]: any;
+}
 
-// Type definitions for the combined cart functionality
-export type CartContextType = {
-  cart: UnifiedCart;
-  isLoading: boolean;
-  addToCart: (item: Omit<UnifiedCartItem, 'id'>) => void;
-  updateQuantity: (itemId: string | number, quantity: number) => void;
-  removeItem: (itemId: string | number) => void;
+export interface CartContextType {
+  cart: CartItem[];
+  loading: boolean;
+  addToCart: (product: Product, quantity?: number) => void;
+  removeFromCart: (productId: string) => void;
+  updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
-  getCartSummary: () => {
-    subtotal: string;
-    tax: string;
-    total: string;
-    itemCount: number;
+  mergeGuestCart: () => Promise<void>;
+  getCartTotal: () => number;
+  getCartItemCount: () => number;
+}
+
+// Create the context
+const CartContext = createContext<CartContextType | undefined>(undefined);
+
+interface CartProviderProps {
+  children: ReactNode;
+}
+
+export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // Safe localStorage access
+  const getFromLocalStorage = (key: string): any => {
+    try {
+      if (typeof window !== 'undefined') {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : null;
+      }
+    } catch (error) {
+      console.error(`Error reading from localStorage (${key}):`, error);
+    }
+    return null;
   };
-  isAddingToCart: boolean;
-  isUpdatingQuantity: boolean;
-  isRemovingItem: boolean;
-  isClearingCart: boolean;
-  refetchCart: () => void;
-  error: Error | null;
-};
 
-const CartContext = createContext<CartContextType | null>(null);
+  const setToLocalStorage = (key: string, value: any): void => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    } catch (error) {
+      console.error(`Error writing to localStorage (${key}):`, error);
+    }
+  };
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [isReady, setIsReady] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  
-  // Get authentication status - with defaults in case AuthContext fails
-  const auth = useAuth() || { user: null, isAuthenticated: false, isLoading: true };
-  const { user, isAuthenticated, isLoading: isAuthLoading } = auth;
-  
-  // Initialize cart hooks with error handling
-  let serverCart: ServerCartHook | undefined;
-  let localCart: LocalCartHook | undefined;
-  
-  try {
-    serverCart = useCart() as ServerCartHook;
-  } catch (err) {
-    console.error("Error initializing server cart:", err);
-    setError(err instanceof Error ? err : new Error("Failed to initialize server cart"));
-  }
-  
-  try {
-    localCart = useLocalCart() as LocalCartHook;
-  } catch (err) {
-    console.error("Error initializing local cart:", err);
-    setError(err instanceof Error ? err : new Error("Failed to initialize local cart"));
-  }
-  
-  const { toast } = useToast();
-
-  // Merge local cart with server cart when user logs in
+  // Load cart from localStorage on mount
   useEffect(() => {
-    // Safety check to ensure all dependencies are available
-    if (!localCart || !serverCart) {
-      return;
+    const savedCart = getFromLocalStorage('univendor_cart');
+    if (savedCart && Array.isArray(savedCart)) {
+      setCart(savedCart);
     }
-    
-    // Only run if user just logged in and we have items in local cart
-    if (isAuthenticated && !isAuthLoading && localCart.cart && localCart.cart.items && localCart.cart.items.length > 0) {
-      const mergeLocalCartWithServer = async () => {
-        try {
-          // For each item in the local cart
-          for (const item of localCart.cart.items) {
-            // Convert local cart item to server format
-            await serverCart.addToCart(localToServerCartItem(item));
-          }
-          
-          // Clear the local cart after successful merge
-          localCart.clearCart();
-          
-          // Notify user
-          toast({
-            title: "Cart Updated",
-            description: "Your cart items have been saved to your account",
-          });
-        } catch (error) {
-          console.error('Error merging carts:', error);
-          toast({
-            title: "Error",
-            description: "Failed to merge your cart items with your account",
-            variant: "destructive",
-          });
+  }, []);
+
+  // Save cart to localStorage whenever cart changes
+  useEffect(() => {
+    setToLocalStorage('univendor_cart', cart);
+  }, [cart]);
+
+  const addToCart = (product: Product, quantity: number = 1): void => {
+    try {
+      if (!product || !product.id) {
+        throw new Error('Invalid product');
+      }
+
+      setCart(prevCart => {
+        const existingItem = prevCart.find(item => item.id === product.id);
+        
+        if (existingItem) {
+          return prevCart.map(item =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + quantity }
+              : item
+          );
+        } else {
+          return [...prevCart, { ...product, quantity }];
         }
-      };
+      });
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+    }
+  };
+
+  const removeFromCart = (productId: string): void => {
+    try {
+      setCart(prevCart => prevCart.filter(item => item.id !== productId));
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+    }
+  };
+
+  const updateQuantity = (productId: string, quantity: number): void => {
+    try {
+      if (quantity <= 0) {
+        removeFromCart(productId);
+        return;
+      }
+
+      setCart(prevCart =>
+        prevCart.map(item =>
+          item.id === productId
+            ? { ...item, quantity }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+    }
+  };
+
+  const clearCart = (): void => {
+    try {
+      setCart([]);
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+    }
+  };
+
+  const mergeGuestCart = async (): Promise<void> => {
+    try {
+      setLoading(true);
       
-      mergeLocalCartWithServer();
-    }
-    
-    setIsReady(true);
-  }, [isAuthenticated, isAuthLoading, localCart, serverCart, toast]);
+      // Get guest cart from localStorage
+      const guestCart = getFromLocalStorage('univendor_guest_cart');
+      
+      if (guestCart && Array.isArray(guestCart) && guestCart.length > 0) {
+        // Merge guest cart with current cart
+        setCart(prevCart => {
+          const mergedCart = [...prevCart];
+          
+          guestCart.forEach((guestItem: CartItem) => {
+            const existingItem = mergedCart.find(item => item.id === guestItem.id);
+            
+            if (existingItem) {
+              // Update quantity if item already exists
+              existingItem.quantity += guestItem.quantity;
+            } else {
+              // Add new item
+              mergedCart.push(guestItem);
+            }
+          });
+          
+          return mergedCart;
+        });
 
-  // Default empty cart matching our unified type
-  const defaultCart: UnifiedCart = { 
-    items: [], 
-    subtotal: "0.00", 
-    tax: "0.00", 
-    total: "0.00" 
-  };
-  
-  // Determine which cart to use based on authentication status
-  const cart: UnifiedCart = isAuthenticated && serverCart ? (serverCart.cart as UnifiedCart || defaultCart) : (localCart ? localCart.cart : defaultCart);
-  const isLoading = !isReady || (isAuthenticated ? (serverCart ? serverCart.isLoading : true) : (localCart ? localCart.isLoading : true));
-  
-  // Add to cart (handles authenticated and guest users)
-  const addToCart = (item: any) => {
-    try {
-      if (isAuthenticated && serverCart) {
-        // Use server cart
-        serverCart.addToCart(item);
-      } else if (localCart) {
-        // Use local cart - convert format if needed
-        const localItem: Omit<LocalCartItem, 'id'> = {
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          imageUrl: item.imageUrl || null,
-          variant: item.variant || null,
-          colorHex: item.colorHex || null,
-          size: item.size || null,
-          vendorId: item.vendorId
-        };
-        
-        localCart.addToCart(localItem);
-        
-        toast({
-          title: "Added to cart",
-          description: "Item has been added to your cart",
-        });
-      } else {
-        console.error("Neither server cart nor local cart available");
-        toast({
-          title: "Error",
-          description: "Unable to add item to cart",
-          variant: "destructive"
-        });
+        // Clear guest cart after merging
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('univendor_guest_cart');
+        }
       }
-    } catch (err) {
-      console.error("Error adding to cart:", err);
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  // Update quantity
-  const updateQuantity = (itemId: any, quantity: number) => {
-    try {
-      if (isAuthenticated && serverCart) {
-        serverCart.updateQuantity(itemId, quantity);
-      } else if (localCart) {
-        localCart.updateQuantity(itemId, quantity);
-      } else {
-        console.error("Neither server cart nor local cart available");
-      }
-    } catch (err) {
-      console.error("Error updating quantity:", err);
-    }
-  };
-  
-  // Remove item
-  const removeItem = (itemId: any) => {
-    try {
-      if (isAuthenticated && serverCart) {
-        serverCart.removeItem(itemId);
-      } else if (localCart) {
-        localCart.removeItem(itemId);
-        toast({
-          title: "Removed from cart",
-          description: "Item has been removed from your cart",
-        });
-      } else {
-        console.error("Neither server cart nor local cart available");
-      }
-    } catch (err) {
-      console.error("Error removing item:", err);
-      toast({
-        title: "Error",
-        description: "Failed to remove item from cart",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  // Clear cart
-  const clearCart = () => {
-    try {
-      if (isAuthenticated && serverCart) {
-        serverCart.clearCart();
-      } else if (localCart) {
-        localCart.clearCart();
-        toast({
-          title: "Cart cleared",
-          description: "All items have been removed from your cart",
-        });
-      } else {
-        console.error("Neither server cart nor local cart available");
-      }
-    } catch (err) {
-      console.error("Error clearing cart:", err);
-      toast({
-        title: "Error",
-        description: "Failed to clear cart",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  // Get cart summary
-  const getCartSummary = () => {
-    try {
-      if (isAuthenticated && serverCart) {
-        return serverCart.getCartSummary();
-      } else if (localCart) {
-        return localCart.getCartSummary();
-      }
-    } catch (err) {
-      console.error("Error getting cart summary:", err);
-    }
-    
-    // Default summary if error or not available
-    return {
-      subtotal: "0.00",
-      tax: "0.00",
-      total: "0.00",
-      itemCount: 0,
-    };
-  };
-  
-  // Refetch cart
-  const refetchCart = () => {
-    try {
-      if (isAuthenticated && serverCart) {
-        serverCart.refetchCart();
-      }
-      // No equivalent for local cart as it's already in sync
-    } catch (err) {
-      console.error("Error refetching cart:", err);
+    } catch (error) {
+      console.error('Error merging guest cart:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Fallbacks for loading states
-  const isAddingToCart = isAuthenticated && serverCart ? serverCart.isAddingToCart : false;
-  const isUpdatingQuantity = isAuthenticated && serverCart ? serverCart.isUpdatingQuantity : false;
-  const isRemovingItem = isAuthenticated && serverCart ? serverCart.isRemovingItem : false;
-  const isClearingCart = isAuthenticated && serverCart ? serverCart.isClearingCart : false;
-  
+  const getCartTotal = (): number => {
+    try {
+      return cart.reduce((total, item) => {
+        const price = parseFloat(String(item.price)) || 0;
+        const quantity = parseInt(String(item.quantity)) || 0;
+        return total + (price * quantity);
+      }, 0);
+    } catch (error) {
+      console.error('Error calculating cart total:', error);
+      return 0;
+    }
+  };
+
+  const getCartItemCount = (): number => {
+    try {
+      return cart.reduce((count, item) => count + (parseInt(String(item.quantity)) || 0), 0);
+    } catch (error) {
+      console.error('Error calculating cart item count:', error);
+      return 0;
+    }
+  };
+
+  const value: CartContextType = {
+    cart,
+    loading,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    mergeGuestCart,
+    getCartTotal,
+    getCartItemCount,
+  };
+
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        isLoading,
-        addToCart,
-        updateQuantity,
-        removeItem,
-        clearCart,
-        getCartSummary,
-        isAddingToCart,
-        isUpdatingQuantity,
-        isRemovingItem,
-        isClearingCart,
-        refetchCart,
-        error
-      }}
-    >
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );
-}
+};
 
-export function useCartContext() {
+// Export the hook with the correct name
+export const useCart = (): CartContextType => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+};
+
+// Export the hook with the alternative name for compatibility
+export const useCartContext = (): CartContextType => {
   const context = useContext(CartContext);
   if (!context) {
     throw new Error('useCartContext must be used within a CartProvider');
   }
   return context;
-}
+};
